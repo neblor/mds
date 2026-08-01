@@ -2,12 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
 
 const testPaths = vi.hoisted(() => ({
-	definitionsFile: "/tmp/mds-definitions-route-test.json",
+	rootDir: "/tmp/mds-definitions-route-test",
+	definitionsFile: "/tmp/mds-definitions-route-test/definitions.json",
 }));
 
-vi.mock("~/lib/word-cache", () => ({
-	definitionsFile: testPaths.definitionsFile,
-}));
+vi.mock("~/lib/cache-storage", async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import("~/lib/cache-storage")>();
+	return {
+		...actual,
+		runtimeCache: actual.createRuntimeCacheStorage({
+			mode: "web",
+			rootDir: testPaths.rootDir,
+		}),
+	};
+});
 
 import { POST } from "./definitions";
 
@@ -28,12 +37,16 @@ function eventFor(words: string[]) {
 }
 
 function aiResponse(definitions: { word: string; definition: string }[]) {
+	return aiContentResponse(JSON.stringify({ definitions }));
+}
+
+function aiContentResponse(content: unknown) {
 	return new Response(
 		JSON.stringify({
 			choices: [
 				{
 					message: {
-						content: JSON.stringify({ definitions }),
+						content,
 					},
 				},
 			],
@@ -147,7 +160,7 @@ describe("POST /api/definitions 原型属性与键过滤", () => {
 		expect(cache.defs).toEqual({ apple: "A round fruit." });
 	});
 
-	it("全部释义含中文 → 无有效释义（empty 错误），不写缓存", async () => {
+	it("全部释义含中文时继续流程、不写负缓存", async () => {
 		const fetchMock = vi
 			.fn()
 			.mockResolvedValue(
@@ -156,7 +169,11 @@ describe("POST /api/definitions 原型属性与键过滤", () => {
 		vi.stubGlobal("fetch", fetchMock);
 
 		const result = await POST(eventFor(["apple"]));
-		expect(result).toMatchObject({ error: "empty" });
+		expect(result).toMatchObject({
+			definitions: {},
+			missing: ["apple"],
+			warning: "AI 未返回任何有效释义，请重试",
+		});
 		expect(existsSync(testPaths.definitionsFile)).toBe(false);
 	});
 
@@ -178,5 +195,76 @@ describe("POST /api/definitions 原型属性与键过滤", () => {
 			readFileSync(testPaths.definitionsFile, "utf8"),
 		) as { defs: Record<string, string> };
 		expect(cache.defs).toEqual({ banana: "A long yellow fruit." });
+	});
+});
+
+describe("POST /api/definitions OpenAI 兼容响应解析", () => {
+	beforeEach(() => {
+		if (existsSync(testPaths.definitionsFile))
+			unlinkSync(testPaths.definitionsFile);
+	});
+
+	afterEach(() => {
+		if (existsSync(testPaths.definitionsFile))
+			unlinkSync(testPaths.definitionsFile);
+		vi.unstubAllGlobals();
+	});
+
+	it("支持客户端供应商返回的 content parts 和 Markdown JSON 代码块", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(
+				aiContentResponse([
+					{
+						type: "text",
+						text: '```json\n{"definitions":[{"word":"apple","definition":"A round fruit."}]}\n```',
+					},
+				]),
+			),
+		);
+
+		const result = await POST(eventFor(["example", "apple"]));
+		expect(result).toMatchObject({
+			definitions: { apple: "A round fruit." },
+			missing: ["example"],
+		});
+		expect(
+			JSON.parse(readFileSync(testPaths.definitionsFile, "utf8")),
+		).toMatchObject({ defs: { apple: "A round fruit." } });
+	});
+
+	it("跳过前置说明 JSON，继续查找最终释义 JSON", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(
+				aiContentResponse(
+					'analysis {"example":true}\n```json\n{"definitions":{"apple":"A round fruit."}}\n```',
+				),
+			),
+		);
+
+		const result = await POST(eventFor(["example", "apple"]));
+		expect(result).toMatchObject({
+			definitions: { apple: "A round fruit." },
+			missing: ["example"],
+		});
+	});
+
+	it("没有 JSON 时带警告继续，且下次仍重新请求", async () => {
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValue(aiContentResponse("I could not create the definitions."));
+		vi.stubGlobal("fetch", fetchMock);
+
+		const first = await POST(eventFor(["apple"]));
+		const second = await POST(eventFor(["apple"]));
+		expect(first).toMatchObject({
+			definitions: {},
+			missing: ["apple"],
+			warning: "AI 未返回 JSON 格式的释义",
+		});
+		expect(second).toMatchObject({ missing: ["apple"] });
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		expect(existsSync(testPaths.definitionsFile)).toBe(false);
 	});
 });

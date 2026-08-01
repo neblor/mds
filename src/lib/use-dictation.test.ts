@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./api", () => ({
-	audioUrl: (name: string) => `/word-cache/${encodeURIComponent(name)}`,
+	audioUrl: (name: string) => `/api/audio?name=${encodeURIComponent(name)}`,
 	requestTtsAll: mocks.requestTtsAll,
 	requestDefinitions: mocks.requestDefinitions,
 	playWithIntervals: mocks.playWithIntervals,
@@ -481,6 +481,52 @@ describe("useDictation 完整流程衔接（结果页）", () => {
 		await flushAsyncWork();
 		await vi.runAllTimersAsync();
 		expect(d.phase()).toBe("results");
+	});
+
+	it("结果行保留音频名，试听只播一遍，失败淘汰缓存且关闭页面会中止", async () => {
+		mounted = mountDictation();
+		const d = mounted.dictation;
+		d.addWord("apple");
+		d.startDictation("cyber");
+		await flushAsyncWork();
+		d.go();
+
+		// 当前轮进入间隔后提交，立即到结果页。
+		audioStateCbs[0](true);
+		audioStateCbs[0](false);
+		d.setWordInput("apple");
+		d.submitWord();
+		expect(d.phase()).toBe("results");
+		expect(d.resultRows()[0]).toMatchObject({
+			word: "apple",
+			audioName: "apple.mp3",
+		});
+
+		d.playResultAudio("apple.mp3");
+		const preview = mocks.playWithIntervals.mock.calls[1][0] as PlayOptions;
+		expect(preview).toMatchObject({
+			url: "/api/audio?name=apple.mp3",
+			count: 1,
+			gapsMs: [0],
+		});
+		preview.onAudioState(true);
+		expect(d.resultAudioName()).toBe("apple.mp3");
+		preview.onPlaybackFailure?.("media-error");
+		expect(mocks.invalidateCacheFile).toHaveBeenCalledWith("apple.mp3");
+
+		// 发音按钮取得焦点时按 Enter 应播放按钮本身，不能被全局快捷键关闭结果页。
+		d.onRootKeyDown({
+			key: "Enter",
+			code: "Enter",
+			target: { tagName: "BUTTON", isContentEditable: false },
+			preventDefault: vi.fn(),
+		} as unknown as KeyboardEvent);
+		expect(d.phase()).toBe("results");
+
+		d.closeResults();
+		expect(preview.signal.aborted).toBe(true);
+		expect(d.resultAudioName()).toBeNull();
+		expect(d.phase()).toBe("idle");
 	});
 
 	it("书写模式最后一轮空格跳过后立即进入并留在 results", async () => {

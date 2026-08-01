@@ -1,18 +1,30 @@
 /**
- * 缓存目录（服务端共享）
- * 定在 public/word-cache/ 下：web 模式下 public 是静态可访问目录，client 模式同样不影响流程。
- * 音频按词+音色缓存；释义缓存在同一目录（不随音色走）。
+ * 运行时缓存目录（服务端共享）。缓存与构建期 public 静态资源完全分离：
+ * web 默认写入 <cwd>/.mds-data/word-cache，也可由 MDS_CACHE_DIR 覆盖；
+ * client 必须由 Electron 主进程注入外置绝对路径。
  */
-import { join } from "node:path";
-import { mkdirSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 export const VOICE = "en-US-AvaNeural";
-/**
- * 缓存根目录：默认 <cwd>/public/word-cache（web 模式）；
- * electron 桌面端由主进程设置 MDS_CACHE_DIR 指向 userData（可写、持久、不污染安装目录）
- */
-export const cacheDir =
-	process.env.MDS_CACHE_DIR ?? join(process.cwd(), "public", "word-cache");
-/** 释义缓存文件（{ model, defs }，与音色无关） */
-export const definitionsFile = join(cacheDir, "definitions.json");
-mkdirSync(cacheDir, { recursive: true });
+export type RuntimeMode = "web" | "client";
+
+export function resolveRuntimeMode(
+	env: NodeJS.ProcessEnv = process.env,
+): RuntimeMode {
+	return env.MDS_RUNTIME_MODE === "client" ? "client" : "web";
+}
+
+export function resolveCacheDir(
+	env: NodeJS.ProcessEnv = process.env,
+	cwd = process.cwd(),
+): string {
+	const configured = env.MDS_CACHE_DIR?.trim();
+	if (configured) return resolve(cwd, configured);
+	if (resolveRuntimeMode(env) === "client") {
+		throw new Error("client 模式必须由主进程设置 MDS_CACHE_DIR");
+	}
+	return join(cwd, ".mds-data", "word-cache");
+}
+
+export const runtimeMode = resolveRuntimeMode();
+export const cacheDir = resolveCacheDir();

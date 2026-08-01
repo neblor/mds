@@ -23,6 +23,7 @@ app.config.timestamp_*.js
 
 # Test / TypeScript generated files
 coverage/
+.tmp/
 *.tsbuildinfo
 
 # IDEs and editors
@@ -47,5 +48,8 @@ Thumbs.db
 # 语音缓存（运行时生成）
 voice-cache/
 
-# 运行时缓存（public 下的生成数据）
+# 运行时缓存（当前路径）
+.mds-data/
+
+# 旧版运行时缓存路径（仅用于避免迁移前数据误入库）
 public/word-cache/

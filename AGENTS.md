@@ -20,13 +20,80 @@
   - DaisyUI + HeadlessUI 快速拼出要用的组件降低开发量
   - Lucide Icon (for solid version)
 
+## 项目脚本
+
+所有开发、测试、构建、运行和打包命令都必须从项目根目录通过`pnpm`执行，不使用`npm`、`npx`或 Deno 代替已有脚本。
+
+### 通用入口
+
+| 命令 | 用途 |
+| --- | --- |
+| `pnpm dev` | `pnpm web:dev`的常用别名 |
+| `pnpm build` | `pnpm web:build`的常用别名 |
+| `pnpm start` | `pnpm web:start`的常用别名，只启动已有生产构建 |
+| `pnpm preview` | `pnpm web:preview`的常用别名 |
+| `pnpm test` | `pnpm test:run`的常用别名，单次运行全部 Vitest |
+| `pnpm check` | 完整 Web 交付检查：Vitest → Web 生产构建 → Web 生产冒烟 |
+
+### Web 模式
+
+| 命令 | 用途与前置条件 |
+| --- | --- |
+| `pnpm web:dev` | 启动 Vite/SolidStart 开发服务，固定端口`5199` |
+| `pnpm web:build` | 生成 Web/Nitro 生产产物到`.output/` |
+| `pnpm web:start` | 启动已有`.output`生产服务；默认`127.0.0.1:3000`，不会自动构建 |
+| `pnpm web:prod` | 先生产构建，再启动 Web 生产服务 |
+| `pnpm web:preview` | 使用 Vite preview 预览已有构建，仅用于本地检查，不作为正式生产启动方式 |
+| `pnpm web:smoke` | 对已有`.output`使用随机本机端口做 HTTP 200 与缓存路由冒烟，完成后自动停止；通常由`pnpm check`调用 |
+
+`web:start`支持命令行参数，也兼容同名环境变量：
+
+```bash
+pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
+```
+
+- 参数：`--host`、`--port`、`--cache-dir`。
+- 环境变量：`HOST`/`NITRO_HOST`、`PORT`/`NITRO_PORT`、`MDS_CACHE_DIR`。
+- 命令行参数优先于环境变量；未指定缓存目录时使用项目`.mds-data/word-cache`。
+- 当前 Nitro 3 beta 的 node-server listener 不会单独维持 Node 事件循环，生产启动必须经过`scripts/start-web.mjs`保活，不得退回直接执行`node .output/server/index.mjs`。
+
+### 测试
+
+| 命令 | 用途 |
+| --- | --- |
+| `pnpm test:run` | 单次运行全部 Vitest，适用于交付与 CI |
+| `pnpm test:watch` | 启动 Vitest watch，适用于开发过程 |
+| `pnpm test:run -- src/lib/example.test.ts` | 只运行指定测试文件 |
+
+测试统一通过`scripts/run-vitest.mjs`启动，并把`TEMP`、`TMP`、`TMPDIR`指向已忽略的`.tmp/vitest`，避免 WSL 继承 Windows 临时目录导致测试池启动失败。不要绕过该入口直接调用 Vitest。
+
+### Electron Client 模式
+
+| 命令 | 用途与输出 |
+| --- | --- |
+| `pnpm client:start` | 使用当前已有`.output`启动 Electron；不会自动重新构建 |
+| `pnpm client:dev` | 先执行 Web 生产构建，再启动 Electron，适合本地联调 |
+| `pnpm client:package:dir` | 构建并生成快速调试用`dist/electron/win-unpacked/`，不生成交付 EXE |
+| `pnpm client:package` | 正式交付入口：`check` → Windows portable 打包 → 包内容校验 |
+| `pnpm client:verify` | 校验现有 portable EXE 的 MZ 头、必要运行文件，以及包内无`node_modules`和`word-cache` |
+| `pnpm electron:start` | `pnpm client:start`的兼容别名 |
+| `pnpm electron:build` | `pnpm client:package`的兼容别名 |
+
+- 正式发布必须使用`pnpm client:package`或其`electron:build`别名，产物为`dist/electron/mds-<version>-x64.exe`。
+- `client:package:dir`仅用于快速排查 Electron 启动与包内容，不是交付形式。
+- Client 启动依赖`.output`，需要最新业务代码时使用`client:dev`，不要直接运行可能陈旧的`client:start`。
+- electron-builder 下载运行时和 NSIS 资源时需要网络；Linux/WSL 交叉构建 Windows 产物还需要可用的 Wine 环境。
+
 ## 项目输出形式
 
 项目使用`electron`方案输出为**单文件**（不需要安装、双击运行）的 Windows 桌面应用（暂不考虑其他平台）:
 
 - 主进程：`electron/main.mjs` — 启动内置 nitro server（`.output/server/index.mjs`，import 即监听）+ BrowserWindow 加载 `http://127.0.0.1:4827`
-- 缓存目录：主进程设 `MDS_CACHE_DIR` 指向 `userData/word-cache`（可写、持久；web 模式仍用 `public/word-cache`）
-- 打包：`pnpm electron:build`（= `pnpm build` + `electron-builder --win portable`，产出 `dist/electron/mds-<version>-x64.exe` 单文件）
+- 运行时缓存不得写入或打包进静态 `public`：Web 默认使用项目 `.mds-data/word-cache`（部署时可用 `MDS_CACHE_DIR` 覆盖）；Electron portable 优先使用 exe 同目录的 `mds-data/word-cache`，目录不可写时回退到 `userData/mds-data/word-cache`
+- Client 主进程必须在启动内置服务前设置 `MDS_RUNTIME_MODE=client` 和 `MDS_CACHE_DIR`；业务层通过 `/api/audio` 动态读取外置音频，不依赖静态目录
+- Electron 主窗口默认及最大尺寸为 `1120×820`，最小尺寸为各边约三分之二的 `747×547`；允许在该范围内缩放，但必须禁用最大化和全屏
+- 音频与释义缓存的命中、读取、原子写入和失效必须通过统一的 runtime cache storage 接口完成，由工厂按 Web/Client 环境选择实现；业务路由不得直接操作缓存文件或自行判断运行环境
+- 打包：`pnpm client:package`（`pnpm electron:build`为兼容别名），产出`dist/electron/mds-<version>-x64.exe`单文件
 - 交叉打包（Linux → Windows）需要 wine；Windows 上直接 `pnpm electron:build`
 - 打包下载镜像：`ELECTRON_MIRROR`/`ELECTRON_BUILDER_BINARIES_MIRROR` 指向 npmmirror 加速
 
@@ -96,9 +163,11 @@
       - 赛博默写中，用户完成当前轮要求的全部输入并提交后，可以忽略尚未结束的倒计时；语音轨结束后立即进入下一轮
       - 书写默写中，语音未处于实际发声状态时按空格，可以忽略倒计时并中止当前轮余下播报，直接进入下一轮
   - 音频加载或播放失败时不能让整场默写永久卡住，应结束当前轮的语音等待并允许流程继续；如果失败可归因于缓存文件缺失、损坏或格式错误，必须清除对应缓存，避免错误文件被持续命中，后续准备时重新生成
-  - AI 只返回部分释义时不能因此卡死整个准备流程，可以带着已取得的释义继续；只缓存经过校验的有效释义，不得把缺失项或失败状态作为负缓存，保证下次准备仍会重新请求缺失释义
+  - TTS 接口只有在确认响应中列出的每个音频文件已经写入并可读取后才能返回成功；请求中止、合成失败或写入失败都不得返回一个并不存在的缓存文件名
+  - AI 只返回部分释义、非标准内容块或无法解析的内容时不能因此卡死整个准备流程，可以带着已取得的释义继续；只缓存经过校验的有效英文释义，不得把缺失项或失败状态作为负缓存，保证下次准备仍会重新请求缺失释义
 - 全部默完后，显示默完了，提供`查看结果`按钮：
   - 点击后显示答案，如果是赛博模式，每个答案上面显示用户输入内容做对照
+  - 每个结果单词右侧提供 Lucide 发音图标，点击后单独播放一次该词在本轮准备阶段生成的发音；同一时间只播放一个试听，关闭结果页时停止，媒体失败仍需淘汰对应缓存
   - 对单词部分做对错判断，错误的可以做个背景标浅红，对的标浅绿等
   - 释义部分不批改让用户自己对照着看
   - 给出单词对错的数量对比`<correct count>/<total words>`

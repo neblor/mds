@@ -1,8 +1,9 @@
 import { For, Show, createMemo } from "solid-js";
-import { Check, X, Sparkles, Star } from "lucide-solid";
+import { Check, X, Sparkles, Star, Volume2 } from "lucide-solid";
 
 export interface ResultRow {
 	word: string;
+	audioName: string;
 	definition?: string;
 	answer?: string;
 	answerDef?: string;
@@ -14,6 +15,8 @@ interface Props {
 	rows: ResultRow[];
 	mode: "writing" | "cyber";
 	withDefinition: boolean;
+	playingAudioName: string | null;
+	onPlayAudio: (audioName: string) => void;
 	onClose: () => void;
 }
 
@@ -92,7 +95,26 @@ export default function ResultsView(props: Props) {
 								)}
 							</Show>
 							<div class="flex min-w-0 flex-1 flex-col">
-								<span class="text-base font-semibold text-ink">{r.word}</span>
+								<div class="flex items-center gap-2">
+									<span class="text-base font-semibold text-ink">{r.word}</span>
+									<button
+										type="button"
+										class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink-faint transition hover:bg-brand/10 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-35"
+										disabled={!r.audioName}
+										onClick={() => props.onPlayAudio(r.audioName)}
+										aria-label={`播放 ${r.word} 的发音`}
+										title={`播放 ${r.word} 的发音`}
+										aria-pressed={props.playingAudioName === r.audioName}
+									>
+										<Volume2
+											class={`h-4 w-4 ${
+												props.playingAudioName === r.audioName
+													? "animate-pulse text-brand"
+													: ""
+											}`}
+										/>
+									</button>
+								</div>
 								<Show when={r.definition}>
 									<span class="truncate text-[13px] text-ink-faint">
 										{r.definition}

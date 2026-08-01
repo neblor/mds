@@ -7,9 +7,17 @@ import { join } from "node:path";
 
 const testCacheDir = vi.hoisted(() => "/tmp/mds-cache-invalidate-test");
 
-vi.mock("~/lib/word-cache", () => ({
-	cacheDir: testCacheDir,
-}));
+vi.mock("~/lib/cache-storage", async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import("~/lib/cache-storage")>();
+	return {
+		...actual,
+		runtimeCache: actual.createRuntimeCacheStorage({
+			mode: "web",
+			rootDir: testCacheDir,
+		}),
+	};
+});
 
 import { POST } from "./cache-invalidate";
 

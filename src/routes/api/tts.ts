@@ -6,12 +6,10 @@
  * 服务端运行在 Deno（deno desktop）或 Node（vite dev）下，node:fs 两者兼容。
  */
 import { HTTPError } from "h3";
-import { existsSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { randomUUID } from "node:crypto";
-import { join } from "node:path";
 import { EdgeTTS } from "edge-tts-universal";
+import { runtimeCache } from "~/lib/cache-storage";
 import { cacheFileName } from "~/lib/tts-filename";
-import { VOICE, cacheDir } from "~/lib/word-cache";
+import { VOICE } from "~/lib/word-cache";
 import { readJsonBody, extractWords, type RouteEvent } from "~/lib/server-body";
 
 export interface TtsItem {
@@ -37,27 +35,25 @@ async function synthOne(
 	const tts = new EdgeTTS(word, voice);
 	const result = await tts.synthesize();
 	const buf = await result.audio.arrayBuffer();
-	// 合成返回后检查中止：已中止则丢弃结果、不写缓存（不污染缓存也不消耗后续流程）
-	if (isAborted()) return;
+	// 合成返回后检查中止：已中止则丢弃结果，并让路由明确失败，不能返回不存在的文件名。
+	if (isAborted()) {
+		throw new HTTPError({
+			status: 499,
+			statusText: "aborted",
+			message: "aborted",
+		});
+	}
 	const bytes = new Uint8Array(buf);
 	if (!hasMp3Header(bytes)) {
 		throw new Error(`语音合成结果无效：${word}`);
 	}
-	// 原子写：临时文件 + rename，避免进程中断留下半文件
-	const target = join(cacheDir, cacheFileName(word, voice));
-	const tmp = join(cacheDir, `.tmp-${process.pid}-${randomUUID()}`);
-	try {
-		writeFileSync(tmp, bytes);
-		if (isAborted()) return;
-		try {
-			renameSync(tmp, target);
-		} catch (err) {
-			// 两个请求可能同时为同一单词合成：另一请求已先完成时，当前结果可直接丢弃。
-			// Windows rename 不会像 POSIX 一样稳定覆盖已存在目标，因此显式处理该竞争。
-			if (!existsSync(target)) throw err;
-		}
-	} finally {
-		if (existsSync(tmp)) rmSync(tmp, { force: true });
+	runtimeCache.writeAudio(cacheFileName(word, voice), bytes, () => !isAborted());
+	if (isAborted()) {
+		throw new HTTPError({
+			status: 499,
+			statusText: "aborted",
+			message: "aborted",
+		});
 	}
 }
 
@@ -103,7 +99,7 @@ export async function POST(event: RouteEvent) {
 
 	const items = await mapPool(words, 2, async (word) => {
 		const name = cacheFileName(word, voice);
-		if (existsSync(join(cacheDir, name))) {
+		if (runtimeCache.hasAudio(name)) {
 			return { word, name, cached: true } satisfies TtsItem;
 		}
 		if (isAborted())
@@ -113,6 +109,14 @@ export async function POST(event: RouteEvent) {
 				message: "aborted",
 			});
 		await synthOne(word, voice, isAborted);
+		// 路由返回 200 的强不变量：响应里的每个音频名都必须已经可以读取。
+		if (!runtimeCache.hasAudio(name)) {
+			throw new HTTPError({
+				status: 500,
+				statusText: "Cache Write Failed",
+				message: `语音缓存写入失败：${word}`,
+			});
+		}
 		return { word, name, cached: false } satisfies TtsItem;
 	});
 

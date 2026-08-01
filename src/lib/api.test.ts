@@ -4,6 +4,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	audioUrl,
 	playWithIntervals,
 	requestDefinitions,
 	type PlaybackFailure,
@@ -35,6 +36,14 @@ class MockAudio {
 
 const flush = () => Promise.resolve();
 
+describe("audioUrl", () => {
+	it("音频始终通过动态 API 读取，不依赖 public 静态目录", () => {
+		expect(audioUrl("hello world.mp3")).toBe(
+			"/api/audio?name=hello%20world.mp3",
+		);
+	});
+});
+
 describe("playWithIntervals", () => {
 	let plays: number[];
 	let audioStates: boolean[];
@@ -57,7 +66,7 @@ describe("playWithIntervals", () => {
 
 	const run = (count: number, gapsMs: number[]) =>
 		playWithIntervals({
-			url: "/word-cache/test.mp3",
+			url: "/api/audio?name=test.mp3",
 			count,
 			gapsMs,
 			signal: abort.signal,

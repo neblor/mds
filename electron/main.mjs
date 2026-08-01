@@ -1,15 +1,22 @@
 /**
  * 默点啥 — electron 主进程
  * 启动内置 nitro server（.output/server/index.mjs，import 即监听），
- * BrowserWindow 加载本地 http。缓存目录指向 userData（可写、持久）。
+ * BrowserWindow 加载本地 http。portable 缓存优先放在 exe 同目录的 mds-data，
+ * 不可写时回退到 userData/mds-data。
  * 启动/运行错误写入 <userData>/mds-error.log 便于排查。
  */
 import { app, BrowserWindow, dialog } from "electron";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { mkdirSync, writeFileSync } from "node:fs";
+import {
+	clientDataDirCandidates,
+	ensureWritableDataDir,
+} from "./runtime-paths.mjs";
+import { createMainWindowOptions } from "./window-options.mjs";
 
 const PORT = 4827;
+let mainWindow;
 
 /** 错误日志（userData 下，窗口异常退出时排查用） */
 function log(msg) {
@@ -34,12 +41,21 @@ process.on("unhandledRejection", (e) =>
 /** 启动内置 server（import 即 listen），轮询等待就绪 */
 async function startServer() {
 	const serverPath = join(app.getAppPath(), ".output", "server", "index.mjs");
-	const cacheDir = join(app.getPath("userData"), "word-cache");
+	const dataDir = ensureWritableDataDir(
+		clientDataDirCandidates({
+			portableExecutableDir: process.env.PORTABLE_EXECUTABLE_DIR,
+			userDataDir: app.getPath("userData"),
+		}),
+	);
+	const cacheDir = join(dataDir, "word-cache");
 	mkdirSync(cacheDir, { recursive: true });
 	process.env.PORT = String(PORT);
 	process.env.NITRO_PORT = String(PORT);
+	process.env.HOST = "127.0.0.1";
+	process.env.NITRO_HOST = "127.0.0.1";
+	process.env.MDS_RUNTIME_MODE = "client";
 	process.env.MDS_CACHE_DIR = cacheDir;
-	log(`启动 server: ${serverPath}`);
+	log(`启动 server: ${serverPath}; cache: ${cacheDir}`);
 	await import(pathToFileURL(serverPath).href);
 	for (let i = 0; i < 50; i++) {
 		try {
@@ -56,7 +72,19 @@ async function startServer() {
 	throw new Error("内置服务启动超时");
 }
 
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) {
+	app.quit();
+} else {
+	app.on("second-instance", () => {
+		if (!mainWindow) return;
+		if (mainWindow.isMinimized()) mainWindow.restore();
+		mainWindow.focus();
+	});
+}
+
 app.whenReady().then(async () => {
+	if (!hasSingleInstanceLock) return;
 	try {
 		await startServer();
 	} catch (e) {
@@ -66,20 +94,15 @@ app.whenReady().then(async () => {
 		return;
 	}
 
-	const win = new BrowserWindow({
-		width: 1120,
-		height: 820,
-		minWidth: 640,
-		minHeight: 480,
-		autoHideMenuBar: true,
-		icon: join(app.getAppPath(), "public", "icons", "app.ico"),
-		webPreferences: {
-			contextIsolation: true,
-			nodeIntegration: false,
-		},
+	mainWindow = new BrowserWindow(createMainWindowOptions(app.getAppPath()));
+	// 再通过实例 API 明确关闭最大化/全屏，避免平台窗口管理器忽略构造选项。
+	mainWindow.setMaximizable(false);
+	mainWindow.setFullScreenable(false);
+	await mainWindow.loadURL(`http://127.0.0.1:${PORT}`);
+	mainWindow.on("closed", () => {
+		mainWindow = undefined;
+		app.quit();
 	});
-	await win.loadURL(`http://127.0.0.1:${PORT}`);
-	win.on("closed", () => app.quit());
 });
 
 app.on("window-all-closed", () => app.quit());

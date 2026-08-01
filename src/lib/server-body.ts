@@ -4,9 +4,7 @@
  * 不是 h3 的 event.req 结构，因此不能直接用 h3 的 readBody/getRouterParam。
  */
 import { HTTPError } from "h3";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { cacheDir } from "./word-cache";
+import { isAudioCacheName, runtimeCache } from "./cache-storage";
 
 /** rou3 风格路由事件的最小结构 */
 export interface RouteEvent {
@@ -46,22 +44,21 @@ export function extractWords(raw: unknown): string[] {
  * 文件名由 tts-filename 生成：小写字母/数字/下划线/连字符 + .mp3。
  */
 export function serveCacheFile(fileName: string): Response {
-	if (!/^[a-z0-9_-]{1,80}\.mp3$/.test(fileName)) {
+	if (!isAudioCacheName(fileName)) {
 		throw new HTTPError({
 			status: 400,
 			statusText: "Bad Request",
 			message: "非法文件名",
 		});
 	}
-	const file = join(cacheDir, fileName);
-	if (!existsSync(file)) {
+	const data = runtimeCache.readAudio(fileName);
+	if (!data) {
 		throw new HTTPError({
 			status: 404,
 			statusText: "Not Found",
 			message: "音频不存在",
 		});
 	}
-	const data = readFileSync(file);
 	return new Response(data, {
 		headers: {
 			"content-type": "audio/mpeg",

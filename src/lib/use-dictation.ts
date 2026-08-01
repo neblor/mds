@@ -56,6 +56,7 @@ interface PrepData {
 
 export interface ResultRow {
 	word: string;
+	audioName: string;
 	definition?: string;
 	answer?: string;
 	answerDef?: string;
@@ -141,7 +142,9 @@ export function useDictation() {
 
 	let timerId: ReturnType<typeof setInterval> | null = null;
 	let audioAbort: AbortController | null = null;
+	let resultAudioAbort: AbortController | null = null;
 	let roundSeq = 0;
+	const [resultAudioName, setResultAudioName] = createSignal<string | null>(null);
 
 	// —— 推进状态机（纯逻辑，见 dictation-engine.ts）——
 	/** 引擎状态（普通对象；SolidJS 信号仅用于 UI 渲染同步） */
@@ -206,6 +209,12 @@ export function useDictation() {
 		setSounding(false);
 	};
 	onCleanup(clearRoundRuntime);
+	const stopResultAudio = () => {
+		resultAudioAbort?.abort();
+		resultAudioAbort = null;
+		setResultAudioName(null);
+	};
+	onCleanup(stopResultAudio);
 
 	const patchRound = (i: number, patch: Partial<DictRound>) =>
 		setRounds((prev) =>
@@ -451,18 +460,46 @@ export function useDictation() {
 	};
 
 	/* ---------- 结果 ---------- */
-	const resultRows = createMemo<ResultRow[]>(() =>
+	// 结果行仅在结果页读取，直接由当前 rounds 派生，避免服务端渲染环境的惰性 memo 固化初值。
+	const resultRows = (): ResultRow[] =>
 		rounds().map((r) => ({
 			word: r.word,
+			audioName: r.audioName,
 			definition: r.definition,
 			answer: r.answer,
 			answerDef: r.answerDef,
 			correct:
 				mode() === "cyber" ? isStrictMatch(r.answer ?? "", r.word) : undefined,
-		})),
-	);
+		}));
+
+	const playResultAudio = (name: string) => {
+		if (phase() !== "results" || !name) return;
+		stopResultAudio();
+		const controller = new AbortController();
+		resultAudioAbort = controller;
+		void playWithIntervals({
+			url: audioUrl(name),
+			count: 1,
+			gapsMs: [0],
+			signal: controller.signal,
+			onPlay: () => {},
+			onAudioState: (playing) => {
+				if (resultAudioAbort !== controller) return;
+				setResultAudioName(playing ? name : null);
+			},
+			onPlaybackFailure: () => {
+				if (resultAudioAbort !== controller) return;
+				void invalidateCacheFile(name);
+			},
+		}).then(() => {
+			if (resultAudioAbort !== controller) return;
+			resultAudioAbort = null;
+			setResultAudioName(null);
+		});
+	};
 
 	const closeResults = () => {
+		stopResultAudio();
 		setPhase("idle");
 	};
 
@@ -481,11 +518,14 @@ export function useDictation() {
 				// 最后一个输入框的提交事件会在 phase 切到 results 后继续冒泡到 window；
 				// 不能让同一次 Enter 立即关闭刚出现的结果页。
 				const target = e.target as HTMLElement | null;
-				if (
-					target?.tagName === "INPUT" ||
-					target?.tagName === "TEXTAREA" ||
-					target?.isContentEditable
-				) {
+					if (
+						target?.tagName === "INPUT" ||
+						target?.tagName === "TEXTAREA" ||
+						target?.tagName === "BUTTON" ||
+						target?.tagName === "A" ||
+						target?.tagName === "SELECT" ||
+						target?.isContentEditable
+					) {
 					return;
 				}
 				e.preventDefault();
@@ -543,6 +583,7 @@ export function useDictation() {
 		defInput,
 		currentRound,
 		resultRows,
+		resultAudioName,
 		addWord,
 		removeWord,
 		clearWords,
@@ -555,6 +596,7 @@ export function useDictation() {
 		submitWord,
 		submitDef,
 		closeResults,
+		playResultAudio,
 		changeSettings,
 		setSettingsOpen,
 		onRootKeyDown,

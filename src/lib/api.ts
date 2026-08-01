@@ -10,7 +10,7 @@ export interface TtsItem {
 }
 
 export const audioUrl = (name: string): string =>
-	`/word-cache/${encodeURIComponent(name)}`;
+	`/api/audio?name=${encodeURIComponent(name)}`;
 
 /** 分块请求 TTS，逐块上报进度；支持 AbortSignal 中止。voice 为空用服务端默认 */
 export async function requestTtsAll(

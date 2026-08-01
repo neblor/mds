@@ -85,6 +85,8 @@ export default function Home() {
 						rows={d.resultRows()}
 						mode={d.mode()}
 						withDefinition={d.withDefinition()}
+						playingAudioName={d.resultAudioName()}
+						onPlayAudio={d.playResultAudio}
 						onClose={d.closeResults}
 					/>
 				</Show>
