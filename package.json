@@ -1,12 +1,14 @@
 {
-  "name": "example-with-tailwindcss",
+  "name": "mds",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
     "test": "vitest run",
     "start": "node .output/server/index.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron:start": "electron .",
+    "electron:build": "pnpm build && electron-builder --win portable"
   },
   "dependencies": {
     "@solidjs/router": "^1.0.0",
@@ -21,6 +23,8 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.7",
     "@types/node": "^26.1.2",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
     "playwright-core": "^1.62.1",
     "tailwindcss": "^4.0.7",
     "vitest": "^4.1.10"
@@ -38,5 +42,35 @@
     "project": [
       "src/**"
     ]
-  }
+  },
+  "main": "electron/main.mjs",
+  "build": {
+    "appId": "com.neblor.mds",
+    "productName": "mds",
+    "directories": {
+      "output": "dist/electron"
+    },
+    "files": [
+      ".output/**",
+      "electron/**",
+      "public/icons/**",
+      "package.json"
+    ],
+    "asar": false,
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "public/icons/app.ico"
+    },
+    "portable": {
+      "artifactName": "mds-${version}-${arch}.exe"
+    },
+    "electronDownload": {
+      "mirror": "https://npmmirror.com/mirrors/electron/"
+    }
+  },
+  "version": "0.1.0",
+  "description": "默点啥 — 记单词 · 听写 · 默写小帮手",
+  "author": "neblor"
 }

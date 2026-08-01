@@ -13,7 +13,7 @@
 ## 技术选型
 
 - 项目实际使用`pnpm`管理依赖和执行 Web 开发、构建工具链，单元测试使用`Vitest`并通过`pnpm`执行
-- `deno`只负责 Desktop 运行与 Windows 打包；Web 业务开发和测试不要再额外适配 Deno 测试工具链
+- `electron`负责 Desktop 运行与 Windows 打包（`pnpm electron:build` 产出单文件 portable exe）；Web 业务开发和测试用 pnpm 工具链
 - 库选型：
   - solidstart 2.0 **框架已经创建**
   - tailwindcss
@@ -22,18 +22,19 @@
 
 ## 项目输出形式
 
-项目使用`deno desktop`方案输出为一个可执行（不需要安装）的windows桌面应用（暂不需要考虑其他平台），作为新技术在开发过程可以多参考相关文档:
+项目使用`electron`方案输出为**单文件**（不需要安装、双击运行）的 Windows 桌面应用（暂不考虑其他平台）:
 
-- `https://docs.deno.com/runtime/desktop/configuration/`
-- `https://docs.deno.com/runtime/desktop/backends/`
-- `https://docs.deno.com/runtime/desktop/serving/`
-- `https://docs.deno.com/runtime/desktop/frameworks/`
-- `https://docs.deno.com/runtime/desktop/windows/`
-- `https://docs.deno.com/runtime/desktop/bindings/`
-- `https://docs.deno.com/runtime/desktop/menus/`
-- `https://docs.deno.com/runtime/desktop/devtools/`
+- 主进程：`electron/main.mjs` — 启动内置 nitro server（`.output/server/index.mjs`，import 即监听）+ BrowserWindow 加载 `http://127.0.0.1:4827`
+- 缓存目录：主进程设 `MDS_CACHE_DIR` 指向 `userData/word-cache`（可写、持久；web 模式仍用 `public/word-cache`）
+- 打包：`pnpm electron:build`（= `pnpm build` + `electron-builder --win portable`，产出 `dist/electron/mds-<version>-x64.exe` 单文件）
+- 交叉打包（Linux → Windows）需要 wine；Windows 上直接 `pnpm electron:build`
+- 打包下载镜像：`ELECTRON_MIRROR`/`ELECTRON_BUILDER_BINARIES_MIRROR` 指向 npmmirror 加速
 
-> 我文档地址贴的有点多，但这是一个极简单的项目不一定要全看，或者如果有我没贴出的部分你自己去deno文档上找，一定要多查文档，如果某个技术点不确定不要纯自己猜，一定要上网查文档
+> 如果某个技术点不确定不要纯自己猜，一定要上网查文档
+
+## 注意事项
+
+- **生成的文件及目录名不得使用中文**（包括打包产物、配置/脚本产出的文件名；界面显示名如窗口标题不受此限）
 
 ## 开发流程
 
@@ -104,7 +105,7 @@
   - 要是单词全对可以做一个撒花或是其他的效果来庆祝，所有svg图形需求优先查lucide icon库中有没有能满足要求的
 - 显示出结果后，提供关闭按钮，点击后回到准备默写状态，不自动重置默认内容，由用户自行选择默同样的还是清空重填
 - 注意：释义只能英文释义，不支持中文释义
-- 界面提供设置功能，有以下设置，使用deno desktop或是其调用的浏览器提供的基础storage功能进行存储：
+- 界面提供设置功能，有以下设置，使用 electron 的 localStorage（持久化到 userData）进行存储：
   - AI相关配置，就是标准openai的请求地址及key的输入框，界面上提供范例，这个不设置不支持释义功能
   - 默写速度`倍率调整`
   - 每轮默写倒计时是否显示数字（精确到0.1秒），关掉的话只有倒计时条

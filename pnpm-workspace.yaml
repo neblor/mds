@@ -1,0 +1,7 @@
+allowBuilds:
+  electron-winstaller: true
+# pnpm 11：构建脚本白名单（替代 package.json 的 pnpm 字段）
+onlyBuiltDependencies:
+  - electron
+  - electron-winstaller
+  - esbuild

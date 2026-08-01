@@ -7,8 +7,12 @@ import { join } from "node:path";
 import { mkdirSync } from "node:fs";
 
 export const VOICE = "en-US-AvaNeural";
-/** 缓存根目录：<cwd>/public/word-cache */
-export const cacheDir = join(process.cwd(), "public", "word-cache");
+/**
+ * 缓存根目录：默认 <cwd>/public/word-cache（web 模式）；
+ * electron 桌面端由主进程设置 MDS_CACHE_DIR 指向 userData（可写、持久、不污染安装目录）
+ */
+export const cacheDir =
+	process.env.MDS_CACHE_DIR ?? join(process.cwd(), "public", "word-cache");
 /** 释义缓存文件（{ model, defs }，与音色无关） */
 export const definitionsFile = join(cacheDir, "definitions.json");
 mkdirSync(cacheDir, { recursive: true });

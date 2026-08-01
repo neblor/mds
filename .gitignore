@@ -36,24 +36,13 @@ coverage/
 *.log
 pnpm-debug.log*
 
-# 本地一次性浏览器诊断脚本（含本机 Chromium 路径）
-/dbg.mjs
-/diag.mjs
-
 # System Files
 .DS_Store
 Thumbs.db
 .firecrawl/
 
-# deno desktop 构建产物
-mds/
-.deno_desktop_*
-
 # 设计预览文件不应入库
 .design/previews/
-
-# 兜底：deno desktop 意外产出的中文名/默认名构建产物
-默点啥*
 
 # 语音缓存（运行时生成）
 voice-cache/

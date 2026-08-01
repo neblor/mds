@@ -77,9 +77,12 @@ function WordRow(props: DictatingViewProps) {
 			}
 		>
 			<div class="flex h-14 items-center gap-3 rounded-xl border-[1.5px] border-brand bg-surface px-4 shadow-sm">
-				<span class="flex h-[22px] w-11 shrink-0 items-center justify-center rounded-full bg-brand text-[11px] text-white">
-					第 1 步
-				</span>
+				{/* 仅释义模式才有两步输入，无释义时不需要“第 1 步”标记 */}
+				<Show when={props.withDefinition}>
+					<span class="flex h-[22px] w-11 shrink-0 items-center justify-center rounded-full bg-brand text-[11px] text-white">
+						第 1 步
+					</span>
+				</Show>
 				<input
 					ref={autoFocus}
 					class="w-full bg-transparent text-base text-ink outline-none placeholder:text-ink-faint"
@@ -87,7 +90,11 @@ function WordRow(props: DictatingViewProps) {
 					value={props.wordInput}
 					onInput={(e) => props.onWordInput(e.currentTarget.value)}
 					onKeyDown={(e) => {
-						if (e.key === "Enter") props.onWordSubmit();
+						if (e.key === "Enter") {
+							e.preventDefault();
+							e.stopPropagation();
+							props.onWordSubmit();
+						}
 					}}
 				/>
 			</div>
@@ -123,7 +130,11 @@ function DefRow(props: DictatingViewProps) {
 						value={props.defInput}
 						onInput={(e) => props.onDefInput(e.currentTarget.value)}
 						onKeyDown={(e) => {
-							if (e.key === "Enter") props.onDefSubmit();
+							if (e.key === "Enter") {
+								e.preventDefault();
+								e.stopPropagation();
+								props.onDefSubmit();
+							}
 						}}
 					/>
 				</div>

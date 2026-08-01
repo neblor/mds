@@ -3,7 +3,11 @@
  * 回归点：正常走完必须 resolve(true)，否则 speechDone 永不置位 → 默写卡死
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { playWithIntervals, requestDefinitions } from "./api";
+import {
+	playWithIntervals,
+	requestDefinitions,
+	type PlaybackFailure,
+} from "./api";
 import { DEFAULT_SETTINGS } from "./settings";
 
 class MockAudio {
@@ -34,6 +38,7 @@ const flush = () => Promise.resolve();
 describe("playWithIntervals", () => {
 	let plays: number[];
 	let audioStates: boolean[];
+	let failures: PlaybackFailure[];
 	let abort: AbortController;
 
 	beforeEach(() => {
@@ -41,6 +46,7 @@ describe("playWithIntervals", () => {
 		vi.stubGlobal("Audio", MockAudio);
 		plays = [];
 		audioStates = [];
+		failures = [];
 		abort = new AbortController();
 	});
 
@@ -57,6 +63,7 @@ describe("playWithIntervals", () => {
 			signal: abort.signal,
 			onPlay: (i) => plays.push(i),
 			onAudioState: (v) => audioStates.push(v),
+			onPlaybackFailure: (failure) => failures.push(failure),
 		});
 
 	it("正常走完 resolve(true)，逐遍播放并执行间隔（关键回归）", async () => {
@@ -67,7 +74,7 @@ describe("playWithIntervals", () => {
 		await flush(); // 第 2 遍结束 → sleep(3000)
 		expect(plays).toEqual([0, 1]);
 		await vi.advanceTimersByTimeAsync(3000);
-		expect(await p).toBe(true);
+		expect(await p).toBe("completed");
 		// 每遍发声状态 true→false，最后清理一次 false
 		expect(audioStates.filter(Boolean).length).toBe(2);
 	});
@@ -82,7 +89,7 @@ describe("playWithIntervals", () => {
 		await flush();
 		expect(plays).toEqual([0, 1, 2]);
 		await vi.advanceTimersByTimeAsync(2700);
-		expect(await p).toBe(true);
+		expect(await p).toBe("completed");
 	});
 
 	it("中途中止 resolve(false)，不再播报后续遍", async () => {
@@ -90,7 +97,7 @@ describe("playWithIntervals", () => {
 		await flush(); // 第 1 遍后进入间隔
 		abort.abort();
 		await vi.advanceTimersByTimeAsync(2000); // 间隔走完 → 检测到 stopped
-		expect(await p).toBe(false);
+		expect(await p).toBe("aborted");
 		expect(plays).toEqual([0]);
 	});
 
@@ -98,16 +105,16 @@ describe("playWithIntervals", () => {
 		const p = run(2, []);
 		await flush();
 		await vi.runAllTimersAsync(); // 触发 sleep(0) 等全部剩余定时器
-		expect(await p).toBe(true);
+		expect(await p).toBe("completed");
 		expect(plays).toEqual([0, 1]);
 	});
 
 	it("count=0 立即完成 resolve(true)", async () => {
 		const p = run(0, []);
-		expect(await p).toBe(true);
+		expect(await p).toBe("completed");
 	});
 
-	it("媒体解码错误仍结束播放流程，避免当前轮永久卡住", async () => {
+	it("媒体解码错误 → media-error，仍结束播放流程", async () => {
 		class ErrorAudio extends MockAudio {
 			override play() {
 				this.paused = false;
@@ -124,8 +131,38 @@ describe("playWithIntervals", () => {
 		const p = run(1, [0]);
 		await flush();
 		await vi.runAllTimersAsync();
-		expect(await p).toBe(true);
+		expect(await p).toBe("media-error");
 		expect(plays).toEqual([0]);
+		expect(failures).toEqual(["media-error"]);
+	});
+
+	it("NotAllowedError（自动播放策略）不算媒体错误 → completed", async () => {
+		class PolicyAudio extends MockAudio {
+			override play() {
+				return Promise.reject(new DOMException("blocked", "NotAllowedError"));
+			}
+		}
+		vi.stubGlobal("Audio", PolicyAudio);
+		const p = run(1, [0]);
+		await flush();
+		await vi.runAllTimersAsync();
+		expect(await p).toBe("completed");
+		expect(failures).toEqual([]);
+	});
+
+	it("play() 非策略拒绝 → play-rejected，仍结束播放流程", async () => {
+		class RejectAudio extends MockAudio {
+			override play() {
+				return Promise.reject(new Error("interrupted"));
+			}
+		}
+		vi.stubGlobal("Audio", RejectAudio);
+		const p = run(1, [0]);
+		await flush();
+		await vi.runAllTimersAsync();
+		expect(await p).toBe("play-rejected");
+		expect(plays).toEqual([0]);
+		expect(failures).toEqual(["play-rejected"]);
 	});
 
 	it("浏览器拒绝 play 时仍结束播放流程，避免当前轮永久卡住", async () => {
@@ -138,7 +175,7 @@ describe("playWithIntervals", () => {
 		const p = run(1, [0]);
 		await flush();
 		await vi.runAllTimersAsync();
-		expect(await p).toBe(true);
+		expect(await p).toBe("completed");
 		expect(plays).toEqual([0]);
 	});
 });

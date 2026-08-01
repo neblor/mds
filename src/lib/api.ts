@@ -108,18 +108,53 @@ export interface PlayOptions {
 	signal: AbortSignal;
 	onPlay: (i: number) => void;
 	onAudioState: (playing: boolean) => void;
+	/** 媒体或播放失败一发生就通知；调用方可在快速推进前淘汰损坏缓存 */
+	onPlaybackFailure?: (failure: PlaybackFailure) => void;
 }
+
+/**
+ * 播音流程结果分类：
+ * - completed：自然播完
+ * - aborted：被中止（用户跳轮/清理）
+ * - media-error：音频解码/加载失败（缓存可能损坏，应失效淘汰）
+ * - play-rejected：play() 被拒绝（非自动播放策略类错误；NotAllowedError 不计）
+ * 无论错误与否都允许当前轮继续（不卡死整场默写）
+ */
+export type PlayOutcome =
+	| "completed"
+	| "aborted"
+	| "media-error"
+	| "play-rejected";
+export type PlaybackFailure = Extract<
+	PlayOutcome,
+	"media-error" | "play-rejected"
+>;
 
 /**
  * 自然播音流程：逐遍播放，每遍结束后等待该遍的间隔（含最后一遍）
  * 完全不干涉音频播放；onPlay(i) 每遍开始、onAudioState(true/false) 标记是否正在发声
- * resolve(true)=流程自然走完，false=被中止
  */
-export function playWithIntervals(opts: PlayOptions): Promise<boolean> {
-	const { url, count, gapsMs, signal, onPlay, onAudioState } = opts;
+export function playWithIntervals(opts: PlayOptions): Promise<PlayOutcome> {
+	const {
+		url,
+		count,
+		gapsMs,
+		signal,
+		onPlay,
+		onAudioState,
+		onPlaybackFailure,
+	} = opts;
 	return new Promise((resolve) => {
 		const audio = new Audio();
 		let stopped = false;
+		let mediaError = false;
+		let playRejected = false;
+		let failureNotified = false;
+		const notifyFailure = (failure: PlaybackFailure) => {
+			if (failureNotified) return;
+			failureNotified = true;
+			onPlaybackFailure?.(failure);
+		};
 		const stop = () => {
 			stopped = true;
 			onAudioState(false);
@@ -140,10 +175,20 @@ export function playWithIntervals(opts: PlayOptions): Promise<boolean> {
 					res();
 				};
 				audio.onerror = () => {
+					// 媒体加载/解码失败：缓存文件可能损坏
+					mediaError = true;
+					notifyFailure("media-error");
 					onAudioState(false);
 					res();
 				};
-				void audio.play().catch(() => {
+				void audio.play().catch((err) => {
+					// NotAllowedError=自动播放策略，文件本身正常，不算媒体错误
+					if (
+						!(err instanceof DOMException && err.name === "NotAllowedError")
+					) {
+						playRejected = true;
+						notifyFailure("play-rejected");
+					}
 					onAudioState(false);
 					res();
 				});
@@ -156,13 +201,35 @@ export function playWithIntervals(opts: PlayOptions): Promise<boolean> {
 				// 每遍后的间隔（含最后一遍，供学生作答）
 				await sleep(gapsMs[i] ?? 0);
 			}
-			// 正常走完或中止后的统一清理（不设 stopped，保证正常完成 resolve(true)）
+			// 正常走完或中止后的统一清理（不设 stopped，保证正常完成 resolve 非 aborted）
 			onAudioState(false);
 			audio.pause();
 			audio.removeAttribute("src");
 			audio.load();
 			signal.removeEventListener("abort", onAbort);
-			resolve(!stopped);
+			resolve(
+				stopped
+					? "aborted"
+					: mediaError
+						? "media-error"
+						: playRejected
+							? "play-rejected"
+							: "completed",
+			);
 		})();
 	});
+}
+
+/** 失效单个缓存音频（服务端受文件名白名单保护）；失败不影响主流程 */
+export async function invalidateCacheFile(name: string): Promise<void> {
+	if (!name) return;
+	try {
+		await fetch("/api/cache-invalidate", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ name }),
+		});
+	} catch {
+		// 失效失败忽略（下次准备仍会重新生成判断）
+	}
 }

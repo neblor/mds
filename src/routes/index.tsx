@@ -31,7 +31,7 @@ export default function Home() {
 							onRemove={d.removeWord}
 							onClear={d.clearWords}
 							onSpeed={d.setSpeed}
-							onWithDefinition={d.setWithDefinition}
+							onWithDefinition={d.changeWithDefinition}
 							onStartWriting={() => d.startDictation("writing")}
 							onStartCyber={() => d.startDictation("cyber")}
 							onOpenSettings={() => d.setSettingsOpen(true)}

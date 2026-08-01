@@ -111,3 +111,108 @@ pnpm electron:build — electron-builder 打包
 - [ ] 用户确认桌面端方向（deno 再试一次修复 vs 直接切 electron）
 - [ ] 若试 deno：加 `--exclude-unused-npm` + 确保先 build + 尝试 `--backend webview` 验证体积
 - [ ] 若切 electron：搭建 electron/main.ts + electron-builder 配置
+
+## 实施结果（2026-08-02 晚）
+
+### web 优化（已完成并实测）
+
+- lucide 按需入口 `src/lib/icons.tsx`（15 icon 深路径）+ vite alias（正则精确匹配，避免深路径误替换；rolldown 严格校验 exports，故深路径也加 alias 到实际目录）
+- 字体本地化：subsetted-fonts css + 20 个 woff2 → `public/fonts/sarasa-ui-sc/`，entry-server 改本地 href
+- 删除死代码 CountdownBar.tsx
+- **实测（dev）**：请求 1752→127、总字节 11.12MB→3.07MB、lucide 2MB→75KB、load 2137→1213ms
+- build 产物仍 ~88KB，113 测试全绿
+
+### electron 迁移（已完成）
+
+- `electron/main.mjs`：内置 nitro server（import 即监听，端口 4827）+ BrowserWindow（1120x820）+ 错误日志 userData/mds-error.log；MDS_CACHE_DIR → userData/word-cache
+- `word-cache.ts` 支持 MDS_CACHE_DIR 环境变量覆盖
+- package.json：main/scripts（electron:start、electron:build）/build 配置（portable 单文件、asar:false、npmmirror 镜像）
+- 工具链：electron 43.2.0 + electron-builder 26.15.3；pnpm-workspace.yaml（onlyBuiltDependencies: electron/electron-winstaller/esbuild，pnpm 11 不读 package.json pnpm 字段）；Linux 装 wine 9.0 支持交叉打包
+- **打包成功：`dist/electron/默点啥-0.1.0-x64.exe` 106MB 单文件**（对比 deno desktop 265MB 非单文件）
+- electron 本地验证：xvfb 下 server 启动 ✓、UI 渲染 ✓（像素分析 336 色 + 背景色匹配）、userData 缓存 ✓、localStorage ✓
+
+### deno 移除
+
+- 删除 deno.json、AGENTS.md 工具链改为 pnpm+electron、.gitignore 保留旧产物忽略
+- 遗留待用户 Windows 验证：exe 双击运行、音频（edge-tts 网络合成）、localStorage 持久化
+
+## 2026-08-02 晚（续）：code review 修复 + 文件名规则
+
+### 文件及目录名规则（用户明确）
+
+- **任何生成的文件名不得使用中文**（AGENTS.md 注意事项已更新为正向规则）
+- 修复：package.json `productName: mds`、`portable.artifactName: mds-${version}-${arch}.exe`（原"默点啥-…"中文名违反）
+- 重新打包验证：`dist/electron/mds-0.1.0-x64.exe`（106MB）全英文文件名 ✓
+- 清理：删除 deno 残留 dist/mds-windows/、根目录调试脚本、.gitignore 过时 deno 规则
+
+### code review（2026-08-01-web-core-code-review.md）5 项修复全部实施
+
+1. **[P1] 释义字典原型安全**（definitions.ts）：ownString（Object.hasOwn + 非空字符串）统一取值；readDefsCache schema 清洗；AI 解析用 Object.create(null)；只缓存请求词集合内的键（过滤 AI 乱编键）；明显非英文（CJK）释义不入缓存
+2. **[P2] 音频错误分类 + 缓存淘汰**：playWithIntervals 返回 completed/aborted/media-error/play-rejected（NotAllowedError 不算错误）；use-dictation 媒体错误时调 `/api/cache-invalidate`（新路由，文件名白名单）删缓存并继续流程；tts.ts 原子写（临时文件+rename）+ mp3 头校验（ID3/帧同步）
+3. **[P2] 准备任务 token 竞态隔离**（use-dictation）：prepSeq 递增 token，所有异步回调写状态前校验 alive()（seq 一致且未 abort）；abortPreparation 先递增 token
+4. **[P2] 中止 signal 贯穿服务端**：definitions.ts callAi 用 AbortSignal.any([request.signal, 60s timeout])；降级重试前检查中止；写缓存前检查 signal；tts.ts 合成返回后检查 signal 丢弃结果不写缓存
+5. **[P2] 部分释义显式保护**：validFresh 只合并请求集合内键；missing 继续返回；测试锁定"不负缓存、下次重试"
+
+### 测试：113 → 125（+12）
+
+- api.test.ts：playWithIntervals 分类断言更新 + NotAllowedError/play-rejected 用例
+- definitions.test.ts：+constructor/toString 原型键、AI 乱编键过滤、中文释义全失败(empty)/部分缺失
+- 新增 cache-invalidate.test.ts（4 用例：删除/路径穿越 400/幂等/缺 name 400）
+- use-dictation.test.ts：+token 竞态（迟到成功/迟到失败均不覆盖新状态）
+
+### 验证
+
+- 125 测试全绿（10 文件）；pnpm build 通过
+- electron 重新打包：mds-0.1.0-x64.exe（106MB）英文文件名 ✓
+
+### 遗留
+
+- AGENTS.md"默完后先显示默完了再查看结果"的流程差异仍待产品确认（报告已注明）
+
+## 2026-08-02 晚（续2）：赛博间隔区跳过 + 无释义标签 + 字体 404
+
+### 赛博模式"自动跳没有了"（根因 + 修复）
+
+- **根因**（用户指出的）：赛博模式输入完成后，播放后的间隔区没有处理——只能干等语音轨全部走完（剩余遍数+间隔），感知为"自动跳没了"；书写模式间隔区有空格跳所以无感
+- **修复**（use-dictation.ts checkAdvance）：赛博输入完成后——语音未发声（间隔区）→ 立即中止余下播报并跳转；正在发声 → 等当前遍播完（onAudioState(false) 时再触发 checkAdvance）→ 立即跳
+- 单元测试：新增"发声期间输入完成等当前遍"+"间隔区输入完成立即跳"两个用例（126 全绿）
+
+### 无释义时不显示"第 1 步"
+
+- DictatingView.tsx：WordRow 的"第 1 步"badge 用 `<Show when={props.withDefinition}>` 包裹（无释义只有一步输入，不需要步骤标记）
+
+### 字体 404（浏览器刷新一堆 fonts 404）
+
+- 根因：subsetted-fonts css 引用 **97 个** unicode-range 分段（0-96），此前只下载了 20 个 → 浏览器按需加载缺段 404
+- 修复：补齐 0-96 全部 woff2（public/fonts/sarasa-ui-sc/ 共 97 文件 2.5MB）；完整性校验 css 引用 vs 本地文件 0 缺失
+
+### 验证
+
+- 126 单测全绿（10 文件）；build 通过
+- e2e 抽查（用户要求以单测为主）：无释义"第 1 步"隐藏 ✓、书写空格跳 ✓、字体无 404 ✓
+
+## 2026-08-02 晚（续3）：音频串流 bug 修复 + 状态机重构（用户方法论要求）
+
+### Bug：赛博模式音频串流（第二个第三个一起播）
+
+- **现象**：答完第一个进第二轮后跳到第三个，二、三音频同时播放，出结果还在放
+- **根因（重构前静态分析 + 引擎插桩确认）**：
+  1. 上一轮加的 `onAudioState(false) → checkAdvance` 回调与 checkAdvance 内部 `clearRoundRuntime → abort → stop() → onAudioState(false)` 形成**重入**：推进过程中中止音频，abort 同步触发 stop 的 onAudioState(false)，再次进入 checkAdvance → startRound/setPhase 可能执行两次 → 两个音频实例同时播放
+  2. 附发现：`engine.mode` 未同步（go() 未把 mode 写入引擎，赛博流程实际按 writing 判定）——插桩定位
+- **修复**：抽取纯逻辑状态机 + 事件入口防重入（stepping 标志，advance 中止音频引发的嵌套回调被忽略）
+
+### 重构：核心编排抽成独立纯逻辑模块（可单测，不再依赖 e2e）
+
+- 新增 `src/lib/dictation-engine.ts`：纯函数状态机 `stepEngine(state, event) → {state, action}`（wait/advance/finish），无 UI/定时器依赖；事件：submit/audio-state/speech-end/countdown-end/space-skip；状态不可变快照
+- `use-dictation.ts` 降为薄适配层：runStep（stepping 防重入）→ 引擎判定 → 执行动作（clearRoundRuntime + startRound/setPhase）→ 同步 SolidJS 信号；checkAdvance/手工 setSpeechDone 全部删除
+- 新增 `dictation-engine.test.ts`（18 用例）：双轨全时序、间隔区立即推进、发声等待、空格跳、最后一轮 finish、状态不可变
+- use-dictation.test.ts 增"推进时中止音频重入 → 只推进一次"（模拟真实 abort→stop→onAudioState 链，断言 playWithIntervals 恰好调用 2 次，无第三个音频实例）
+
+### 测试：126 → 145（+19）
+
+- 11 文件全绿；build 通过
+- 核心时序现在全部由纯函数单测锁定，e2e 仅作抽查
+
+### 遗留
+
+- engine.mode 同步点：go() 写入（startDictation 只更新 UI 信号）——已在重构中修复

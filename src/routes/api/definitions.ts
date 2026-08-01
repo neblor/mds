@@ -19,22 +19,46 @@ export interface DefinitionsResult {
 	cachedCount?: number;
 }
 
-interface DefsCache {
-	model: string;
-	defs: Record<string, string>;
-}
-
 type AiParseResult =
 	| { defs: Record<string, string> }
 	| { error: string; message: string };
 
+/**
+ * 安全取值：仅自有属性 + 非空字符串，避免 constructor/__proto__ 等词键命中原型属性
+ */
+function ownString(
+	record: Record<string, unknown> | null | undefined,
+	key: string,
+): string | undefined {
+	if (!record || typeof record !== "object") return undefined;
+	if (!Object.hasOwn(record, key)) return undefined;
+	const v = record[key];
+	return typeof v === "string" && v.trim() ? v.trim() : undefined;
+}
+
+/** 明显非英文（含 CJK 字符）的释义不入缓存 */
+function isLikelyEnglish(text: string): boolean {
+	return !/\p{Script=Han}/u.test(text);
+}
+
 function readDefsCache(model: string): Record<string, string> {
 	try {
 		if (!existsSync(definitionsFile)) return {};
-		const raw = JSON.parse(readFileSync(definitionsFile, "utf-8")) as DefsCache;
+		const raw = JSON.parse(readFileSync(definitionsFile, "utf-8")) as {
+			model?: unknown;
+			defs?: unknown;
+		};
 		// 模型变化视为缓存失效
-		if (raw.model !== model) return {};
-		return raw.defs ?? {};
+		if (raw?.model !== model) return {};
+		// schema 清洗：只保留自有属性 + 非空字符串值，不信任 JSON 结构
+		const out: Record<string, string> = {};
+		if (raw.defs && typeof raw.defs === "object") {
+			for (const k of Object.keys(raw.defs)) {
+				const d = ownString(raw.defs as Record<string, unknown>, k);
+				if (d) out[k] = d;
+			}
+		}
+		return out;
 	} catch {
 		return {};
 	}
@@ -105,13 +129,17 @@ async function parseAiResponse(res: Response): Promise<AiParseResult> {
 		items = [];
 	}
 
-	const defs: Record<string, string> = {};
+	const defs: Record<string, string> = Object.create(null) as Record<
+		string,
+		string
+	>;
 	for (const item of items) {
 		const w = String((item as { word?: unknown })?.word ?? "").trim();
 		const d = String(
 			(item as { definition?: unknown })?.definition ?? "",
 		).trim();
-		if (w && d) defs[w] = d;
+		// 非空 + 明显英文才接受（避免中文释义/占位文本进入缓存）
+		if (w && d && isLikelyEnglish(d)) defs[w] = d;
 	}
 	if (Object.keys(defs).length === 0) {
 		return { error: "empty", message: "AI 未返回任何有效释义，请重试" };
@@ -163,8 +191,9 @@ async function prepare(event: RouteEvent): Promise<Prepared> {
 	let cachedCount = 0;
 	const toFetch: string[] = [];
 	for (const w of words) {
-		if (cached[w]) {
-			definitions[w] = cached[w];
+		const d = ownString(cached, w);
+		if (d) {
+			definitions[w] = d;
 			cachedCount++;
 		} else {
 			toFetch.push(w);
@@ -177,7 +206,10 @@ export async function POST(event: RouteEvent) {
 	const p = await prepare(event);
 	if (p.toFetch.length === 0) {
 		const all: Record<string, string> = {};
-		for (const w of p.words) all[w] = p.cached[w];
+		for (const w of p.words) {
+			const d = ownString(p.cached, w);
+			if (d) all[w] = d;
+		}
 		const result: DefinitionsResult = {
 			definitions: all,
 			cachedCount: p.cachedCount,
@@ -216,16 +248,28 @@ export async function POST(event: RouteEvent) {
 				authorization: `Bearer ${p.apiKey}`,
 			},
 			body: JSON.stringify(body),
-			signal: AbortSignal.timeout(60_000),
+			// 组合客户端请求 signal：用户中止时立即取消远端调用（不继续耗额度）
+			signal: AbortSignal.any([
+				event.request.signal,
+				AbortSignal.timeout(60_000),
+			]),
 		});
 
 	let res: Response;
 	try {
 		res = await callAi(extendedBody);
-		if (res.status === 400 || res.status === 422) {
+		if (
+			(res.status === 400 || res.status === 422) &&
+			!event.request.signal.aborted
+		) {
+			// 中止后不得发起第二次请求
 			res = await callAi(baseBody);
 		}
 	} catch (err) {
+		// 客户端中止优先判断（不算服务错误）
+		if (event.request.signal.aborted) {
+			return { error: "aborted", message: "已中止" };
+		}
 		const aborted = err instanceof DOMException && err.name === "TimeoutError";
 		return {
 			error: aborted ? "timeout" : "network",
@@ -238,14 +282,24 @@ export async function POST(event: RouteEvent) {
 	const fresh = await parseAiResponse(res);
 	if ("error" in fresh) return fresh;
 
-	// 3) 合并并写缓存
-	const merged: Record<string, string> = { ...p.cached, ...fresh.defs };
+	// 3) 只缓存“请求词集合中、键精确匹配、值为非空英文字符串”的条目（不信任 AI 乱编的键）
+	const validFresh: Record<string, string> = {};
+	for (const w of p.toFetch) {
+		const d = ownString(fresh.defs, w);
+		if (d) validFresh[w] = d;
+	}
+	const merged: Record<string, string> = { ...p.cached, ...validFresh };
+	// 用户中止后不再写缓存（后台结果不污染当前准备状态）
+	if (event.request.signal.aborted) {
+		return { error: "aborted", message: "已中止" };
+	}
 	writeDefsCache(p.model, merged);
 	const finalDefs: Record<string, string> = {};
 	for (const w of p.words) {
-		if (merged[w]) finalDefs[w] = merged[w];
+		const d = ownString(merged, w);
+		if (d) finalDefs[w] = d;
 	}
-	const missing = p.words.filter((w) => !finalDefs[w]);
+	const missing = p.words.filter((w) => !ownString(finalDefs, w));
 	const result: DefinitionsResult = {
 		definitions: finalDefs,
 		cachedCount: p.cachedCount,

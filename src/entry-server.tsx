@@ -12,7 +12,7 @@ export default createHandler(() => (
 					<link rel="icon" href="/favicon.ico" />
 					<link
 						rel="stylesheet"
-						href="https://cdn.jsdelivr.net/npm/subsetted-fonts@1.0.5/SarasaUiSC-Regular/SarasaUiSC-Regular.css"
+						href="/fonts/sarasa-ui-sc/SarasaUiSC-Regular.css"
 					/>
 					{assets}
 				</head>
