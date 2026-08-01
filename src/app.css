@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+/* 设计令牌：与 .design/mds.pen 变量一致（浅色清爽方案） */
+@theme {
+  --color-canvas: #f5f7f8;
+  --color-surface: #ffffff;
+  --color-soft: #e9edf1;
+  --color-ink: #2e353b;
+  --color-ink-soft: #5b6470;
+  --color-ink-faint: #8a93a0;
+  --color-brand: #4ea3a0;
+  --color-gold: #efc055;
+  --color-ok: #7fb88c;
+  --color-ok-bg: #eaf4ec;
+  --color-err: #de8071;
+  --color-err-bg: #f9ebe8;
+  --font-heading: "SarasaUiSC-Regular", "Sarasa Gothic SC", "Microsoft YaHei", sans-serif;
+  --font-body: "SarasaUiSC-Regular", "Sarasa Gothic SC", "Microsoft YaHei", sans-serif;
+  --font-data: "SarasaUiSC-Regular", "Sarasa Gothic SC", "Microsoft YaHei", sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 全对撒花：星星上浮动画 */
+@keyframes celebrate-rise {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-46vh) scale(1.15) rotate(18deg);
+    opacity: 0;
+  }
+}
+
+.celebrate-star {
+  animation: celebrate-rise 1.6s ease-out forwards;
+}
+
+/* 开关（替代 daisyui toggle，本项目未加载 daisyui） */
+.toggle-switch {
+  appearance: none;
+  width: 44px;
+  height: 24px;
+  border-radius: 9999px;
+  background: var(--color-soft);
+  position: relative;
+  transition: background 0.15s;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.toggle-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+  transition: transform 0.15s;
+}
+.toggle-switch:checked {
+  background: var(--color-brand);
+}
+.toggle-switch:checked::after {
+  transform: translateX(20px);
+}

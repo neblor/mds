@@ -1,0 +1,31 @@
+{
+  "desktop": {
+    "app": {
+      "name": "mds",
+      "identifier": "com.neblor.mds",
+      "icons": {
+        "windows": "./public/icons/app.ico",
+        "linux": "./public/icons/app.png"
+      }
+    },
+    "output": {
+      "linux": "./dist/mds-linux",
+      "windows": "./dist/mds-windows"
+    }
+  },
+  "permissions": {
+    "default": {
+      "env": true,
+      "net": true,
+      "read": true,
+      "write": true
+    }
+  },
+  "lint": {
+    "rules": {
+      "exclude": [
+        "no-sloppy-imports"
+      ]
+    }
+  }
+}

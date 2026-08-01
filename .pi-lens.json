@@ -1,0 +1,11 @@
+{
+  "ignore": [
+    ".design/**",
+    ".output/**",
+    "dist/**",
+    "voice-cache/**",
+    "public/word-cache/**",
+    ".firecrawl/**",
+    ".pi-subagents/**"
+  ]
+}

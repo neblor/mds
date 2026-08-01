@@ -1,0 +1,42 @@
+{
+  "name": "example-with-tailwindcss",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "test": "vitest run",
+    "start": "node .output/server/index.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@solidjs/router": "^1.0.0",
+    "@solidjs/start": "^2.0.0-rc.6",
+    "edge-tts-universal": "^1.4.0",
+    "h3": "2.0.1-rc.22",
+    "lucide-solid": "^1.28.0",
+    "nitro": "^3.0.260610-beta",
+    "solid-js": "^1.9.14",
+    "vite": "^8.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.7",
+    "@types/node": "^26.1.2",
+    "playwright-core": "^1.62.1",
+    "tailwindcss": "^4.0.7",
+    "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "knip": {
+    "entry": [
+      "src/entry-client.tsx",
+      "src/entry-server.tsx",
+      "src/routes/**/*.{ts,tsx}",
+      "src/lib/**/*.test.ts"
+    ],
+    "project": [
+      "src/**"
+    ]
+  }
+}

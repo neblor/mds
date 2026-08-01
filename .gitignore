@@ -1,0 +1,62 @@
+# pi-subagents 运行时调试产物（任务输入/输出/完整对话 transcript）
+# 每次 subagent 运行都会重新生成，不应入库
+.pi-subagents/
+
+# pi-lens 运行时分析缓存、会话与指标；.pi-lens.json 项目配置保留入库
+.pi-lens/
+
+dist
+.wrangler
+.output
+.vercel
+.netlify
+.vinxi
+app.config.timestamp_*.js
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# dependencies
+/node_modules
+
+# Test / TypeScript generated files
+coverage/
+*.tsbuildinfo
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+*.launch
+.settings/
+
+# Logs
+*.log
+pnpm-debug.log*
+
+# 本地一次性浏览器诊断脚本（含本机 Chromium 路径）
+/dbg.mjs
+/diag.mjs
+
+# System Files
+.DS_Store
+Thumbs.db
+.firecrawl/
+
+# deno desktop 构建产物
+mds/
+.deno_desktop_*
+
+# 设计预览文件不应入库
+.design/previews/
+
+# 兜底：deno desktop 意外产出的中文名/默认名构建产物
+默点啥*
+
+# 语音缓存（运行时生成）
+voice-cache/
+
+# 运行时缓存（public 下的生成数据）
+public/word-cache/
