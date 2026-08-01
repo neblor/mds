@@ -3,9 +3,13 @@ import { resolve } from "node:path";
 import { nitro } from "nitro/vite";
 import { solidStart } from "@solidjs/start/config";
 import tailwindcss from "@tailwindcss/vite";
+import { apiAudioNitroDevPlugin } from "./scripts/vite-api-media-route.mjs";
 
 export default defineConfig({
 	plugins: [
+		// Nitro 3 beta 在 dev 下默认把 <audio> 请求交给 Vite 静态资源层；
+		// /api/audio 是动态路由，必须在 Nitro 分流前把它标记为 fetch 请求。
+		apiAudioNitroDevPlugin(),
 		solidStart({
 			// dev 错误查看器引 source-map-js 有 vite 预构建 interop 缺陷（客户端报错），关闭 overlay
 			devOverlay: false,

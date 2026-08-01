@@ -2,6 +2,7 @@ import { For } from "solid-js";
 import { X, Minus, Plus } from "lucide-solid";
 import type { AppSettings } from "~/lib/settings";
 import { clampMultiplier, VOICES } from "~/lib/settings";
+import { isSettingsBackdropClick } from "~/lib/settings-panel";
 
 interface Props {
 	settings: AppSettings;
@@ -14,7 +15,12 @@ export default function SettingsPanel(props: Props) {
 		props.onChange({ ...props.settings, ...patch });
 
 	return (
-		<div class="absolute inset-0 z-30 flex items-center justify-center bg-ink/30 backdrop-blur-sm">
+		<div
+			class="absolute inset-0 z-30 flex items-center justify-center bg-ink/30 backdrop-blur-sm"
+			onClick={(event) => {
+				if (isSettingsBackdropClick(event)) props.onClose();
+			}}
+		>
 			<div class="flex max-h-[90%] w-[540px] flex-col gap-4 rounded-2xl bg-surface p-7 shadow-xl">
 				<div class="flex items-center justify-between">
 					<h2 class="font-heading text-2xl text-ink">设置</h2>

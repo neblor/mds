@@ -30,3 +30,7 @@
 ## Follow-up
 
 - Retest definitions with the newly generated portable executable; an older copy still contains the old server parser.
+
+## Subsequent finding
+
+The TTS success/write invariant fixed a real abort race, but it was not the complete cause of the persistent Web-dev `verify` report. A later browser-level reproduction showed that the file was written successfully and then removed by the intentional playback-failure cleanup after Nitro/Vite returned `404` specifically for `Sec-Fetch-Dest: audio`. The separate development-routing fix is documented in `2026-08-02-web-dev-audio-routing-fix.md`.

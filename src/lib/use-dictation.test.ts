@@ -230,6 +230,42 @@ describe("useDictation 生产流程编排", () => {
 		expect(mocks.playWithIntervals).toHaveBeenCalledTimes(2);
 	});
 
+	it("设置在停止输入 1.5 秒后保存，关闭面板会立即提交待保存内容", async () => {
+		mounted = mountDictation();
+		const d = mounted.dictation;
+		const setItem = vi.mocked(localStorage.setItem);
+
+		d.changeSettings({
+			...d.settings(),
+			aiBaseUrl: "https://example.test/v1",
+		});
+		d.changeSettings({
+			...d.settings(),
+			aiApiKey: "test-key",
+		});
+
+		expect(d.settings().aiApiKey).toBe("test-key");
+		expect(setItem).not.toHaveBeenCalled();
+		await vi.advanceTimersByTimeAsync(1_499);
+		expect(setItem).not.toHaveBeenCalled();
+		await vi.advanceTimersByTimeAsync(1);
+		expect(setItem).toHaveBeenCalledOnce();
+		expect(setItem).toHaveBeenLastCalledWith(
+			"mds.settings.v1",
+			JSON.stringify(d.settings()),
+		);
+
+		d.changeSettings({ ...d.settings(), aiModel: "custom-model" });
+		d.setSettingsOpen(true);
+		d.closeSettings();
+		expect(d.settingsOpen()).toBe(false);
+		expect(setItem).toHaveBeenCalledTimes(2);
+		expect(setItem).toHaveBeenLastCalledWith(
+			"mds.settings.v1",
+			JSON.stringify(d.settings()),
+		);
+	});
+
 	it("释义赛博模式必须完成单词和释义两步才可快速推进", async () => {
 		mounted = mountDictation();
 		const d = mounted.dictation;

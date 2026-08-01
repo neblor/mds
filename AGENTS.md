@@ -56,6 +56,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 - 环境变量：`HOST`/`NITRO_HOST`、`PORT`/`NITRO_PORT`、`MDS_CACHE_DIR`。
 - 命令行参数优先于环境变量；未指定缓存目录时使用项目`.mds-data/word-cache`。
 - 当前 Nitro 3 beta 的 node-server listener 不会单独维持 Node 事件循环，生产启动必须经过`scripts/start-web.mjs`保活，不得退回直接执行`node .output/server/index.mjs`。
+- Nitro 3 beta 的 Vite 开发中间件会把浏览器`Sec-Fetch-Dest: audio`请求当作静态资源并跳过动态路由；`scripts/vite-api-media-route.mjs`只在`configureServer`阶段将`/api/audio`改写为普通 fetch，保证 Web dev 可播放。该兼容层不得进入或改变生产 Nitro/Electron 路由。
 
 ### 测试
 
@@ -175,6 +176,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 - 显示出结果后，提供关闭按钮，点击后回到准备默写状态，不自动重置默认内容，由用户自行选择默同样的还是清空重填
 - 注意：释义只能英文释义，不支持中文释义
 - 界面提供设置功能，有以下设置，使用 electron 的 localStorage（持久化到 userData）进行存储：
+  - 设置面板不提供确认按钮；文本输入及其他控件每次变化时立即同步界面状态，并通过 `es-toolkit` 在停止变更 1.5 秒后防抖写入 localStorage。关闭面板或页面退出时立即提交尚未写入的设置，不使用失焦保存。点击面板左右的遮罩空白处可关闭，点击面板内部不得误关闭
   - AI相关配置，就是标准openai的请求地址及key的输入框，界面上提供范例，这个不设置不支持释义功能
   - 默写速度`倍率调整`
   - 每轮默写倒计时是否显示数字（精确到0.1秒），关掉的话只有倒计时条

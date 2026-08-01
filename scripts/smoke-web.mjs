@@ -1,4 +1,4 @@
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +8,8 @@ const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const startScript = join(projectRoot, "scripts", "start-web.mjs");
 const cacheRoot = join(projectRoot, ".tmp", "web-smoke-cache");
 const cacheDir = join(cacheRoot, "word-cache");
+const mediaProbeName = "smoke_000000.mp3";
+const mediaProbeBytes = new Uint8Array([0x49, 0x44, 0x33, 0, 0, 0]);
 
 function findFreePort() {
 	return new Promise((resolvePort, reject) => {
@@ -39,6 +41,8 @@ function waitForChildExit(childProcess, timeoutMs) {
 
 const port = await findFreePort();
 rmSync(cacheRoot, { recursive: true, force: true });
+mkdirSync(cacheDir, { recursive: true });
+writeFileSync(join(cacheDir, mediaProbeName), mediaProbeBytes);
 const child = spawn(
 	process.execPath,
 	[
@@ -82,7 +86,22 @@ try {
 		throw new Error(`Web 生产服务未在 10 秒内就绪\n${childOutput}`);
 	}
 	await response.arrayBuffer();
-	// 首次访问缓存相关路由时才会载入存储适配器并创建目录。
+	// Electron 使用同一 Nitro 生产路由。即使浏览器把请求标为 audio，也必须动态读外置缓存。
+	const mediaProbe = await fetch(
+		`http://127.0.0.1:${port}/api/audio?name=${mediaProbeName}`,
+		{ headers: { "sec-fetch-dest": "audio" } },
+	);
+	const mediaBytes = new Uint8Array(await mediaProbe.arrayBuffer());
+	if (
+		mediaProbe.status !== 200 ||
+		mediaBytes.length !== mediaProbeBytes.length ||
+		!mediaBytes.every((byte, index) => byte === mediaProbeBytes[index])
+	) {
+		throw new Error(
+			`生产媒体路由异常：HTTP ${mediaProbe.status}, ${mediaBytes.length} bytes`,
+		);
+	}
+	// 缺失文件仍必须由动态路由返回结构化 404。
 	const cacheProbe = await fetch(
 		`http://127.0.0.1:${port}/api/audio?name=missing_000000.mp3`,
 	);

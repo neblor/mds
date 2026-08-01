@@ -17,6 +17,9 @@ importers:
       edge-tts-universal:
         specifier: ^1.4.0
         version: 1.4.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
+      es-toolkit:
+        specifier: ^1.50.0
+        version: 1.50.0
       h3:
         specifier: 2.0.1-rc.22
         version: 2.0.1-rc.22(crossws@0.4.10(srvx@0.11.22))
@@ -1354,6 +1357,9 @@ packages:
   es-set-tostringtag@2.1.0:
     resolution: {integrity: sha512-j6vWzfrGVfyXxge+O0x5sh6cvxAog0a/4Rdd2K36zCMV5eJ+/+tOAngRO8cODMNWbVRdVlmGZQL2YS3yR8bIUA==}
     engines: {node: '>= 0.4'}
+
+  es-toolkit@1.50.0:
+    resolution: {integrity: sha512-OyZKhUVvEep9ITEiwHn8GKnMRQIVqoSIX7WnRbkWgJkllCujilqP2rD0u979tkl8wqyc8ICwlc1UBVv/Sl1G6w==}
 
   es6-error@4.1.1:
     resolution: {integrity: sha512-Um/+FxMr9CISWh0bi5Zv0iOD+4cFh5qLeks1qhAopKVAJw3drgKbKySikp7wGhDL0HPeaja0P5ULZrxLkniUVg==}
@@ -4147,6 +4153,8 @@ snapshots:
       has-tostringtag: 1.0.2
       hasown: 2.0.4
 
+  es-toolkit@1.50.0: {}
+
   es6-error@4.1.1:
     optional: true
 
@@ -4294,7 +4302,7 @@ snapshots:
       es6-error: 4.1.1
       matcher: 3.0.0
       roarr: 2.15.4
-      semver: 7.7.4
+      semver: 7.8.5
       serialize-error: 7.0.1
     optional: true
 
@@ -4753,11 +4761,11 @@ snapshots:
 
   node-abi@4.33.0:
     dependencies:
-      semver: 7.7.4
+      semver: 7.8.5
 
   node-api-version@0.2.1:
     dependencies:
-      semver: 7.7.4
+      semver: 7.8.5
 
   node-fetch@2.7.0:
     dependencies:
@@ -4770,7 +4778,7 @@ snapshots:
       graceful-fs: 4.2.11
       nopt: 9.0.0
       proc-log: 6.1.0
-      semver: 7.7.4
+      semver: 7.8.5
       tar: 7.5.22
       tinyglobby: 0.2.17
       undici: 6.28.0

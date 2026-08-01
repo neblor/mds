@@ -28,6 +28,7 @@
     "@solidjs/router": "^1.0.0",
     "@solidjs/start": "^2.0.0-rc.6",
     "edge-tts-universal": "^1.4.0",
+    "es-toolkit": "^1.50.0",
     "h3": "2.0.1-rc.22",
     "lucide-solid": "^1.28.0",
     "nitro": "^3.0.260610-beta",

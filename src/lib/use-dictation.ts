@@ -4,6 +4,7 @@
  * 事件入口 → runStep（防重入）→ 执行动作（中止音频/推进轮次）→ 同步 SolidJS 信号
  */
 import { createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { debounce } from "es-toolkit/function";
 import {
 	loadSettings,
 	saveSettings,
@@ -102,6 +103,9 @@ export function useDictation() {
 	const [speed, setSpeed] = createSignal<SpeedLevel>("normal");
 	const [settings, setSettings] = createSignal<AppSettings>(loadSettings());
 	const [settingsOpen, setSettingsOpen] = createSignal(false);
+	const saveSettingsDebounced = debounce(saveSettings, 1_500);
+	const flushPendingSettings = () => saveSettingsDebounced.flush();
+	onCleanup(flushPendingSettings);
 	const [phase, setPhase] = createSignal<Phase>("idle");
 	const [mode, setMode] = createSignal<DictationMode>("writing");
 	const [error, setError] = createSignal<string | null>(null);
@@ -505,7 +509,12 @@ export function useDictation() {
 
 	const changeSettings = (s: AppSettings) => {
 		setSettings(s);
-		saveSettings(s);
+		saveSettingsDebounced(s);
+	};
+
+	const closeSettings = () => {
+		flushPendingSettings();
+		setSettingsOpen(false);
 	};
 
 	const currentRound = createMemo(() => rounds()[currentIndex()]);
@@ -540,7 +549,7 @@ export function useDictation() {
 			}
 		}
 		if (e.key === "Escape") {
-			if (settingsOpen()) setSettingsOpen(false);
+			if (settingsOpen()) closeSettings();
 			else if (phase() === "results") closeResults();
 			else if (phase() === "ready") setPhase("idle");
 			else if (phase() === "preparing") abortPreparation();
@@ -551,7 +560,11 @@ export function useDictation() {
 	// 任何焦点位置都能捕获键盘流（各分支已按 phase/mode 限定，不会误触发输入）
 	onMount(() => {
 		window.addEventListener("keydown", onRootKeyDown);
-		onCleanup(() => window.removeEventListener("keydown", onRootKeyDown));
+		window.addEventListener("pagehide", flushPendingSettings);
+		onCleanup(() => {
+			window.removeEventListener("keydown", onRootKeyDown);
+			window.removeEventListener("pagehide", flushPendingSettings);
+		});
 		// 恢复释义开关的持久化值（SSR 阶段信号无 localStorage，必须在客户端恢复）
 		try {
 			const saved = localStorage.getItem(DEFINITION_KEY);
@@ -598,6 +611,7 @@ export function useDictation() {
 		closeResults,
 		playResultAudio,
 		changeSettings,
+		closeSettings,
 		setSettingsOpen,
 		onRootKeyDown,
 		setWordInput,

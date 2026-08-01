@@ -95,7 +95,7 @@ export default function Home() {
 					<SettingsPanel
 						settings={d.settings()}
 						onChange={d.changeSettings}
-						onClose={() => d.setSettingsOpen(false)}
+						onClose={d.closeSettings}
 					/>
 				</Show>
 			</div>
