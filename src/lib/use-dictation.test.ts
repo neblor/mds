@@ -266,6 +266,36 @@ describe("useDictation 生产流程编排", () => {
 		);
 	});
 
+	it("单个与批量修改都会立即持久化", () => {
+		mounted = mountDictation();
+		const d = mounted.dictation;
+		d.addWords(["apple", "give up"]);
+
+		d.addWords(["banana", "apple", " orange "]);
+		d.addWord("  kiwi  ");
+		d.addWord("   ");
+		expect(d.words()).toEqual([
+			"apple",
+			"give up",
+			"banana",
+			"orange",
+			"kiwi",
+		]);
+		expect(localStorage.setItem).toHaveBeenLastCalledWith(
+			"mds.words.v1",
+			JSON.stringify(["apple", "give up", "banana", "orange", "kiwi"]),
+		);
+
+		d.removeWord("give up");
+		expect(d.words()).toEqual(["apple", "banana", "orange", "kiwi"]);
+		d.clearWords();
+		expect(d.words()).toEqual([]);
+		expect(localStorage.setItem).toHaveBeenLastCalledWith(
+			"mds.words.v1",
+			"[]",
+		);
+	});
+
 	it("释义赛博模式必须完成单词和释义两步才可快速推进", async () => {
 		mounted = mountDictation();
 		const d = mounted.dictation;
@@ -302,6 +332,37 @@ describe("useDictation 生产流程编排", () => {
 			answer: "apple",
 			answerDef: "A round fruit.",
 		});
+	});
+
+	it("释义赛博模式无操作超时会提交两个空输入并继续", async () => {
+		mounted = mountDictation();
+		const d = mounted.dictation;
+		d.changeSettings({
+			...d.settings(),
+			aiBaseUrl: "https://example.test/v1",
+			aiApiKey: "test-key",
+		});
+		d.changeWithDefinition(true);
+		d.addWord("apple");
+		d.startDictation("cyber");
+		await flushAsyncWork();
+		d.go();
+
+		// 语音轨先结束；倒计时到点后应一次性封口单词和释义输入并进入结果页。
+		playDeferreds[0].resolve("completed");
+		await flushAsyncWork();
+		expect(d.phase()).toBe("dictating");
+		expect(d.step()).toBe("word");
+
+		await vi.advanceTimersByTimeAsync(
+			Math.ceil(d.rounds()[0].countdownSec * 1_000) + 100,
+		);
+
+		expect(d.remaining()).toBe(0);
+		expect(d.speechDone()).toBe(true);
+		expect(d.rounds()[0]).toMatchObject({ answer: "", answerDef: "" });
+		expect(d.step()).toBe("done");
+		expect(d.phase()).toBe("results");
 	});
 });
 
@@ -559,7 +620,14 @@ describe("useDictation 完整流程衔接（结果页）", () => {
 		} as unknown as KeyboardEvent);
 		expect(d.phase()).toBe("results");
 
-		d.closeResults();
+		const preventDefault = vi.fn();
+		d.onRootKeyDown({
+			key: "Escape",
+			code: "Escape",
+			target: { tagName: "BUTTON", isContentEditable: false },
+			preventDefault,
+		} as unknown as KeyboardEvent);
+		expect(preventDefault).toHaveBeenCalledOnce();
 		expect(preview.signal.aborted).toBe(true);
 		expect(d.resultAudioName()).toBeNull();
 		expect(d.phase()).toBe("idle");

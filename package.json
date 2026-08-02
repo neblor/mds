@@ -16,10 +16,11 @@
     "web:smoke": "node scripts/smoke-web.mjs",
     "test:run": "node scripts/run-vitest.mjs run",
     "test:watch": "node scripts/run-vitest.mjs",
+    "get:explain": "node scripts/get-explain.mjs",
     "client:start": "electron .",
     "client:dev": "pnpm web:build && pnpm client:start",
     "client:package:dir": "pnpm web:build && electron-builder --win dir",
-    "client:package": "pnpm check && electron-builder --win portable && pnpm client:verify",
+    "client:package": "node scripts/package-client.mjs",
     "client:verify": "node scripts/verify-electron-package.mjs",
     "electron:start": "pnpm client:start",
     "electron:build": "pnpm client:package"
@@ -86,7 +87,7 @@
       "mirror": "https://npmmirror.com/mirrors/electron/"
     }
   },
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "默点啥 — 记单词 · 听写 · 默写小帮手",
   "author": "neblor"
 }

@@ -1,32 +1,206 @@
-# SolidStart
+# mds
 
-Everything you need to build a Solid project, powered by [`solid-start`](https://start.solidjs.com);
+> 默点啥：一个轻巧的英语默写辅助工具。<br>
+> A lightweight English dictation companion for handwriting and keyboard practice.
 
-## Creating a project
+[中文](#中文) · [English](#english)
+
+---
+
+## 中文
+
+mds（默点啥）把单词收集、发音准备、随机默写和结果对照放进一个简单流程里。它既可以陪孩子用纸笔默写，也支持直接在电脑上输入答案；开启释义后，还能通过 OpenAI 兼容接口生成简洁的英文释义。
+
+### 功能
+
+- 单词、词组和短句的快速录入、批量导入、删除与清空
+- 词库自动保存在浏览器本地存储中，刷新或重启后仍会保留
+- 书写默写与赛博默写两种模式
+- 快、中、慢三档节奏及自定义倍率
+- Edge TTS 预生成发音，增量缓存，默写时流畅播放
+- 可选 AI 英文释义，支持部分结果、超时、中止和兼容降级
+- 随机顺序、播报进度、倒计时和键盘连续操作
+- 单词判定、答案对照、单独试听及全对庆祝效果
+- 单文件 Windows Portable 应用，无需安装
+
+### 快速开始
+
+环境要求：Node.js 24+、pnpm。
 
 ```bash
-# create a new project in the current directory
-npm init solid@latest
-
-# create a new project in my-app
-npm init solid@latest my-app
+pnpm install
+pnpm dev
 ```
 
-## Developing
+开发服务固定运行在 `http://localhost:5199`。
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+生产构建与检查：
 
 ```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+pnpm build
+pnpm check
 ```
 
-## Building
+### 使用方式
 
-Solid apps are built with _presets_, which optimise your project for deployment to different environments.
+1. 输入单词、词组或短句，按回车加入词库；也可以点击输入框右侧的“批量导入”。批量文本支持空格、Tab、回车、英文逗号和英文分号。
+2. 选择速度，以及是否同时默写英文释义。
+3. 选择“开始书写默写”或“开始赛博默写”。
+4. 等待语音和释义准备完成，在 `Let's Go!` 界面点击按钮或按回车开始。
+5. 完成后查看答案、正确数量和本轮发音。
 
-By default, `npm run build` will generate a Node app that you can run with `npm start`. To use a different preset, add it to the `devDependencies` in `package.json` and specify in your `app.config.js`.
+启用释义前，需要在应用设置中填写 OpenAI 兼容的 Base URL、API Key 和模型名。配置只保存在本机。
 
-## This project was created with the [Solid CLI](https://github.com/solidjs-community/solid-cli)
+### 人工测试 AI 释义
+
+命令行诊断会直接调用与应用相同的释义 provider，但不会读写业务缓存，适合判断问题来自 AI 响应还是缓存链路。
+
+```bash
+cp .env.example .env
+# 编辑 .env，填写服务地址、Key 和模型
+pnpm get:explain apple banana "look forward to"
+```
+
+输出包含释义、缺失词、耗时、`finish_reason`、token 用量和兼容降级记录。`.env` 已被 Git 忽略，请勿提交真实 Key。
+
+### Windows 客户端
+
+```bash
+# 构建 Web 产物后启动 Electron
+pnpm client:dev
+
+# 测试打包：不改版本号，输出到 dist/electron-test
+pnpm client:package test
+
+# 正式打包：选择一种版本递增方式
+pnpm client:package patch
+```
+
+`bump_type` 是必填参数：`major`、`minor`、`patch` 分别递增大、中、小版本号，其中大版本和中版本会将更低位归零；`test` 不修改版本。正式产物位于 `dist/electron/mds-<version>-x64.exe`，测试产物位于 `dist/electron-test/`。打包会先使用展开目录完成内容校验，成功后删除展开目录、builder 调试文件和旧产物，因此对应输出目录最终只保留本次 EXE。只有正式打包成功后，新版本才会写回 `package.json`；失败会恢复原版本。Linux/WSL 交叉打包 Windows 应用需要 Wine。
+
+### 数据与日志
+
+- Web 默认缓存：`.mds-data/word-cache`
+- Portable 客户端：优先使用 EXE 同目录的 `mds-data/word-cache`
+- 目录不可写时：回退到 Electron `userData/mds-data/word-cache`
+- AI 诊断日志：Client 的 `mds-data/logs/ai-definitions.log`
+
+AI 日志会记录请求失败、兼容降级、响应缺项或截断及缓存写入失败，但不会记录 API Key；达到 1 MiB 后保留一份轮换日志。
+
+### 常用命令
+
+| 命令 | 用途 |
+| --- | --- |
+| `pnpm dev` | 启动 Web 开发服务 |
+| `pnpm test` | 运行全部 Vitest 单元测试 |
+| `pnpm check` | 测试、生产构建和 HTTP 冒烟 |
+| `pnpm get:explain ...` | 直接诊断 AI 释义接口 |
+| `pnpm client:dev` | 构建并启动 Electron 客户端 |
+| `pnpm client:package <major\|minor\|patch\|test>` | 自动检查、按模式管理版本并构建 Windows Portable EXE |
+
+### 技术栈
+
+SolidStart 2 · SolidJS · TypeScript · Tailwind CSS · Electron · Nitro · Vitest · edge-tts-universal
+
+---
+
+## English
+
+<!-- “mds” comes from the Chinese name “默点啥”, roughly: “What should I dictate?” -->
+
+mds is a small English dictation app that keeps word collection, speech preparation, shuffled practice, and answer review in one focused flow. It works for pen-and-paper practice as well as typed answers, with optional kid-friendly English definitions generated through an OpenAI-compatible API.
+
+### Highlights
+
+- Add words, phrases, or short sentences with Enter or the bulk importer
+- Keep the word list across refreshes and restarts with local browser storage
+- Handwriting and keyboard-based dictation modes
+- Three pacing levels plus a custom speed multiplier
+- Pre-generated Edge TTS audio with incremental local caching
+- Optional AI-generated English definitions with abort and fallback handling
+- Shuffled rounds, playback progress, countdowns, and keyboard-first interaction
+- Answer comparison, word scoring, replay controls, and a perfect-score celebration
+- A single portable Windows executable with no installer
+
+### Getting started
+
+Requirements: Node.js 24+ and pnpm.
+
+```bash
+pnpm install
+pnpm dev
+```
+
+The development server runs at `http://localhost:5199`.
+
+For a production build and the full delivery check:
+
+```bash
+pnpm build
+pnpm check
+```
+
+### How to use it
+
+1. Enter a word, phrase, or short sentence and press Enter, or open the bulk importer at the right of the input. Bulk text can be separated by spaces, tabs, line breaks, commas, or semicolons.
+2. Choose a pace and whether English definitions should be included.
+3. Start handwriting or keyboard dictation.
+4. Wait for audio and definitions, then click `Let's Go!` or press Enter.
+5. Review answers, scores, and prepared pronunciation after the session.
+
+Definition mode requires an OpenAI-compatible Base URL, API key, and model name in the app settings. These settings stay on the local machine.
+
+### Testing the definition provider
+
+The diagnostic command calls the same provider used by the app while bypassing the application cache. This makes it easier to separate upstream AI response problems from cache problems.
+
+```bash
+cp .env.example .env
+# Fill in the endpoint, key, and model in .env
+pnpm get:explain apple banana "look forward to"
+```
+
+The output includes definitions, missing words, elapsed time, `finish_reason`, token usage, and compatibility fallbacks. `.env` is ignored by Git; never commit a real API key.
+
+### Windows client
+
+```bash
+# Build the web app and launch Electron
+pnpm client:dev
+
+# Test package: keep the version and write to dist/electron-test
+pnpm client:package test
+
+# Release package: choose the intended version bump
+pnpm client:package patch
+```
+
+The required `bump_type` is one of `major`, `minor`, `patch`, or `test`. Major and minor bumps reset lower version positions; test packages keep the current version. Release artifacts go to `dist/electron/mds-<version>-x64.exe`, while test packages go to `dist/electron-test/`. Packaging verifies the expanded app first, then removes the unpacked directory, builder diagnostics, and older artifacts, leaving only the newly built EXE in that output directory. The release version is committed to `package.json` only after a successful package and verification run; failures restore the previous version. Cross-building for Windows from Linux/WSL requires Wine.
+
+### Runtime data and diagnostics
+
+- Web cache: `.mds-data/word-cache`
+- Portable client cache: `mds-data/word-cache` beside the executable when writable
+- Fallback cache: Electron `userData/mds-data/word-cache`
+- Client AI diagnostics: `mds-data/logs/ai-definitions.log`
+
+Diagnostic logs cover request failures, compatibility fallbacks, truncated or incomplete responses, and cache write failures. API keys are never logged, and the file rotates at 1 MiB.
+
+### Main commands
+
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Start the Web development server |
+| `pnpm test` | Run all Vitest unit tests |
+| `pnpm check` | Run tests, production build, and HTTP smoke test |
+| `pnpm get:explain ...` | Diagnose the AI definition provider directly |
+| `pnpm client:dev` | Build and launch the Electron client |
+| `pnpm client:package <major\|minor\|patch\|test>` | Check, manage the version, and build the portable Windows executable |
+
+### Stack
+
+SolidStart 2 · SolidJS · TypeScript · Tailwind CSS · Electron · Nitro · Vitest · edge-tts-universal
+
+## License
+
+Released under the [MIT License](LICENSE).

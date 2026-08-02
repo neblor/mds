@@ -33,6 +33,8 @@ import {
 	type EngineEvent,
 	type EngineState,
 } from "./dictation-engine";
+import { loadWords, saveWords } from "./word-storage";
+import { timedOutInputPatch } from "./dictation-input";
 
 export type Phase = "idle" | "preparing" | "ready" | "dictating" | "results";
 
@@ -99,6 +101,8 @@ function buildRounds(opts: BuildRoundsOptions): DictRound[] {
 }
 
 export function useDictation() {
+	// SSR 与客户端水合必须从相同的空状态开始；持久化词库在 onMount 后恢复，
+	// 否则已有 localStorage 时会造成服务端空列表与客户端列表不一致。
 	const [words, setWords] = createSignal<string[]>([]);
 	const [speed, setSpeed] = createSignal<SpeedLevel>("normal");
 	const [settings, setSettings] = createSignal<AppSettings>(loadSettings());
@@ -226,14 +230,35 @@ export function useDictation() {
 		);
 
 	/* ---------- 词库 ---------- */
+	const updateWords = (updater: (previous: string[]) => string[]) =>
+		setWords((previous) => {
+			const next = updater(previous);
+			saveWords(next);
+			return next;
+		});
 	const addWord = (w: string) => {
 		setError(null);
-		setWords((prev) => (prev.includes(w) ? prev : [...prev, w]));
+		const normalized = w.trim();
+		if (!normalized) return;
+		updateWords((prev) =>
+			prev.includes(normalized) ? prev : [...prev, normalized],
+		);
+	};
+	const addWords = (incoming: string[]) => {
+		setError(null);
+		updateWords((previous) => {
+			const next = [...previous];
+			for (const word of incoming) {
+				const normalized = word.trim();
+				if (normalized && !next.includes(normalized)) next.push(normalized);
+			}
+			return next;
+		});
 	};
 	const removeWord = (w: string) =>
-		setWords((prev) => prev.filter((x) => x !== w));
+		updateWords((prev) => prev.filter((x) => x !== w));
 	const clearWords = () => {
-		setWords([]);
+		updateWords(() => []);
 		setPhase("idle");
 	};
 
@@ -353,15 +378,12 @@ export function useDictation() {
 	const commitCurrentInputs = (i: number) => {
 		const r = rounds()[i];
 		if (mode() !== "cyber") return;
-		const patch: Partial<DictRound> = {};
-		if (r.answer === undefined) patch.answer = wordInput().trim();
-		if (
-			withDefinition() &&
-			r.answer !== undefined &&
-			r.answerDef === undefined
-		) {
-			patch.answerDef = defInput().trim();
-		}
+		const patch = timedOutInputPatch({
+			round: r,
+			withDefinition: withDefinition(),
+			wordInput: wordInput(),
+			definitionInput: defInput(),
+		});
 		if (Object.keys(patch).length > 0) patchRound(i, patch);
 	};
 
@@ -520,7 +542,7 @@ export function useDictation() {
 	const currentRound = createMemo(() => rounds()[currentIndex()]);
 
 	/* ---------- 键盘流 ---------- */
-	/** 键盘流：结果页回车关闭；书写模式音频未发声时空格直接跳下一轮 */
+	/** 键盘流：结果页回车/Escape 关闭；书写模式音频未发声时空格直接跳下一轮 */
 	const onRootKeyDown = (e: KeyboardEvent) => {
 		if (e.key === "Enter") {
 			if (phase() === "results") {
@@ -550,7 +572,10 @@ export function useDictation() {
 		}
 		if (e.key === "Escape") {
 			if (settingsOpen()) closeSettings();
-			else if (phase() === "results") closeResults();
+			else if (phase() === "results") {
+				e.preventDefault();
+				closeResults();
+			}
 			else if (phase() === "ready") setPhase("idle");
 			else if (phase() === "preparing") abortPreparation();
 		}
@@ -567,6 +592,7 @@ export function useDictation() {
 		});
 		// 恢复释义开关的持久化值（SSR 阶段信号无 localStorage，必须在客户端恢复）
 		try {
+			setWords(loadWords());
 			const saved = localStorage.getItem(DEFINITION_KEY);
 			if (saved === "1" || saved === "0") setWithDefinition(saved === "1");
 		} catch {
@@ -598,6 +624,7 @@ export function useDictation() {
 		resultRows,
 		resultAudioName,
 		addWord,
+		addWords,
 		removeWord,
 		clearWords,
 		setSpeed,

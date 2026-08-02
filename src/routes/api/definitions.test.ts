@@ -104,6 +104,30 @@ describe("POST /api/definitions 部分释义缓存策略", () => {
 		) as { messages: { content: string }[] };
 		expect(JSON.parse(secondRequest.messages[1].content)).toEqual(["banana"]);
 	});
+
+	it("20 个单词的完整响应全部写入实际文件缓存", async () => {
+		const words = Array.from({ length: 20 }, (_, index) => `word-${index + 1}`);
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(
+				aiResponse(
+					words.map((word) => ({
+						word,
+						definition: `A simple definition for ${word}.`,
+					})),
+				),
+			),
+		);
+
+		const result = await POST(eventFor(words));
+		expect(Object.keys(result.definitions)).toHaveLength(20);
+		expect(result.missing).toBeUndefined();
+		const cache = JSON.parse(
+			readFileSync(testPaths.definitionsFile, "utf8"),
+		) as { defs: Record<string, string> };
+		expect(Object.keys(cache.defs)).toHaveLength(20);
+		for (const word of words) expect(cache.defs[word]).toBeTruthy();
+	});
 });
 
 describe("POST /api/definitions 原型属性与键过滤", () => {

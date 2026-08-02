@@ -28,6 +28,7 @@ export default function Home() {
 							withDefinition={d.withDefinition()}
 							error={d.error()}
 							onAdd={d.addWord}
+							onAddMany={d.addWords}
 							onRemove={d.removeWord}
 							onClear={d.clearWords}
 							onSpeed={d.setSpeed}

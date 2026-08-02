@@ -1,5 +1,14 @@
 import { For, Show, createSignal } from "solid-js";
-import { Star, Settings, PenLine, Keyboard, Trash2, X } from "lucide-solid";
+import {
+	Star,
+	Settings,
+	PenLine,
+	Keyboard,
+	Trash2,
+	X,
+	ListPlus,
+} from "lucide-solid";
+import BatchImportDialog from "~/components/BatchImportDialog";
 import type { SpeedLevel } from "~/lib/timing";
 
 interface Props {
@@ -8,6 +17,7 @@ interface Props {
 	withDefinition: boolean;
 	error: string | null;
 	onAdd: (word: string) => void;
+	onAddMany: (words: string[]) => void;
 	onRemove: (word: string) => void;
 	onClear: () => void;
 	onSpeed: (s: SpeedLevel) => void;
@@ -25,6 +35,7 @@ const SPEED_LEVELS: { key: SpeedLevel; label: string }[] = [
 
 export default function WordBank(props: Props) {
 	const [input, setInput] = createSignal("");
+	const [batchOpen, setBatchOpen] = createSignal(false);
 
 	const submit = () => {
 		const v = input().trim();
@@ -65,6 +76,14 @@ export default function WordBank(props: Props) {
 						if (e.key === "Enter") submit();
 					}}
 				/>
+				<button
+					type="button"
+					class="flex shrink-0 items-center gap-1.5 rounded-xl bg-canvas px-3 py-2 text-[13px] font-semibold text-ink-soft transition hover:bg-soft hover:text-ink"
+					onClick={() => setBatchOpen(true)}
+				>
+					<ListPlus class="h-4 w-4 text-brand" />
+					批量导入
+				</button>
 			</div>
 
 			{/* 词库 */}
@@ -160,6 +179,14 @@ export default function WordBank(props: Props) {
 					开始赛博默写
 				</button>
 			</div>
+
+			<Show when={batchOpen()}>
+				<BatchImportDialog
+					existingWords={props.words}
+					onImport={props.onAddMany}
+					onClose={() => setBatchOpen(false)}
+				/>
+			</Show>
 		</div>
 	);
 }

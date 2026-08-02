@@ -11,11 +11,28 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+function parseOptions(args) {
+	const options = {};
+	for (let index = 0; index < args.length; index++) {
+		const name = args[index];
+		if (name === "--") continue;
+		if (name !== "--output-dir" && name !== "--version") {
+			throw new Error(`未知参数：${name}`);
+		}
+		const value = args[++index];
+		if (!value || value.startsWith("--")) throw new Error(`${name} 缺少值`);
+		options[name.slice(2)] = value;
+	}
+	return options;
+}
+
+const options = parseOptions(process.argv.slice(2));
 const packageJson = JSON.parse(
 	readFileSync(join(projectRoot, "package.json"), "utf8"),
 );
-const outputDir = join(projectRoot, "dist", "electron");
-const artifact = join(outputDir, `mds-${packageJson.version}-x64.exe`);
+const outputDir = resolve(projectRoot, options["output-dir"] ?? "dist/electron");
+const packageVersion = options.version ?? packageJson.version;
+const artifact = join(outputDir, `mds-${packageVersion}-x64.exe`);
 const appDir = join(outputDir, "win-unpacked", "resources", "app");
 
 const failures = [];

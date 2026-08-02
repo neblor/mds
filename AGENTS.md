@@ -34,6 +34,7 @@
 | `pnpm preview` | `pnpm web:preview`的常用别名 |
 | `pnpm test` | `pnpm test:run`的常用别名，单次运行全部 Vitest |
 | `pnpm check` | 完整 Web 交付检查：Vitest → Web 生产构建 → Web 生产冒烟 |
+| `pnpm get:explain word1 word2 ...` | 直接调用独立 AI 释义服务做人工诊断；读取项目`.env`中的`MDS_AI_BASE_URL`、`MDS_AI_API_KEY`、`MDS_AI_MODEL`，不读写业务缓存 |
 
 ### Web 模式
 
@@ -75,12 +76,15 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 | `pnpm client:start` | 使用当前已有`.output`启动 Electron；不会自动重新构建 |
 | `pnpm client:dev` | 先执行 Web 生产构建，再启动 Electron，适合本地联调 |
 | `pnpm client:package:dir` | 构建并生成快速调试用`dist/electron/win-unpacked/`，不生成交付 EXE |
-| `pnpm client:package` | 正式交付入口：`check` → Windows portable 打包 → 包内容校验 |
-| `pnpm client:verify` | 校验现有 portable EXE 的 MZ 头、必要运行文件，以及包内无`node_modules`和`word-cache` |
+| `pnpm client:package <bump_type>` | 统一打包入口；`bump_type`必填且只能是`major`/`minor`/`patch`/`test`，依次执行`check` → Windows portable 打包 → 包内容校验 → 清理临时产物 |
+| `pnpm client:verify` | 打包清理前使用`win-unpacked`校验 portable EXE 的 MZ 头、必要运行文件，以及包内无`node_modules`和`word-cache` |
 | `pnpm electron:start` | `pnpm client:start`的兼容别名 |
-| `pnpm electron:build` | `pnpm client:package`的兼容别名 |
+| `pnpm electron:build <bump_type>` | `pnpm client:package <bump_type>`的兼容别名，同样必须传入参数 |
 
-- 正式发布必须使用`pnpm client:package`或其`electron:build`别名，产物为`dist/electron/mds-<version>-x64.exe`。
+- `package.json`的`version`是客户端版本的唯一数据源。`major`递增第一位并将后两位归零，`minor`递增第二位并将第三位归零，`patch`只递增第三位；例如`0.1.45`执行`major`后为`1.0.0`，执行`minor`后为`0.2.0`，执行`patch`后为`0.1.46`。
+- 正式发布必须由用户使用`pnpm client:package major|minor|patch`或其`electron:build`别名触发；打包成功后自动写回新版本，产物为`dist/electron/mds-<version>-x64.exe`。打包失败必须恢复原版本。
+- `pnpm client:package test`不修改版本号，测试产物固定输出到`dist/electron-test/`。Agent 做任何测试打包时只能使用`test`模式，禁止自行使用`major`、`minor`或`patch`；后三种发布递增值只允许用户决定和执行。
+- `client:package`必须先完成包内容校验，再删除对应输出目录中的`win-unpacked`、builder 调试文件、旧 EXE 等所有临时或历史项目；成功结束后输出目录只能保留本次生成的最终`mds-<version>-x64.exe`。
 - `client:package:dir`仅用于快速排查 Electron 启动与包内容，不是交付形式。
 - Client 启动依赖`.output`，需要最新业务代码时使用`client:dev`，不要直接运行可能陈旧的`client:start`。
 - electron-builder 下载运行时和 NSIS 资源时需要网络；Linux/WSL 交叉构建 Windows 产物还需要可用的 Wine 环境。
@@ -92,10 +96,11 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 - 主进程：`electron/main.mjs` — 启动内置 nitro server（`.output/server/index.mjs`，import 即监听）+ BrowserWindow 加载 `http://127.0.0.1:4827`
 - 运行时缓存不得写入或打包进静态 `public`：Web 默认使用项目 `.mds-data/word-cache`（部署时可用 `MDS_CACHE_DIR` 覆盖）；Electron portable 优先使用 exe 同目录的 `mds-data/word-cache`，目录不可写时回退到 `userData/mds-data/word-cache`
 - Client 主进程必须在启动内置服务前设置 `MDS_RUNTIME_MODE=client` 和 `MDS_CACHE_DIR`；业务层通过 `/api/audio` 动态读取外置音频，不依赖静态目录
+- Client 模式下第三方 AI 释义调用的降级、错误、缺词/截断及缓存写入失败记录到外置 `mds-data/logs/ai-definitions.log`，日志达到 1 MiB 时轮换一份 `.1`；日志不得记录 API Key
 - Electron 主窗口默认及最大尺寸为 `1120×820`，最小尺寸为各边约三分之二的 `747×547`；允许在该范围内缩放，但必须禁用最大化和全屏
 - 音频与释义缓存的命中、读取、原子写入和失效必须通过统一的 runtime cache storage 接口完成，由工厂按 Web/Client 环境选择实现；业务路由不得直接操作缓存文件或自行判断运行环境
-- 打包：`pnpm client:package`（`pnpm electron:build`为兼容别名），产出`dist/electron/mds-<version>-x64.exe`单文件
-- 交叉打包（Linux → Windows）需要 wine；Windows 上直接 `pnpm electron:build`
+- 打包：`pnpm client:package <major|minor|patch|test>`（`pnpm electron:build <bump_type>`为兼容别名）；发布模式产出`dist/electron/mds-<version>-x64.exe`，测试模式产出`dist/electron-test/mds-<version>-x64.exe`，两个输出目录在成功后都只保留该最终 EXE
+- 交叉打包（Linux → Windows）需要 wine；Windows 上使用相同的带`bump_type`命令
 - 打包下载镜像：`ELECTRON_MIRROR`/`ELECTRON_BUILDER_BINARIES_MIRROR` 指向 npmmirror 加速
 
 > 如果某个技术点不确定不要纯自己猜，一定要上网查文档
@@ -119,21 +124,29 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 
 ### 实施段
 
-- 涉及界面部分的，先在`.design`目录下建对应的pen文件进行设计，通过视觉确认设计无误后，再根据视觉设计去精确实现
+- 涉及界面部分的，先在`.design`目录下建对应的pen文件进行设计，通过视觉确认设计无误后，再根据视觉设计去实现
+  - 注意，当项目内已经有同类实现时，设计稿的表达与实际的css实现可能会有些许差异（比如背景模糊度啊，倒角值啊什么的），当出现设计与已经明确已有实现的方案有同方向（即不是本质设计上的，而是参数值上的细节处理）冲突时，优先以已有实现方案为准
 - **键盘交互铁律**：设计界面交互时，时刻思考用户当前键盘需要输入的区域在哪里，控制好 input 的自动化 focus 流程。尽管不是 CLI 应用，仍要避免让用户不断在键盘和鼠标间反复来回切换的界面。用户一旦进入键盘操作，如果接下来的操作还是键盘，就要让用户能一直只用键盘走完流程（例如最终关闭：直接捕获回车键关闭，而不是 Tab 把 focus 移到关闭按钮再回车）。同时保持输入框位置稳定，提示信息不能把输入框顶得来回移动
 - 编码实现过程遇到不确定的部分也需要积极查文档
 - 对任何项目都需要配置单元测试，e2e测试在没有明确需求的情况下可以省略，但单元测试必须与功能同步实现，考虑到多个边界并最终通过`pnpm + Vitest`跑通
+- 涉及复杂流程控制、键盘状态或持久化时序的逻辑，优先抽成纯函数或可注入的编排模块扩大单元测试覆盖；E2E 只做必要的轻量冒烟，浏览器自动化不稳定时不得在其上持续消耗排查时间，可将完整端到端体验留给用户人工验证
 - 核心业务存在流程编排层时，单元测试必须直接覆盖生产实际调用的编排实现，不能只测试一套未被生产代码使用的平行状态模型
+- 第三方服务调用必须从 API 路由中独立封装为可复用、可注入 mock 的 provider/service；路由只负责参数校验和 HTTP 适配，业务单元测试直接覆盖生产实际调用的封装
+- AI 释义功能的批量回归测试至少覆盖 20 个单词，并同时验证请求解析、请求词对齐、缓存写入及写后复读；不得只测试少量理想输入
+- 需要人工排查的第三方功能应提供项目根目录下可通过`pnpm`执行的诊断脚本；脚本必须复用生产 provider、输出耗时/缺项/降级等诊断信息，且不得在命令输出或日志中泄露 Key
+- 第三方调用即使存在自动降级也必须留下诊断记录；Client 模式统一写入外置`mds-data/logs`，至少记录网络/HTTP/超时、兼容降级、响应截断或缺项、缓存写入失败，并控制日志轮换大小
 - 完成后汇总实施报告存到`.implementation-report`，涉及到当前实现的需求，实现中的关键决策，以及结果，是否有后续可能要处理的部分
 
 ## 系统基础功能
 
 因为该项目功能极其简单，所以没有单独的实现文档，需求直接写这里了：
 
-- 功能很简单，没有大型持久化需求（即不需要数据库和缓存），提供一个输入框，让用户输入完一个打回车，单词被添加进一个美化过的列表中
+- 功能很简单，没有数据库等大型持久化需求，提供一个输入框，让用户输入完一个打回车，单词被添加进一个美化过的列表中；词库使用浏览器`localStorage`持久化，Web 刷新或 Electron 重启后自动恢复
   - 列表可以用横向瀑布流，单词有长有短无所谓就横向排列，到头了放不下自然换行
   - 单词允许是词组或短句，这个无所谓
   - 提供清空功能，提供点击删除单个单词功能
+  - 单词输入框最右侧提供`批量导入`按钮；弹层背景与设置界面一致，打开后自动聚焦输入区，支持遮罩点击或 Escape 关闭、`Ctrl/Cmd + Enter`确认导入
+  - 批量文本以任意空白字符（包括空格、Tab、回车等）、英文逗号或英文分号分隔；自动丢弃空项，并忽略本批次内以及现有词库中的重复项
 - 提供默写速度选项，分快中慢三档，还有个开关框，表示是否默写单词释义
   - 快中慢三档不是死值，是评估值，对应的是`非常流利的书写`，`正常小朋友的书写`，`需要思考才能找到答案的书写`的速率倍率
   - 当用户点击开始默写时，根据单词的长短来计算出每个单词适合的时间，这个时间肯定不能短于音频的时间，所以中间还是要有间隔，要计算的准确一点
@@ -163,6 +176,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
     - 上述双轨判断是自动推进的默认规则，以下为用户明确要求的人工快速跳过例外：
       - 赛博默写中，用户完成当前轮要求的全部输入并提交后，可以忽略尚未结束的倒计时；语音轨结束后立即进入下一轮
       - 书写默写中，语音未处于实际发声状态时按空格，可以忽略倒计时并中止当前轮余下播报，直接进入下一轮
+    - 赛博默写倒计时结束时，必须一次性提交本轮当前的单词和释义输入；未输入的字段以空字符串提交并视为输入完成，不得停留在单词或释义输入框等待用户继续操作。之后仍按语音轨状态决定立即推进或等待当前发声结束
   - 音频加载或播放失败时不能让整场默写永久卡住，应结束当前轮的语音等待并允许流程继续；如果失败可归因于缓存文件缺失、损坏或格式错误，必须清除对应缓存，避免错误文件被持续命中，后续准备时重新生成
   - TTS 接口只有在确认响应中列出的每个音频文件已经写入并可读取后才能返回成功；请求中止、合成失败或写入失败都不得返回一个并不存在的缓存文件名
   - AI 只返回部分释义、非标准内容块或无法解析的内容时不能因此卡死整个准备流程，可以带着已取得的释义继续；只缓存经过校验的有效英文释义，不得把缺失项或失败状态作为负缓存，保证下次准备仍会重新请求缺失释义
@@ -174,6 +188,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
   - 给出单词对错的数量对比`<correct count>/<total words>`
   - 要是单词全对可以做一个撒花或是其他的效果来庆祝，所有svg图形需求优先查lucide icon库中有没有能满足要求的
 - 显示出结果后，提供关闭按钮，点击后回到准备默写状态，不自动重置默认内容，由用户自行选择默同样的还是清空重填
+  - 结果界面按 Escape 必须与点击关闭按钮完全等价：停止正在试听的结果发音并回到词库准备状态，保留当前词库
 - 注意：释义只能英文释义，不支持中文释义
 - 界面提供设置功能，有以下设置，使用 electron 的 localStorage（持久化到 userData）进行存储：
   - 设置面板不提供确认按钮；文本输入及其他控件每次变化时立即同步界面状态，并通过 `es-toolkit` 在停止变更 1.5 秒后防抖写入 localStorage。关闭面板或页面退出时立即提交尚未写入的设置，不使用失焦保存。点击面板左右的遮罩空白处可关闭，点击面板内部不得误关闭

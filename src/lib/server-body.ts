@@ -59,7 +59,9 @@ export function serveCacheFile(fileName: string): Response {
 			message: "音频不存在",
 		});
 	}
-	return new Response(data, {
+	// readFileSync 返回 Buffer (Uint8Array<ArrayBufferLike>)，TS 泛型 TypedArray
+	// 与 DOM BodyInit 中的 Uint8Array<ArrayBuffer> 不兼容，运行时完全正常。
+	return new Response(data as unknown as BodyInit, {
 		headers: {
 			"content-type": "audio/mpeg",
 			"content-length": String(data.byteLength),
