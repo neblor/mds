@@ -40,5 +40,16 @@ export default defineConfig({
 		// 固定端口，避免与其他项目（如 vue-admin 的 5173）冲突
 		port: 5199,
 		strictPort: true,
+		watch: {
+			// 忽略项目内运行时/构建缓存目录：wine 前缀（.tmp/wine-prefix）含
+			// dosdevices/z: → / 的符号链接，监听器追到根文件系统会撞上符号链接环
+			// （/run/udev/watch 等）触发 ELOOP 使 dev 服务崩溃。
+			ignored: [
+				"**/.tmp/**",
+				"**/.output/**",
+				"**/.mds-data/**",
+				"**/dist/**",
+			],
+		},
 	},
 });
