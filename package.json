@@ -98,7 +98,7 @@
       "mirror": "https://npmmirror.com/mirrors/electron/"
     }
   },
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "默点啥 — 记单词 · 听写 · 默写小帮手",
   "author": "neblor"
 }
