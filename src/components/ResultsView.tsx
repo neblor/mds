@@ -1,31 +1,221 @@
 import { For, Show, createMemo } from "solid-js";
 import { Check, X, Sparkles, Star, Volume2 } from "lucide-solid";
-
-export interface ResultRow {
-	word: string;
-	audioName: string;
-	definition?: string;
-	answer?: string;
-	answerDef?: string;
-	/** 仅赛博模式有判断 */
-	correct?: boolean;
-}
+import {
+	JUDGEMENT_NOTES,
+	correctCount,
+	isAllCorrectRows,
+	rowJudgement,
+	type ResultField,
+	type ResultFieldKind,
+	type ResultRow,
+} from "~/lib/results";
+import type { ContentMode } from "~/lib/state";
 
 interface Props {
 	rows: ResultRow[];
 	mode: "writing" | "cyber";
-	withDefinition: boolean;
+	contentMode: ContentMode;
+	/** AI 批改来源说明（失败/中止降级提示，仅中文词模式有） */
+	gradeNote?: string | null;
 	playingAudioName: string | null;
 	onPlayAudio: (audioName: string) => void;
 	onClose: () => void;
 }
 
-export default function ResultsView(props: Props) {
-	const correctCount = createMemo(
-		() => props.rows.filter((r) => r.correct === true).length,
+function labelOf(kind: ResultFieldKind): string {
+	if (kind === "definition") return "释义";
+	if (kind === "chinese") return "中文词";
+	return "单词";
+}
+
+/* ---------- 全对庆祝：两波星星上浮 + 中心礼花 ---------- */
+interface StarSpec {
+	left: number;
+	size: number;
+	delay: number;
+	dur: number;
+	drift: number;
+	spin: number;
+	scale: number;
+	twinkle: number;
+}
+
+const WAVE_A: StarSpec[] = [
+	{ left: 8, size: 26, delay: 0, dur: 1.9, drift: -34, spin: -30, scale: 1.0, twinkle: 0 },
+	{ left: 18, size: 20, delay: 0.14, dur: 1.75, drift: 22, spin: 26, scale: 0.9, twinkle: 0.25 },
+	{ left: 28, size: 32, delay: 0.28, dur: 2.0, drift: -18, spin: 38, scale: 1.1, twinkle: 0.4 },
+	{ left: 38, size: 22, delay: 0.42, dur: 1.8, drift: 30, spin: -24, scale: 0.95, twinkle: 0.1 },
+	{ left: 48, size: 28, delay: 0.56, dur: 1.95, drift: -26, spin: 20, scale: 1.05, twinkle: 0.3 },
+	{ left: 58, size: 20, delay: 0.7, dur: 1.7, drift: 24, spin: -36, scale: 0.9, twinkle: 0.55 },
+	{ left: 68, size: 30, delay: 0.84, dur: 1.9, drift: -20, spin: 30, scale: 1.08, twinkle: 0.2 },
+	{ left: 78, size: 22, delay: 0.98, dur: 1.8, drift: 26, spin: -28, scale: 0.92, twinkle: 0.45 },
+	{ left: 88, size: 26, delay: 1.12, dur: 1.85, drift: -30, spin: 24, scale: 1.02, twinkle: 0.15 },
+];
+
+const WAVE_B: StarSpec[] = [
+	{ left: 13, size: 16, delay: 1.0, dur: 2.1, drift: 18, spin: -20, scale: 0.85, twinkle: 0.3 },
+	{ left: 33, size: 14, delay: 1.16, dur: 2.0, drift: -16, spin: 22, scale: 0.8, twinkle: 0.5 },
+	{ left: 52, size: 18, delay: 1.32, dur: 2.15, drift: 20, spin: -26, scale: 0.9, twinkle: 0.25 },
+	{ left: 72, size: 15, delay: 1.48, dur: 2.05, drift: -22, spin: 28, scale: 0.82, twinkle: 0.55 },
+];
+
+function StarBurst(props: { spec: StarSpec }) {
+	const s = props.spec;
+	return (
+		<span
+			class="celebrate-star absolute text-gold"
+			style={{
+				left: `${s.left}%`,
+				top: "32%",
+				"--drift-x": `${s.drift}px`,
+				"--rise-scale": String(s.scale),
+				"--rise-spin": `${s.spin}deg`,
+				"--rise-dur": `${s.dur}s`,
+				"animation-delay": `${s.delay}s`,
+			}}
+		>
+			<span
+				class="star-twinkle inline-block"
+				style={{ "animation-delay": `${s.twinkle}s` }}
+			>
+				<Star
+					class="text-gold"
+					style={{
+						width: `${s.size}px`,
+						height: `${s.size}px`,
+					}}
+					fill="currentColor"
+					strokeWidth={1}
+				/>
+			</span>
+		</span>
 	);
-	const allCorrect = createMemo(
-		() => props.mode === "cyber" && correctCount() === props.rows.length,
+}
+
+function Celebration() {
+	return (
+		<div class="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+			{/* 顶部柔光 */}
+			<div class="absolute left-1/2 top-[16%] h-72 w-72 -translate-x-1/2 rounded-full bg-gold/25 blur-3xl" />
+			<For each={WAVE_A}>{(spec) => <StarBurst spec={spec} />}</For>
+			<For each={WAVE_B}>{(spec) => <StarBurst spec={spec} />}</For>
+			{/* 中心主礼花 */}
+			<div class="absolute left-1/2 top-[24%] -translate-x-1/2">
+				<span class="sparkle-pop inline-block">
+					<Sparkles class="h-12 w-12 text-gold" strokeWidth={1.5} />
+				</span>
+			</div>
+		</div>
+	);
+}
+
+/* ---------- 参考字段行（只对照不批改） ---------- */
+function ReferenceFieldLines(props: { field: ResultField }) {
+	const f = props.field;
+	return (
+		<div class="flex flex-col">
+			<Show when={f.expected}>
+				<span class="truncate text-[13px] text-ink-faint">
+					{labelOf(f.kind)}：{f.expected}
+				</span>
+			</Show>
+			<Show when={f.userValue !== undefined}>
+				<span class="truncate text-[13px] text-ink-soft">
+					我的{labelOf(f.kind)}：{f.userValue || "（未填写）"}
+				</span>
+			</Show>
+		</div>
+	);
+}
+
+/* ---------- 单行 ---------- */
+function ResultRowItem(props: {
+	row: ResultRow;
+	mode: "writing" | "cyber";
+	playingAudioName: string | null;
+	onPlayAudio: (audioName: string) => void;
+}) {
+	const judgement = createMemo(() => rowJudgement(props.row));
+	const gradedFields = createMemo(() => props.row.fields.filter((f) => f.graded));
+	const references = createMemo(() => props.row.fields.filter((f) => !f.graded));
+	const bg = () => {
+		const j = judgement();
+		if (j === true) return "bg-ok-bg";
+		if (j === false) return "bg-err-bg";
+		return "bg-surface shadow-sm";
+	};
+
+	return (
+		<div class={`flex items-center gap-3 rounded-lg px-4 py-3 ${bg()}`}>
+			<Show when={props.mode === "cyber" && judgement() !== undefined}>
+				{judgement() ? (
+					<Check class="h-4 w-4 shrink-0 text-ok" />
+				) : (
+					<X class="h-4 w-4 shrink-0 text-err" />
+				)}
+			</Show>
+			<div class="flex min-w-0 flex-1 flex-col">
+				<div class="flex items-center gap-2">
+					<span class="text-base font-semibold text-ink">
+						{props.row.word}
+					</span>
+					<button
+						type="button"
+						class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink-faint transition hover:bg-brand/10 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-35"
+						disabled={!props.row.audioName}
+						onClick={() => props.onPlayAudio(props.row.audioName)}
+						aria-label={`播放 ${props.row.word} 的发音`}
+						title={`播放 ${props.row.word} 的发音`}
+						aria-pressed={props.playingAudioName === props.row.audioName}
+					>
+						<Volume2
+							class={`h-4 w-4 ${
+								props.playingAudioName === props.row.audioName
+									? "animate-pulse text-brand"
+									: ""
+							}`}
+						/>
+					</button>
+				</div>
+				{/* 参考字段（释义/我的释义/书写模式自检） */}
+				<For each={references()}>
+					{(f) => <ReferenceFieldLines field={f} />}
+				</For>
+				{/* 中文词判定字段的标准行（题干是英文单词，标准中文词供对照） */}
+				<Show
+					when={
+						gradedFields().find((f) => f.kind === "chinese")?.expected
+					}
+				>
+					<span class="truncate text-[13px] text-ink-faint">
+						中文词：{gradedFields().find((f) => f.kind === "chinese")!.expected}
+					</span>
+				</Show>
+			</div>
+			{/* 右侧：全部判定字段的用户作答（赛博模式） */}
+			<Show when={props.mode === "cyber" && gradedFields().length > 0}>
+				<div class="flex max-w-[40%] flex-col items-end gap-0.5">
+					<For each={gradedFields()}>
+						{(f) => (
+							<span
+								class={`w-full truncate text-right text-[15px] ${
+									f.correct ? "text-ok" : "text-err"
+								}`}
+							>
+								{f.userValue || "（未填写）"}
+							</span>
+						)}
+					</For>
+				</div>
+			</Show>
+		</div>
+	);
+}
+
+export default function ResultsView(props: Props) {
+	const correct = createMemo(() => correctCount(props.rows));
+	const celebrate = createMemo(
+		() => props.mode === "cyber" && isAllCorrectRows(props.rows),
 	);
 
 	return (
@@ -36,7 +226,7 @@ export default function ResultsView(props: Props) {
 					<h2 class="font-heading text-2xl text-ink">默写结果</h2>
 					<Show when={props.mode === "cyber"}>
 						<span class="rounded-full bg-soft px-4 py-2 font-data text-xl text-ink">
-							{correctCount()} / {props.rows.length}
+							{correct()} / {props.rows.length}
 						</span>
 					</Show>
 				</div>
@@ -51,110 +241,36 @@ export default function ResultsView(props: Props) {
 			</div>
 
 			{/* 全对庆祝 */}
-			<Show when={allCorrect()}>
-				<div class="pointer-events-none absolute inset-0 z-10 flex items-start justify-center overflow-hidden">
-					{[0, 1, 2, 3, 4, 5].map((i) => (
-						<span
-							class="celebrate-star absolute text-gold"
-							style={{
-								left: `${12 + i * 15}%`,
-								top: "38%",
-								"animation-delay": `${i * 0.18}s`,
-							}}
-						>
-							<Star class="h-8 w-8" fill="currentColor" strokeWidth={1} />
-						</span>
-					))}
-					<span
-						class="celebrate-star absolute top-[30%] text-gold"
-						style={{ left: "47%" }}
-					>
-						<Sparkles class="h-10 w-10" />
-					</span>
-				</div>
+			<Show when={celebrate()}>
+				<Celebration />
 			</Show>
 
 			{/* 对照列表 */}
 			<div class="flex flex-col gap-2.5 overflow-y-auto pr-1">
 				<For each={props.rows}>
 					{(r) => (
-						<div
-							class={`flex items-center gap-3 rounded-lg px-4 py-3 ${
-								props.mode === "cyber" && r.correct === true
-									? "bg-ok-bg"
-									: props.mode === "cyber" && r.correct === false
-										? "bg-err-bg"
-										: "bg-surface shadow-sm"
-							}`}
-						>
-							<Show when={props.mode === "cyber"}>
-								{r.correct ? (
-									<Check class="h-4 w-4 shrink-0 text-ok" />
-								) : (
-									<X class="h-4 w-4 shrink-0 text-err" />
-								)}
-							</Show>
-							<div class="flex min-w-0 flex-1 flex-col">
-								<div class="flex items-center gap-2">
-									<span class="text-base font-semibold text-ink">{r.word}</span>
-									<button
-										type="button"
-										class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink-faint transition hover:bg-brand/10 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-35"
-										disabled={!r.audioName}
-										onClick={() => props.onPlayAudio(r.audioName)}
-										aria-label={`播放 ${r.word} 的发音`}
-										title={`播放 ${r.word} 的发音`}
-										aria-pressed={props.playingAudioName === r.audioName}
-									>
-										<Volume2
-											class={`h-4 w-4 ${
-												props.playingAudioName === r.audioName
-													? "animate-pulse text-brand"
-													: ""
-											}`}
-										/>
-									</button>
-								</div>
-								<Show when={r.definition}>
-									<span class="truncate text-[13px] text-ink-faint">
-										{r.definition}
-									</span>
-								</Show>
-								<Show
-									when={
-										props.mode === "cyber" &&
-										r.answerDef !== undefined &&
-										props.withDefinition
-									}
-								>
-									<span
-										class={`truncate text-[13px] ${
-											r.answerDef ? "text-ink-soft" : "text-ink-faint"
-										}`}
-									>
-										我的释义：{r.answerDef || "（未填写）"}
-									</span>
-								</Show>
-							</div>
-							<Show when={props.mode === "cyber" && r.answer !== undefined}>
-								<span
-									class={`max-w-[40%] truncate text-right text-[15px] ${
-										r.correct ? "text-ok" : "text-err"
-									}`}
-								>
-									{r.answer}
-								</span>
-							</Show>
-						</div>
+						<ResultRowItem
+							row={r}
+							mode={props.mode}
+							playingAudioName={props.playingAudioName}
+							onPlayAudio={props.onPlayAudio}
+						/>
 					)}
 				</For>
 			</div>
 
-			{/* 判定说明 */}
+			{/* 判定说明（按内容模式） */}
 			<Show when={props.mode === "cyber"}>
-				<p class="text-right text-xs text-ink-faint">
-					单词判定：大小写与标点需完全一致 · 释义不批改
-				</p>
+				<div class="flex flex-col items-end gap-0.5">
+					<p class="text-right text-xs text-ink-faint">
+						{JUDGEMENT_NOTES[props.contentMode]}
+					</p>
+					<Show when={props.gradeNote}>
+						<p class="text-right text-xs text-ink-faint/80">
+							{props.gradeNote}
+						</p>
+					</Show>
+				</div>
 			</Show>
 
 			{/* 底部提示：回车可关闭，回到词库数据全保留 */}

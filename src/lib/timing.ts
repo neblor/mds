@@ -23,10 +23,21 @@ export const LETTER_SECONDS = 0.3;
 export const DEF_THINK_SECONDS = 5;
 /** 释义段每字母时间（秒） */
 export const DEF_LETTER_SECONDS = 0.4;
+/** 中文词每字符书写时间：原字母系数的 5 倍（写汉字比写字母慢得多） */
+export const CHINESE_CHAR_SECONDS = 5 * LETTER_SECONDS;
 
 /** 单词字母数（字母数字，至少 1） */
 export function wordLength(word: string): number {
 	const n = (word.trim().match(/[a-zA-Z0-9]/g) ?? []).length;
+	return Math.max(1, n);
+}
+
+/**
+ * 中文词字符数（UTF-8 语义：每个汉字/字符记 1 个字符，忽略空白；至少 1）。
+ * 例："你好" → 2，"图书馆" → 3，"你好！" → 3
+ */
+export function chineseLength(text: string): number {
+	const n = [...text.trim()].filter((c) => !/\s/u.test(c)).length;
 	return Math.max(1, n);
 }
 
@@ -75,6 +86,7 @@ export function scaleTime(
  * 计数轨时长（秒，进度条）：与音频无关
  * - 单词段：(思考2 + 0.3×字母数) × 播报遍数
  * - 释义段（如有）：思考5 + 0.4×释义字母数
+ * - 中文词段（chineseText 提供时）：第二步作答段，思考2 + 1.5×字符数（每字 5×字母系数）
  * 例：transform（9 字母，3 遍）→ (2+0.3×9)×3 = 14.1s
  */
 export function countdownDuration(opts: {
@@ -82,6 +94,8 @@ export function countdownDuration(opts: {
 	level: SpeedLevel;
 	withDefinition: boolean;
 	definitionText?: string;
+	/** 中文词模式提供时，追加第二步中文作答段时长 */
+	chineseText?: string;
 	multiplier?: number;
 }): number {
 	const {
@@ -89,6 +103,7 @@ export function countdownDuration(opts: {
 		level,
 		withDefinition,
 		definitionText = "",
+		chineseText,
 		multiplier = 1,
 	} = opts;
 	const wordSeg =
@@ -98,6 +113,9 @@ export function countdownDuration(opts: {
 	if (withDefinition) {
 		total +=
 			DEF_THINK_SECONDS + DEF_LETTER_SECONDS * definitionLength(definitionText);
+	}
+	if (chineseText?.trim()) {
+		total += THINK_SECONDS + CHINESE_CHAR_SECONDS * chineseLength(chineseText);
 	}
 	return scaleTime(total, level, multiplier);
 }

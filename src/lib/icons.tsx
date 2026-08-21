@@ -22,3 +22,7 @@ export { default as Check } from "lucide-solid/dist/source/icons/check.jsx";
 export { default as Sparkles } from "lucide-solid/dist/source/icons/sparkles.jsx";
 export { default as OctagonX } from "lucide-solid/dist/source/icons/octagon-x.jsx";
 export { default as ListPlus } from "lucide-solid/dist/source/icons/list-plus.jsx";
+export { default as Type } from "lucide-solid/dist/source/icons/type.jsx";
+export { default as BookOpen } from "lucide-solid/dist/source/icons/book-open.jsx";
+export { default as Languages } from "lucide-solid/dist/source/icons/languages.jsx";
+export { default as Loader2 } from "lucide-solid/dist/source/icons/loader-2.jsx";

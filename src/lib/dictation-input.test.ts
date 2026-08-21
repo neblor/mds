@@ -6,7 +6,7 @@ describe("cyber dictation timed-out input", () => {
 		expect(
 			timedOutInputPatch({
 				round: {},
-				withDefinition: true,
+				contentMode: "definition",
 				wordInput: "",
 				definitionInput: "",
 			}),
@@ -17,21 +17,43 @@ describe("cyber dictation timed-out input", () => {
 		expect(
 			timedOutInputPatch({
 				round: { answer: "apple" },
-				withDefinition: true,
+				contentMode: "definition",
 				wordInput: "ignored",
 				definitionInput: "  partial definition  ",
 			}),
 		).toEqual({ answerDef: "partial definition" });
 	});
 
-	it("非释义模式只提交单词", () => {
+	it("单词模式只提交单词", () => {
 		expect(
 			timedOutInputPatch({
 				round: {},
-				withDefinition: false,
+				contentMode: "word",
 				wordInput: "  app  ",
 				definitionInput: "unused",
 			}),
 		).toEqual({ answer: "app" });
+	});
+
+	it("中文词模式两步封口：单词 + 中文词都提交", () => {
+		expect(
+			timedOutInputPatch({
+				round: {},
+				contentMode: "chinese",
+				wordInput: "  hello ",
+				definitionInput: " 你好 ",
+			}),
+		).toEqual({ answer: "hello", answerDef: "你好" });
+	});
+
+	it("中文词模式保留已提交字段并提交未完成输入", () => {
+		expect(
+			timedOutInputPatch({
+				round: { answer: "hello" },
+				contentMode: "chinese",
+				wordInput: "ignored",
+				definitionInput: " 你好 ",
+			}),
+		).toEqual({ answerDef: "你好" });
 	});
 });

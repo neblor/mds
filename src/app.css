@@ -31,23 +31,70 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 全对撒花：星星上浮动画 */
+/* 全对撒花：两波星星上浮（带水平漂移/旋转）+ 中心礼花弹跳 */
 @keyframes celebrate-rise {
   0% {
-    transform: translateY(0) scale(0.6);
+    transform: translate3d(0, 0, 0) scale(0.4) rotate(0deg);
     opacity: 0;
   }
-  20% {
+  12% {
     opacity: 1;
   }
   100% {
-    transform: translateY(-46vh) scale(1.15) rotate(18deg);
+    transform: translate3d(var(--drift-x, 0px), -54vh, 0)
+      scale(var(--rise-scale, 1)) rotate(var(--rise-spin, 24deg));
     opacity: 0;
   }
 }
 
 .celebrate-star {
-  animation: celebrate-rise 1.6s ease-out forwards;
+  display: block;
+  animation: celebrate-rise var(--rise-dur, 1.9s)
+    cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+/* 星星上浮过程中的闪烁 */
+@keyframes star-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.72);
+  }
+}
+
+.star-twinkle {
+  display: inline-block;
+  animation: star-twinkle 0.9s ease-in-out infinite;
+}
+
+/* 中心礼花：弹性弹跳出现 */
+@keyframes sparkle-pop {
+  0% {
+    transform: scale(0) rotate(-20deg);
+    opacity: 0;
+  }
+  30% {
+    transform: scale(1.2) rotate(8deg);
+    opacity: 1;
+  }
+  55% {
+    transform: scale(0.92) rotate(0deg);
+  }
+  75% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.sparkle-pop {
+  animation: sparkle-pop 1.1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 /* 开关（替代 daisyui toggle，本项目未加载 daisyui） */

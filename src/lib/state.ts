@@ -10,6 +10,14 @@ import { isStrictMatch } from "./match";
 export type Phase = "idle" | "preparing" | "ready" | "dictating" | "results";
 export type DictationMode = "writing" | "cyber";
 
+/**
+ * 默写内容模式（决定每轮作答与批改对象）：
+ * - word：只默单词，批改单词
+ * - definition：默单词 + 英文释义，批改单词，释义只对照不批改
+ * - chinese：默中文对应词，批改中文词（准备阶段由 AI 抓取）
+ */
+export type ContentMode = "word" | "definition" | "chinese";
+
 export interface Round {
 	word: string;
 	definition?: string;

@@ -78,10 +78,19 @@ interface ParsedAiResponse {
 	usage?: DefinitionProviderDiagnostics["usage"];
 }
 
-const SYSTEM_PROMPT =
-	"You are an English dictionary for kids. Reply with STRICT JSON only " +
-	'(no markdown fences, no extra text) using this shape: {"definitions":{"<exact original word>":"<one clear English sentence>"}}. ' +
-	"Definitions must be English only, simple, kid-friendly, and include every requested word exactly once.";
+export type AiPairKind = "definition" | "chinese";
+
+const SYSTEM_PROMPTS: Record<AiPairKind, string> = {
+	definition:
+		"You are an English dictionary for kids. Reply with STRICT JSON only " +
+		'(no markdown fences, no extra text) using this shape: {"definitions":{"<exact original word>":"<one clear English sentence>"}}. ' +
+		"Definitions must be English only, simple, kid-friendly, and include every requested word exactly once.",
+	chinese:
+		"You are an English-Chinese dictionary for kids. Reply with STRICT JSON only " +
+		'(no markdown fences, no extra text) using this shape: {"words":{"<exact original word>":"<one Simplified Chinese word>"}}. ' +
+		"Give the most common everyday Chinese translation (a word or short phrase) for each requested word, " +
+		"Simplified Chinese characters only, no pinyin, no English explanation, and include every requested word exactly once.",
+};
 
 /** 安全读取非空自有字符串属性，避免 constructor/__proto__ 原型键误命中。 */
 export function ownDefinition(
@@ -99,6 +108,15 @@ export function ownDefinition(
 
 function isLikelyEnglish(text: string): boolean {
 	return !/\p{Script=Han}/u.test(text);
+}
+
+/** 中文词必须包含汉字（过滤 AI 误返回英文/拼音/空内容） */
+function isChineseText(text: string): boolean {
+	return /\p{Script=Han}/u.test(text);
+}
+
+function isValidPairValue(kind: AiPairKind, value: string): boolean {
+	return kind === "definition" ? isLikelyEnglish(value) : isChineseText(value);
 }
 
 /** 从说明文字、思考块或多个代码块中提取全部可解析 JSON。 */
@@ -191,28 +209,38 @@ function contentCandidates(content: unknown): unknown[] {
 	return candidates;
 }
 
-function definitionsFromCandidate(candidate: unknown): Record<string, string> {
+function pairsFromCandidate(
+	candidate: unknown,
+	isValid: (value: string) => boolean,
+): Record<string, string> {
 	let items: unknown[] = [];
 	if (Array.isArray(candidate)) {
 		items = candidate;
 	} else if (candidate && typeof candidate === "object") {
 		const holder = candidate as {
 			definitions?: unknown;
+			words?: unknown;
 			word?: unknown;
 			definition?: unknown;
+			value?: unknown;
 		};
 		if (Array.isArray(holder.definitions)) {
 			items = holder.definitions;
+		} else if (Array.isArray(holder.words)) {
+			items = holder.words;
 		} else if (
 			typeof holder.word === "string" &&
-			typeof holder.definition === "string"
+			(typeof holder.definition === "string" ||
+				typeof holder.value === "string")
 		) {
 			items = [holder];
 		} else {
 			const map =
 				holder.definitions && typeof holder.definitions === "object"
 					? (holder.definitions as Record<string, unknown>)
-					: (candidate as Record<string, unknown>);
+					: holder.words && typeof holder.words === "object"
+						? (holder.words as Record<string, unknown>)
+						: (candidate as Record<string, unknown>);
 			items = Object.entries(map).map(([word, definition]) => ({
 				word,
 				definition,
@@ -220,25 +248,28 @@ function definitionsFromCandidate(candidate: unknown): Record<string, string> {
 		}
 	}
 
-	const definitions = Object.create(null) as Record<string, string>;
+	const pairs = Object.create(null) as Record<string, string>;
 	for (const item of items) {
 		const rawWord = (item as { word?: unknown })?.word;
-		const rawDefinition = (item as { definition?: unknown })?.definition;
+		const rawDefinition =
+			(item as { definition?: unknown })?.definition ??
+			(item as { value?: unknown })?.value;
 		if (typeof rawWord !== "string" || typeof rawDefinition !== "string") {
 			continue;
 		}
 		const word = rawWord.trim();
-		const definition = rawDefinition.trim();
-		if (word && definition && isLikelyEnglish(definition)) {
-			definitions[word] = definition;
+		const value = rawDefinition.trim();
+		if (word && value && isValid(value)) {
+			pairs[word] = value;
 		}
 	}
-	return definitions;
+	return pairs;
 }
 
-/** 解析兼容 Chat Completions 响应，并合并所有内容块中的有效释义。 */
+/** 解析兼容 Chat Completions 响应，并合并所有内容块中的有效条目。 */
 export async function parseDefinitionAiResponse(
 	response: Response,
+	kind: AiPairKind = "definition",
 ): Promise<ParsedAiResponse> {
 	if (!response.ok) {
 		const detail = await response.text().catch(() => "");
@@ -294,18 +325,24 @@ export async function parseDefinitionAiResponse(
 
 	let sawJson = false;
 	const definitions = Object.create(null) as Record<string, string>;
+	const pairLabel = kind === "definition" ? "释义" : "中文词";
 	for (const source of sources) {
 		for (const candidate of contentCandidates(source)) {
 			sawJson = true;
-			Object.assign(definitions, definitionsFromCandidate(candidate));
+			Object.assign(
+				definitions,
+				pairsFromCandidate(candidate, (value) =>
+					isValidPairValue(kind, value),
+				),
+			);
 		}
 	}
 	if (Object.keys(definitions).length === 0) {
 		throw new DefinitionProviderError(
 			sawJson ? "empty" : "invalid-response",
 			sawJson
-				? "AI 未返回任何有效释义，请重试"
-				: "AI 未返回 JSON 格式的释义",
+				? `AI 未返回任何有效${pairLabel}，请重试`
+				: `AI 未返回 JSON 格式的${pairLabel}`,
 		);
 	}
 
@@ -351,43 +388,62 @@ function alignDefinitions(
 	return aligned;
 }
 
-export async function fetchEnglishDefinitions(
-	options: FetchEnglishDefinitionsOptions,
-): Promise<DefinitionProviderResult> {
-	const startedAt = performance.now();
-	const endpoint = `${options.baseUrl.replace(/\/+$/, "")}/chat/completions`;
-	const fetchImpl = options.fetchImpl ?? fetch;
-	const timeoutSignal = AbortSignal.timeout(options.timeoutMs ?? 60_000);
-	const signal = options.signal
-		? AbortSignal.any([options.signal, timeoutSignal])
-		: timeoutSignal;
-	const baseBody = {
-		model: options.model,
-		temperature: 0,
-		max_tokens: 4096,
-		messages: [
-			{ role: "system", content: SYSTEM_PROMPT },
-			{ role: "user", content: JSON.stringify(options.words) },
-		],
-	};
+export interface FetchAiPairsOptions {
+	kind: AiPairKind;
+	words: string[];
+	baseUrl: string;
+	apiKey: string;
+	model: string;
+	signal?: AbortSignal;
+	timeoutMs?: number;
+	fetchImpl?: typeof fetch;
+	onDiagnostic?: (event: DefinitionProviderDiagnosticEvent) => void;
+}
+
+export interface FetchAiPairsResult {
+	pairs: Record<string, string>;
+	missing: string[];
+	warning?: string;
+	diagnostics: DefinitionProviderDiagnostics;
+}
+
+interface ChatCompletionCallOptions {
+	endpoint: string;
+	model: string;
+	fetchImpl: typeof fetch;
+	apiKey: string;
+	baseBody: Record<string, unknown>;
+	signal: AbortSignal;
+	/** 超时秒数（仅用于错误文案） */
+	timeoutSec: number;
+	onDiagnostic?: (event: DefinitionProviderDiagnosticEvent) => void;
+}
+
+/**
+ * 调用 OpenAI 兼容 Chat Completions，带两级兼容降级（response_format → reasoning_effort → 最小请求体）
+ * 与网络/超时/中止错误映射。返回响应与是否发生过降级。
+ */
+async function callChatCompletion(
+	options: ChatCompletionCallOptions,
+): Promise<{ response: Response; fallbackUsed: boolean }> {
 	const extendedBody = {
-		...baseBody,
+		...options.baseBody,
 		reasoning_effort: "none",
 		response_format: { type: "json_object" },
 	};
 	const reasoningBody = {
-		...baseBody,
+		...options.baseBody,
 		reasoning_effort: "none",
 	};
 	const call = (body: unknown) =>
-		fetchImpl(endpoint, {
+		options.fetchImpl(options.endpoint, {
 			method: "POST",
 			headers: {
 				"content-type": "application/json",
 				authorization: `Bearer ${options.apiKey}`,
 			},
 			body: JSON.stringify(body),
-			signal,
+			signal: options.signal,
 		});
 
 	let response: Response;
@@ -396,14 +452,14 @@ export async function fetchEnglishDefinitions(
 		response = await call(extendedBody);
 		if (
 			(response.status === 400 || response.status === 422) &&
-			!options.signal?.aborted
+			!options.signal.aborted
 		) {
 			fallbackUsed = true;
 			options.onDiagnostic?.({
 				event: "compatibility-fallback",
 				level: "warning",
 				details: {
-					endpoint,
+					endpoint: options.endpoint,
 					model: options.model,
 					status: response.status,
 					stage: "without-response-format",
@@ -414,27 +470,31 @@ export async function fetchEnglishDefinitions(
 		}
 		if (
 			(response.status === 400 || response.status === 422) &&
-			!options.signal?.aborted
+			!options.signal.aborted
 		) {
 			options.onDiagnostic?.({
 				event: "compatibility-fallback",
 				level: "warning",
 				details: {
-					endpoint,
+					endpoint: options.endpoint,
 					model: options.model,
 					status: response.status,
 					stage: "minimal-body",
 					reason: "reasoning_effort 仍被拒绝，改用最小兼容请求体",
 				},
 			});
-			response = await call(baseBody);
+			response = await call(options.baseBody);
 		}
 	} catch (error) {
-		if (options.signal?.aborted) {
+		if (options.signal.aborted) {
 			options.onDiagnostic?.({
 				event: "request-failed",
 				level: "warning",
-				details: { endpoint, model: options.model, code: "aborted" },
+				details: {
+					endpoint: options.endpoint,
+					model: options.model,
+					code: "aborted",
+				},
 			});
 			throw new DefinitionProviderError("aborted", "已中止");
 		}
@@ -444,7 +504,7 @@ export async function fetchEnglishDefinitions(
 			event: "request-failed",
 			level: "error",
 			details: {
-				endpoint,
+				endpoint: options.endpoint,
 				model: options.model,
 				code: timeout ? "timeout" : "network",
 				message: error instanceof Error ? error.message : String(error),
@@ -453,14 +513,48 @@ export async function fetchEnglishDefinitions(
 		throw new DefinitionProviderError(
 			timeout ? "timeout" : "network",
 			timeout
-				? `AI 请求超时（${Math.round((options.timeoutMs ?? 60_000) / 1000)} 秒），请重试`
+				? `AI 请求超时（${options.timeoutSec} 秒），请重试`
 				: "无法连接 AI 服务，请检查网络与地址",
 		);
 	}
+	return { response, fallbackUsed };
+}
+
+export async function fetchAiPairs(
+	options: FetchAiPairsOptions,
+): Promise<FetchAiPairsResult> {
+	const pairLabel = options.kind === "definition" ? "释义" : "中文词";
+	const startedAt = performance.now();
+	const endpoint = `${options.baseUrl.replace(/\/+$/, "")}/chat/completions`;
+	const fetchImpl = options.fetchImpl ?? fetch;
+	const timeoutSec = Math.round((options.timeoutMs ?? 60_000) / 1000);
+	const timeoutSignal = AbortSignal.timeout(options.timeoutMs ?? 60_000);
+	const signal = options.signal
+		? AbortSignal.any([options.signal, timeoutSignal])
+		: timeoutSignal;
+	const baseBody = {
+		model: options.model,
+		temperature: 0,
+		max_tokens: 4096,
+		messages: [
+			{ role: "system", content: SYSTEM_PROMPTS[options.kind] },
+			{ role: "user", content: JSON.stringify(options.words) },
+		],
+	};
+	const { response, fallbackUsed } = await callChatCompletion({
+		endpoint,
+		model: options.model,
+		fetchImpl,
+		apiKey: options.apiKey,
+		baseBody,
+		signal,
+		timeoutSec,
+		onDiagnostic: options.onDiagnostic,
+	});
 
 	let parsed: ParsedAiResponse;
 	try {
-		parsed = await parseDefinitionAiResponse(response);
+		parsed = await parseDefinitionAiResponse(response, options.kind);
 	} catch (error) {
 		const providerError =
 			error instanceof DefinitionProviderError ? error : undefined;
@@ -478,13 +572,13 @@ export async function fetchEnglishDefinitions(
 		});
 		throw error;
 	}
-	const definitions = alignDefinitions(options.words, parsed.definitions);
+	const pairs = alignDefinitions(options.words, parsed.definitions);
 	const missing = options.words.filter(
-		(word) => !ownDefinition(definitions, word),
+		(word) => !ownDefinition(pairs, word),
 	);
 	let warning: string | undefined;
 	if (missing.length > 0) {
-		warning = `AI 仅返回 ${options.words.length - missing.length}/${options.words.length} 个有效释义`;
+		warning = `AI 仅返回 ${options.words.length - missing.length}/${options.words.length} 个有效${pairLabel}`;
 	}
 	if (parsed.finishReason === "length") {
 		warning = `${warning ? `${warning}；` : ""}响应因输出长度限制被截断`;
@@ -497,7 +591,7 @@ export async function fetchEnglishDefinitions(
 				endpoint,
 				model: options.model,
 				requestedCount: options.words.length,
-				returnedCount: Object.keys(definitions).length,
+				returnedCount: Object.keys(pairs).length,
 				missing,
 				finishReason: parsed.finishReason,
 				fallbackUsed,
@@ -506,18 +600,322 @@ export async function fetchEnglishDefinitions(
 	}
 
 	return {
-		definitions,
+		pairs,
 		missing,
 		warning,
 		diagnostics: {
 			endpoint,
 			model: options.model,
 			requestedCount: options.words.length,
-			returnedCount: Object.keys(definitions).length,
+			returnedCount: Object.keys(pairs).length,
 			finishReason: parsed.finishReason,
 			fallbackUsed,
 			elapsedMs: Math.round(performance.now() - startedAt),
 			usage: parsed.usage,
+		},
+	};
+}
+
+/** 英文释义（保持原签名与结果形状，供路由/服务/诊断脚本调用） */
+export async function fetchEnglishDefinitions(
+	options: FetchEnglishDefinitionsOptions,
+): Promise<DefinitionProviderResult> {
+	const result = await fetchAiPairs({ ...options, kind: "definition" });
+	return {
+		definitions: result.pairs,
+		missing: result.missing,
+		warning: result.warning,
+		diagnostics: result.diagnostics,
+	};
+}
+
+export interface ChineseWordsProviderResult {
+	words: Record<string, string>;
+	missing: string[];
+	warning?: string;
+	diagnostics: DefinitionProviderDiagnostics;
+}
+
+/** 中文对应词（英文单词 → 常用简体中文词） */
+export async function fetchChineseWords(
+	options: FetchEnglishDefinitionsOptions,
+): Promise<ChineseWordsProviderResult> {
+	const result = await fetchAiPairs({ ...options, kind: "chinese" });
+	return {
+		words: result.pairs,
+		missing: result.missing,
+		warning: result.warning,
+		diagnostics: result.diagnostics,
+	};
+}
+
+/* ---------- 中文词 AI 批改 ---------- */
+
+export interface ChineseGradeItem {
+	word: string;
+	/** 准备阶段抓取的标准中文词 */
+	expected: string;
+	/** 学生作答的中文词 */
+	answer: string;
+}
+
+export interface ChineseWordGrade {
+	word: string;
+	correct: boolean;
+	note?: string;
+}
+
+export interface ChineseGradesProviderResult {
+	grades: ChineseWordGrade[];
+	missing: string[];
+	warning?: string;
+	diagnostics: DefinitionProviderDiagnostics;
+}
+
+export interface FetchChineseGradesOptions {
+	items: ChineseGradeItem[];
+	baseUrl: string;
+	apiKey: string;
+	model: string;
+	signal?: AbortSignal;
+	timeoutMs?: number;
+	fetchImpl?: typeof fetch;
+	onDiagnostic?: (event: DefinitionProviderDiagnosticEvent) => void;
+}
+
+const GRADE_SYSTEM_PROMPT =
+	"You are a strict but fair grader for an English-to-Chinese dictation exercise for kids. " +
+	'Reply with STRICT JSON only (no markdown fences, no extra text) using this shape: ' +
+	'{"results":[{"word":"<exact original word>","correct":true,"note":"<optional short reason>"}]}. ' +
+	"For each item judge whether the student's Chinese answer is an acceptable translation of the English word: " +
+	"common synonyms and reasonable word choices are acceptable; ignore leading/trailing whitespace and Chinese punctuation differences; " +
+	"a blank answer is incorrect; include every requested word exactly once, keyed by the exact original word.";
+
+function parseCorrectValue(value: unknown): boolean | undefined {
+	if (typeof value === "boolean") return value;
+	if (typeof value === "number") return value === 1 ? true : value === 0 ? false : undefined;
+	if (typeof value === "string") {
+		const v = value.trim().toLowerCase();
+		if (v === "true" || v === "yes" || v === "y" || v === "correct" || v === "1") return true;
+		if (v === "false" || v === "no" || v === "n" || v === "incorrect" || v === "0") return false;
+	}
+	return undefined;
+}
+
+function gradesFromCandidate(
+	candidate: unknown,
+): Record<string, ChineseWordGrade> {
+	const result = Object.create(null) as Record<string, ChineseWordGrade>;
+	const addItem = (word: unknown, correct: unknown, note?: unknown) => {
+		if (typeof word !== "string") return;
+		const w = word.trim();
+		const verdict = parseCorrectValue(correct);
+		if (!w || verdict === undefined) return;
+		result[w] = {
+			word: w,
+			correct: verdict,
+			...(typeof note === "string" && note.trim() ? { note: note.trim() } : {}),
+		};
+	};
+
+	let items: unknown[] = [];
+	if (Array.isArray(candidate)) {
+		items = candidate;
+	} else if (candidate && typeof candidate === "object") {
+		const holder = candidate as {
+			results?: unknown;
+			grades?: unknown;
+			words?: unknown;
+		};
+		if (Array.isArray(holder.results)) items = holder.results;
+		else if (Array.isArray(holder.grades)) items = holder.grades;
+		else if (holder.words && typeof holder.words === "object") {
+			for (const [word, v] of Object.entries(holder.words as Record<string, unknown>)) {
+				if (v && typeof v === "object") {
+					const o = v as { correct?: unknown; note?: unknown };
+					addItem(word, o.correct, o.note);
+				} else {
+					addItem(word, v);
+				}
+			}
+			return result;
+		} else if (holder.words === undefined && holder.results === undefined && holder.grades === undefined) {
+			// 直接 map：{hello: true, apple: {correct: true}}
+			for (const [word, v] of Object.entries(candidate as Record<string, unknown>)) {
+				if (v && typeof v === "object") {
+					const o = v as { correct?: unknown; note?: unknown };
+					addItem(word, o.correct, o.note);
+				} else {
+					addItem(word, v);
+				}
+			}
+			return result;
+		}
+	}
+	for (const item of items) {
+		if (!item || typeof item !== "object") continue;
+		const o = item as { word?: unknown; correct?: unknown; note?: unknown; answer?: unknown; value?: unknown };
+		addItem(o.word, o.correct, o.note);
+	}
+	return result;
+}
+
+/** 解析兼容 Chat Completions 响应中的批改结果，合并所有内容块。 */
+async function parseGradeAiResponse(response: Response): Promise<Record<string, ChineseWordGrade>> {
+	if (!response.ok) {
+		const detail = await response.text().catch(() => "");
+		throw new DefinitionProviderError(
+			"http",
+			`AI 服务返回 ${response.status}${detail ? `：${detail.slice(0, 240)}` : ""}`,
+			response.status,
+		);
+	}
+	let data: {
+		choices?: {
+			message?: { content?: unknown; parsed?: unknown };
+			text?: unknown;
+		}[];
+		output_text?: unknown;
+	};
+	try {
+		data = await response.json();
+	} catch {
+		throw new DefinitionProviderError(
+			"invalid-response",
+			"AI 返回了无法解析的响应 JSON",
+		);
+	}
+	const choice = data?.choices?.[0];
+	const sources: unknown[] = [
+		choice?.message?.parsed,
+		choice?.message?.content,
+		choice?.text,
+		data?.output_text,
+	].filter((value) => value != null);
+	if (sources.length === 0) {
+		throw new DefinitionProviderError(
+			"invalid-response",
+			"AI 响应缺少可解析内容",
+		);
+	}
+	let sawJson = false;
+	const grades = Object.create(null) as Record<string, ChineseWordGrade>;
+	for (const source of sources) {
+		for (const candidate of contentCandidates(source)) {
+			sawJson = true;
+			Object.assign(grades, gradesFromCandidate(candidate));
+		}
+	}
+	if (Object.keys(grades).length === 0) {
+		throw new DefinitionProviderError(
+			sawJson ? "empty" : "invalid-response",
+			sawJson
+				? "AI 未返回任何有效批改结果，请重试"
+				: "AI 未返回 JSON 格式的批改结果",
+		);
+	}
+	return grades;
+}
+
+/** 一次请求批改全部中文词作答（关 thinking；模型不支持时自动降级）。 */
+export async function fetchChineseGrades(
+	options: FetchChineseGradesOptions,
+): Promise<ChineseGradesProviderResult> {
+	const startedAt = performance.now();
+	const endpoint = `${options.baseUrl.replace(/\/+$/, "")}/chat/completions`;
+	const fetchImpl = options.fetchImpl ?? fetch;
+	const timeoutMs = options.timeoutMs ?? 30_000;
+	const timeoutSec = Math.round(timeoutMs / 1000);
+	const timeoutSignal = AbortSignal.timeout(timeoutMs);
+	const signal = options.signal
+		? AbortSignal.any([options.signal, timeoutSignal])
+		: timeoutSignal;
+	const baseBody = {
+		model: options.model,
+		temperature: 0,
+		max_tokens: 4096,
+		messages: [
+			{ role: "system", content: GRADE_SYSTEM_PROMPT },
+			{ role: "user", content: JSON.stringify(options.items) },
+		],
+	};
+	const { response, fallbackUsed } = await callChatCompletion({
+		endpoint,
+		model: options.model,
+		fetchImpl,
+		apiKey: options.apiKey,
+		baseBody,
+		signal,
+		timeoutSec,
+		onDiagnostic: options.onDiagnostic,
+	});
+
+	let parsed: Record<string, ChineseWordGrade>;
+	try {
+		parsed = await parseGradeAiResponse(response);
+	} catch (error) {
+		const providerError =
+			error instanceof DefinitionProviderError ? error : undefined;
+		options.onDiagnostic?.({
+			event: "response-invalid",
+			level: "error",
+			details: {
+				endpoint,
+				model: options.model,
+				code: providerError?.code ?? "unknown",
+				status: providerError?.status,
+				message: error instanceof Error ? error.message : String(error),
+				fallbackUsed,
+			},
+		});
+		throw error;
+	}
+
+	const grades: ChineseWordGrade[] = [];
+	const missing: string[] = [];
+	for (const item of options.items) {
+		const exact = parsed[item.word];
+		if (exact) {
+			grades.push(exact);
+			continue;
+		}
+		// 大小写折叠对齐（AI 可能改写 key）
+		const folded = Object.keys(parsed).find(
+			(k) => k.trim().toLocaleLowerCase("en-US") === item.word.toLocaleLowerCase("en-US"),
+		);
+		if (folded) grades.push(parsed[folded]);
+		else missing.push(item.word);
+	}
+	let warning: string | undefined;
+	if (missing.length > 0) {
+		warning = `AI 仅返回 ${options.items.length - missing.length}/${options.items.length} 个批改结果`;
+	}
+	if (warning) {
+		options.onDiagnostic?.({
+			event: "response-incomplete",
+			level: "warning",
+			details: {
+				endpoint,
+				model: options.model,
+				requestedCount: options.items.length,
+				returnedCount: grades.length,
+				missing,
+				fallbackUsed,
+			},
+		});
+	}
+
+	return {
+		grades,
+		missing,
+		warning,
+		diagnostics: {
+			endpoint,
+			model: options.model,
+			requestedCount: options.items.length,
+			returnedCount: grades.length,
+			fallbackUsed,
+			elapsedMs: Math.round(performance.now() - startedAt),
 		},
 	};
 }

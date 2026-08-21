@@ -1,17 +1,54 @@
 import { existsSync } from "node:fs";
 import process from "node:process";
 import { resolve } from "node:path";
-import { fetchEnglishDefinitions } from "../src/lib/definition-provider.ts";
+import {
+	fetchEnglishDefinitions,
+	fetchChineseWords,
+	fetchChineseGrades,
+} from "../src/lib/definition-provider.ts";
 
 const projectRoot = resolve(import.meta.dirname, "..");
 const envFile = resolve(projectRoot, ".env");
 if (existsSync(envFile)) process.loadEnvFile(envFile);
 
-const words = [...new Set(process.argv.slice(2).map((word) => word.trim()).filter(Boolean))];
-if (words.length === 0 || words.includes("--help")) {
-	console.log("用法：pnpm get:explain word1 word2 \"a short phrase\"");
-	console.log("配置：.env 中填写 MDS_AI_BASE_URL、MDS_AI_API_KEY、MDS_AI_MODEL");
-	process.exit(words.includes("--help") ? 0 : 1);
+const args = process.argv.slice(2);
+const grade = args.includes("--grade");
+const chinese = args.includes("--chinese");
+const rest = args.filter((a) => a !== "--grade" && a !== "--chinese");
+
+if (grade) {
+	// 用法：pnpm get:explain --grade "hello=你好" "apple=哈喽"
+	const items = rest.map((pair) => {
+		const sep = pair.includes("=") ? "=" : ":";
+		const [word, ...answerParts] = pair.split(sep);
+		return {
+			word: word.trim(),
+			expected: "",
+			answer: answerParts.join(sep).trim(),
+		};
+	}).filter((i) => i.word && i.answer);
+	if (items.length === 0) {
+		console.log('用法：pnpm get:explain --grade "hello=你好" "apple=苹果"');
+		process.exit(1);
+	}
+	runGrade(items);
+} else if (chinese) {
+	const words = [...new Set(rest.map((word) => word.trim()).filter(Boolean))];
+	if (words.length === 0) {
+		console.log('用法：pnpm get:explain --chinese hello world');
+		process.exit(1);
+	}
+	runPairs(words, true);
+} else {
+	const words = [...new Set(rest.map((word) => word.trim()).filter(Boolean))];
+	if (words.length === 0 || args.includes("--help")) {
+		console.log("用法：pnpm get:explain word1 word2 \"a short phrase\"");
+		console.log("      pnpm get:explain --chinese hello world   # 抓中文对应词");
+		console.log('      pnpm get:explain --grade "hello=你好"    # AI 批改中文作答');
+		console.log("配置：.env 中填写 MDS_AI_BASE_URL、MDS_AI_API_KEY、MDS_AI_MODEL");
+		process.exit(args.includes("--help") ? 0 : 1);
+	}
+	runPairs(words, false);
 }
 
 const baseUrl = String(process.env.MDS_AI_BASE_URL ?? "").trim();
@@ -22,24 +59,46 @@ if (!baseUrl || !apiKey) {
 	process.exit(1);
 }
 
-const diagnosticEvents = [];
-try {
-	const result = await fetchEnglishDefinitions({
-		words,
-		baseUrl,
-		apiKey,
-		model,
-		onDiagnostic: (event) => diagnosticEvents.push(event),
-	});
-	console.log(JSON.stringify({
-		definitions: result.definitions,
-		missing: result.missing,
-		warning: result.warning,
-		diagnostics: result.diagnostics,
-		events: diagnosticEvents,
-	}, null, 2));
-	if (result.missing.length > 0) process.exitCode = 2;
-} catch (error) {
+function report(result) {
+	console.log(JSON.stringify(result, null, 2));
+	if (result.missing?.length > 0) process.exitCode = 2;
+}
+
+async function runPairs(words, isChinese) {
+	const diagnosticEvents = [];
+	try {
+		const result = isChinese
+			? await fetchChineseWords({ words, baseUrl, apiKey, model, onDiagnostic: (event) => diagnosticEvents.push(event) })
+			: await fetchEnglishDefinitions({ words, baseUrl, apiKey, model, onDiagnostic: (event) => diagnosticEvents.push(event) });
+		report({
+			...(isChinese ? { words: result.words } : { definitions: result.definitions }),
+			missing: result.missing,
+			warning: result.warning,
+			diagnostics: result.diagnostics,
+			events: diagnosticEvents,
+		});
+	} catch (error) {
+		reportError(error, diagnosticEvents);
+	}
+}
+
+async function runGrade(items) {
+	const diagnosticEvents = [];
+	try {
+		const result = await fetchChineseGrades({ items, baseUrl, apiKey, model, onDiagnostic: (event) => diagnosticEvents.push(event) });
+		report({
+			grades: result.grades,
+			missing: result.missing,
+			warning: result.warning,
+			diagnostics: result.diagnostics,
+			events: diagnosticEvents,
+		});
+	} catch (error) {
+		reportError(error, diagnosticEvents);
+	}
+}
+
+function reportError(error, diagnosticEvents) {
 	console.error(JSON.stringify({
 		error: error instanceof Error ? error.name : "Error",
 		code: error && typeof error === "object" && "code" in error ? error.code : undefined,

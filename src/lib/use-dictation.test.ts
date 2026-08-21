@@ -10,6 +10,8 @@ import type {
 const mocks = vi.hoisted(() => ({
 	requestTtsAll: vi.fn(),
 	requestDefinitions: vi.fn(),
+	requestChineseWords: vi.fn(),
+	requestChineseGrades: vi.fn(),
 	playWithIntervals: vi.fn(),
 	invalidateCacheFile: vi.fn(),
 }));
@@ -18,6 +20,8 @@ vi.mock("./api", () => ({
 	audioUrl: (name: string) => `/api/audio?name=${encodeURIComponent(name)}`,
 	requestTtsAll: mocks.requestTtsAll,
 	requestDefinitions: mocks.requestDefinitions,
+	requestChineseWords: mocks.requestChineseWords,
+	requestChineseGrades: mocks.requestChineseGrades,
 	playWithIntervals: mocks.playWithIntervals,
 	invalidateCacheFile: mocks.invalidateCacheFile,
 }));
@@ -94,6 +98,8 @@ describe("useDictation 生产流程编排", () => {
 			apple: "A round fruit.",
 			banana: "A long yellow fruit.",
 		});
+		mocks.requestChineseWords.mockResolvedValue({});
+		mocks.requestChineseGrades.mockResolvedValue({ grades: [] });
 		mocks.playWithIntervals.mockImplementation((opts: PlayOptions) => {
 			const deferred = createDeferred<PlayOutcome>();
 			playDeferreds.push(deferred);
@@ -304,7 +310,7 @@ describe("useDictation 生产流程编排", () => {
 			aiBaseUrl: "https://example.test/v1",
 			aiApiKey: "test-key",
 		});
-		d.changeWithDefinition(true);
+		d.changeContentMode("definition");
 		d.addWord("apple");
 		d.startDictation("cyber");
 		await flushAsyncWork();
@@ -342,7 +348,7 @@ describe("useDictation 生产流程编排", () => {
 			aiBaseUrl: "https://example.test/v1",
 			aiApiKey: "test-key",
 		});
-		d.changeWithDefinition(true);
+		d.changeContentMode("definition");
 		d.addWord("apple");
 		d.startDictation("cyber");
 		await flushAsyncWork();
@@ -395,6 +401,8 @@ describe("useDictation 准备任务竞态（token 隔离）", () => {
 			},
 		);
 		mocks.requestDefinitions.mockResolvedValue({});
+		mocks.requestChineseWords.mockResolvedValue({});
+		mocks.requestChineseGrades.mockResolvedValue({ grades: [] });
 		mocks.playWithIntervals.mockImplementation((opts: PlayOptions) => {
 			opts.onPlay(0);
 			return Promise.resolve("completed" as const);
@@ -500,6 +508,8 @@ describe("useDictation 完整流程衔接（结果页）", () => {
 			},
 		);
 		mocks.requestDefinitions.mockResolvedValue({});
+		mocks.requestChineseWords.mockResolvedValue({});
+		mocks.requestChineseGrades.mockResolvedValue({ grades: [] });
 		mocks.playWithIntervals.mockImplementation((opts: PlayOptions) => {
 			const deferred = createDeferred<PlayOutcome>();
 			playDeferreds.push(deferred);
@@ -674,5 +684,322 @@ describe("useDictation 完整流程衔接（结果页）", () => {
 		await flushAsyncWork();
 		await vi.advanceTimersByTimeAsync(10_000);
 		expect(d.phase()).toBe("results");
+	});
+});
+
+describe("useDictation 中文词模式", () => {
+	let playDeferreds: ReturnType<typeof createDeferred<PlayOutcome>>[];
+	let audioStateCbs: ((playing: boolean) => void)[];
+	let mounted: { dictation: Dictation; dispose: () => void } | undefined;
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.stubGlobal("window", {
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
+		});
+		vi.stubGlobal("localStorage", {
+			getItem: vi.fn().mockReturnValue(null),
+			setItem: vi.fn(),
+		});
+		mocks.requestTtsAll.mockImplementation(
+			async (
+				words: string[],
+				_voice: string,
+				_signal: AbortSignal,
+				onProgress: (done: number, total: number) => void,
+			): Promise<TtsItem[]> => {
+				onProgress(words.length, words.length);
+				return words.map((word) => ({
+					word,
+					name: `${word}.mp3`,
+					cached: true,
+				}));
+			},
+		);
+		mocks.requestDefinitions.mockResolvedValue({});
+		mocks.requestChineseWords.mockResolvedValue({
+			apple: "苹果",
+			hello: "你好",
+		});
+		mocks.requestChineseGrades.mockResolvedValue({ grades: [] });
+		playDeferreds = [];
+		audioStateCbs = [];
+		mocks.playWithIntervals.mockImplementation((opts: PlayOptions) => {
+			const deferred = createDeferred<PlayOutcome>();
+			playDeferreds.push(deferred);
+			opts.onPlay(0);
+			audioStateCbs.push(opts.onAudioState);
+			return deferred.promise;
+		});
+	});
+
+	afterEach(() => {
+		mounted?.dispose();
+		mounted = undefined;
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+		vi.clearAllMocks();
+	});
+
+	it("准备阶段请求中文词，轮次携带中文词且按两段时长计算倒计时", async () => {
+		mounted = mountDictation();
+		const d = mounted.dictation;
+		d.changeSettings({
+			...d.settings(),
+			aiBaseUrl: "https://example.test/v1",
+			aiApiKey: "test-key",
+		});
+		d.changeContentMode("chinese");
+		d.addWord("hello");
+		d.startDictation("cyber");
+		await flushAsyncWork();
+
+		expect(mocks.requestChineseWords).toHaveBeenCalledWith(
+			["hello"],
+			expect.objectContaining({ aiBaseUrl: "https://example.test/v1" }),
+			expect.any(AbortSignal),
+		);
+		expect(mocks.requestDefinitions).not.toHaveBeenCalled();
+		expect(d.phase()).toBe("ready");
+		const round = d.rounds()[0];
+		expect(round.chineseWord).toBe("你好");
+		// 单词段 (2+0.3×5)×2 = 7.0 + 中文段 2+1.5×2 = 5.0 → 12.0
+		expect(round.countdownSec).toBe(12);
+	});
+
+	it("中文词模式赛博：两段式输入，进入批改并依 AI 结果判定", async () => {
+		mounted = mountDictation();
+		const d = mounted.dictation;
+		d.changeSettings({
+			...d.settings(),
+			aiBaseUrl: "https://example.test/v1",
+			aiApiKey: "test-key",
+		});
+		d.changeContentMode("chinese");
+		d.addWord("hello");
+		d.startDictation("cyber");
+		await flushAsyncWork();
+		d.go();
+
+		expect(d.step()).toBe("word");
+		audioStateCbs[0](true);
+		d.setWordInput("hello");
+		d.submitWord();
+		expect(d.step()).toBe("def");
+		expect(d.phase()).toBe("dictating");
+		d.setDefInput("你好！");
+		d.submitDef();
+		// 播完 → 最后一轮 finish → 先进入 grading（mock 立即 resolve 时批改瞬态）
+		audioStateCbs[0](false);
+		expect(d.phase()).toBe("grading");
+		await flushAsyncWork();
+		expect(d.phase()).toBe("results");
+		expect(mocks.requestChineseGrades).toHaveBeenCalledWith(
+			[
+				{
+					word: "hello",
+					expected: "你好",
+					answer: "你好！",
+				},
+			],
+			expect.objectContaining({ aiBaseUrl: "https://example.test/v1" }),
+			expect.any(AbortSignal),
+		);
+		await flushAsyncWork();
+		expect(d.phase()).toBe("results");
+		const fields = d.resultRows()[0].fields;
+		expect(fields[0]).toMatchObject({
+			kind: "word",
+			userValue: "hello",
+			correct: true,
+		});
+		expect(fields[1]).toMatchObject({
+			kind: "chinese",
+			userValue: "你好！",
+			correct: true,
+		});
+	});
+
+	it("中文词模式赛博：AI 判定覆盖本地匹配（同义词算对/判错）", async () => {
+		mounted = mountDictation();
+		const d = mounted.dictation;
+		d.changeSettings({
+			...d.settings(),
+			aiBaseUrl: "https://example.test/v1",
+			aiApiKey: "test-key",
+		});
+		d.changeContentMode("chinese");
+		d.addWord("hello");
+		d.startDictation("cyber");
+		await flushAsyncWork();
+		d.go();
+
+		// 作答与标准不同，但 AI 认为同义词算对
+		mocks.requestChineseGrades.mockResolvedValueOnce({
+			grades: [{ word: "hello", correct: true, note: "同义词" }],
+		});
+		audioStateCbs[0](true);
+		d.setWordInput("hello");
+		d.submitWord();
+		d.setDefInput("哈喽");
+		d.submitDef();
+		audioStateCbs[0](false);
+		await flushAsyncWork();
+		await flushAsyncWork();
+		expect(d.phase()).toBe("results");
+		expect(d.resultRows()[0].fields[1]).toMatchObject({
+			correct: true,
+			note: "同义词",
+		});
+
+		// AI 判错 → 覆盖本地匹配的正确结论
+		mounted.dispose();
+		mounted = mountDictation();
+		const d2 = mounted.dictation;
+		d2.changeSettings({
+			...d2.settings(),
+			aiBaseUrl: "https://example.test/v1",
+			aiApiKey: "test-key",
+		});
+		d2.changeContentMode("chinese");
+		d2.addWord("hello");
+		d2.startDictation("cyber");
+		await flushAsyncWork();
+		d2.go();
+		mocks.requestChineseGrades.mockResolvedValueOnce({
+			grades: [{ word: "hello", correct: false, note: "字写错了" }],
+		});
+		audioStateCbs[1](true);
+		d2.setWordInput("hello");
+		d2.submitWord();
+		d2.setDefInput("你好");
+		d2.submitDef();
+		audioStateCbs[1](false);
+		await flushAsyncWork();
+		await flushAsyncWork();
+		expect(d2.resultRows()[0].fields[1]).toMatchObject({
+			correct: false,
+			note: "字写错了",
+		});
+	});
+
+	it("中文词模式赛博：AI 批改失败降级本地判定并提示", async () => {
+		mounted = mountDictation();
+		const d = mounted.dictation;
+		d.changeSettings({
+			...d.settings(),
+			aiBaseUrl: "https://example.test/v1",
+			aiApiKey: "test-key",
+		});
+		d.changeContentMode("chinese");
+		d.addWord("hello");
+		d.startDictation("cyber");
+		await flushAsyncWork();
+		d.go();
+
+		mocks.requestChineseGrades.mockRejectedValueOnce(
+			new Error("network down"),
+		);
+		audioStateCbs[0](true);
+		d.setWordInput("hello");
+		d.submitWord();
+		d.setDefInput("你好");
+		d.submitDef();
+		audioStateCbs[0](false);
+		await flushAsyncWork();
+		await flushAsyncWork();
+		expect(d.phase()).toBe("results");
+		expect(d.gradeNote()).toContain("本地匹配");
+		expect(d.resultRows()[0].fields[1].correct).toBe(true);
+	});
+
+	it("中文词模式赛博：中止批改直接进结果并降级本地判定", async () => {
+		mounted = mountDictation();
+		const d = mounted.dictation;
+		d.changeSettings({
+			...d.settings(),
+			aiBaseUrl: "https://example.test/v1",
+			aiApiKey: "test-key",
+		});
+		d.changeContentMode("chinese");
+		d.addWord("hello");
+		d.startDictation("cyber");
+		await flushAsyncWork();
+		d.go();
+
+		let resolveGrade!: (v: { grades: { word: string; correct: boolean }[] }) => void;
+		mocks.requestChineseGrades.mockReturnValueOnce(
+			new Promise((r) => {
+				resolveGrade = r;
+			}),
+		);
+		audioStateCbs[0](true);
+		d.setWordInput("hello");
+		d.submitWord();
+		d.setDefInput("你好");
+		d.submitDef();
+		audioStateCbs[0](false);
+		await flushAsyncWork();
+		expect(d.phase()).toBe("grading");
+
+		d.abortGrading();
+		expect(d.phase()).toBe("results");
+		expect(d.gradeNote()).toContain("中止");
+		expect(d.resultRows()[0].fields[1].correct).toBe(true);
+		// 迟到的批改结果不得再覆盖状态
+		resolveGrade({ grades: [{ word: "hello", correct: false }] });
+		await flushAsyncWork();
+		expect(d.resultRows()[0].fields[1].correct).toBe(true);
+	});
+
+	it("单词模式不会进入批改阶段", async () => {
+		mounted = mountDictation();
+		const d = mounted.dictation;
+		d.addWord("hello");
+		d.startDictation("cyber");
+		await flushAsyncWork();
+		d.go();
+		audioStateCbs[0](true);
+		d.setWordInput("hello");
+		d.submitWord();
+		audioStateCbs[0](false);
+		await flushAsyncWork();
+		expect(d.phase()).toBe("results");
+		expect(mocks.requestChineseGrades).not.toHaveBeenCalled();
+	});
+
+	it("中文词模式未配置 AI 时阻止开始并提示", async () => {
+		mounted = mountDictation();
+		const d = mounted.dictation;
+		d.changeContentMode("chinese");
+		d.addWord("hello");
+		d.startDictation("writing");
+		expect(d.phase()).toBe("idle");
+		expect(d.error()).toContain("AI");
+	});
+
+	it("中文词模式书写：结果页只展示参考中文词，不批改", async () => {
+		mounted = mountDictation();
+		const d = mounted.dictation;
+		d.changeSettings({
+			...d.settings(),
+			aiBaseUrl: "https://example.test/v1",
+			aiApiKey: "test-key",
+		});
+		d.changeContentMode("chinese");
+		d.addWord("hello");
+		d.startDictation("writing");
+		await flushAsyncWork();
+		d.go();
+		playDeferreds[0].resolve("completed");
+		await flushAsyncWork();
+		// 中文模式倒计时 = 单词段 7.0 + 中文段 5.0 = 12s
+		await vi.advanceTimersByTimeAsync(20_000);
+		expect(d.phase()).toBe("results");
+		expect(mocks.requestChineseGrades).not.toHaveBeenCalled();
+		const field = d.resultRows()[0].fields[0];
+		expect(field).toMatchObject({ kind: "chinese", expected: "你好" });
+		expect(field.graded).toBe(false);
 	});
 });

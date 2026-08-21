@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
 	wordLength,
 	definitionLength,
+	chineseLength,
 	repeatCount,
 	speechIntervals,
 	scaleTime,
@@ -147,6 +148,43 @@ describe("countdownDuration", () => {
 		});
 		expect(scaled).toBeCloseTo(Math.round(base * 1.5 * 10) / 10);
 	});
+	it("中文词模式：单词段 + 第二步中文作答段（思考2 + 1.5×字符数）", () => {
+		// hello（5 字母，2 遍）：(2+0.3×5)×2 = 7.0；你好（2 字）：2+1.5×2 = 5.0 → 12.0
+		expect(
+			countdownDuration({
+				word: "hello",
+				level: "normal",
+				withDefinition: false,
+				chineseText: "你好",
+			}),
+		).toBe(Math.round((7.0 + 5.0) * 10) / 10);
+		// beautiful（9 字母，3 遍）：(2+0.3×9)×3 = 14.1；图书馆（3 字）：2+1.5×3 = 6.5 → 20.6
+		expect(
+			countdownDuration({
+				word: "beautiful",
+				level: "normal",
+				withDefinition: false,
+				chineseText: "图书馆",
+			}),
+		).toBe(Math.round((14.1 + 6.5) * 10) / 10);
+	});
+	it("中文词段按 UTF-8 字符数计（含标点），空中文词不加段", () => {
+		const withPunct = countdownDuration({
+			word: "hello",
+			level: "normal",
+			withDefinition: false,
+			chineseText: "你好！",
+		});
+		// 3 个字符 → 单词段 7.0 + (2+1.5×3) = 13.5
+		expect(withPunct).toBe(Math.round((7.0 + 6.5) * 10) / 10);
+		const noSeg = countdownDuration({
+			word: "hello",
+			level: "normal",
+			withDefinition: false,
+			chineseText: "   ",
+		});
+		expect(noSeg).toBe(Math.round(7.0 * 10) / 10);
+	});
 });
 
 describe("timing 边界用例", () => {
@@ -161,6 +199,22 @@ describe("timing 边界用例", () => {
 		});
 		it("换行/制表符 trim 后统计", () => {
 			expect(wordLength("\napple\t")).toBe(5);
+		});
+	});
+
+	describe("chineseLength", () => {
+		it("UTF-8 字符计数：每个汉字/字符记 1，忽略空白", () => {
+			expect(chineseLength("你好")).toBe(2);
+			expect(chineseLength("图书馆")).toBe(3);
+			expect(chineseLength(" 你好 ")).toBe(2);
+		});
+		it("标点也计字符；字母数字计字符", () => {
+			expect(chineseLength("你好！")).toBe(3);
+			expect(chineseLength("abc你好")).toBe(5);
+		});
+		it("空文本至少 1", () => {
+			expect(chineseLength("")).toBe(1);
+			expect(chineseLength("   ")).toBe(1);
 		});
 	});
 

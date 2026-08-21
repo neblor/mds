@@ -11,7 +11,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { cacheDir, runtimeMode, type RuntimeMode } from "./word-cache";
 
 export interface RuntimeCacheStorage {
@@ -27,6 +27,8 @@ export interface RuntimeCacheStorage {
 	removeAudio(name: string): void;
 	readDefinitions(): unknown | undefined;
 	writeDefinitions(value: unknown): void;
+	readChineseWords(): unknown | undefined;
+	writeChineseWords(value: unknown): void;
 }
 
 const audioNamePattern = /^[a-z0-9_-]{1,80}\.mp3$/;
@@ -41,6 +43,7 @@ function assertAudioName(name: string): void {
 
 export class FileSystemRuntimeCacheStorage implements RuntimeCacheStorage {
 	readonly definitionsPath: string;
+	readonly chineseWordsPath: string;
 
 	constructor(
 		readonly mode: RuntimeMode,
@@ -48,6 +51,7 @@ export class FileSystemRuntimeCacheStorage implements RuntimeCacheStorage {
 	) {
 		mkdirSync(rootDir, { recursive: true });
 		this.definitionsPath = join(rootDir, "definitions.json");
+		this.chineseWordsPath = join(rootDir, "chinese-words.json");
 	}
 
 	private audioPath(name: string): string {
@@ -95,31 +99,48 @@ export class FileSystemRuntimeCacheStorage implements RuntimeCacheStorage {
 	}
 
 	readDefinitions(): unknown | undefined {
-		try {
-			return JSON.parse(readFileSync(this.definitionsPath, "utf8"));
-		} catch {
-			return undefined;
-		}
+		return readJsonFile(this.definitionsPath);
 	}
 
 	writeDefinitions(value: unknown): void {
-		const tmp = join(
-			this.rootDir,
-			`.tmp-definitions-${process.pid}-${randomUUID()}`,
-		);
+		writeJsonAtomic(this.definitionsPath, value);
+	}
+
+	readChineseWords(): unknown | undefined {
+		return readJsonFile(this.chineseWordsPath);
+	}
+
+	writeChineseWords(value: unknown): void {
+		writeJsonAtomic(this.chineseWordsPath, value);
+	}
+}
+
+/** 读 JSON 缓存；文件缺失或损坏返回 undefined（容忍坏缓存） */
+function readJsonFile(path: string): unknown | undefined {
+	try {
+		return JSON.parse(readFileSync(path, "utf8"));
+	} catch {
+		return undefined;
+	}
+}
+
+/** 临时文件 + rename 原子写 JSON（Windows 目标已存在时先移除再重试） */
+function writeJsonAtomic(path: string, value: unknown): void {
+	const tmp = join(
+		dirname(path),
+		`.tmp-json-${process.pid}-${randomUUID()}`,
+	);
+	try {
+		writeFileSync(tmp, JSON.stringify(value, null, 2));
 		try {
-			writeFileSync(tmp, JSON.stringify(value, null, 2));
-			try {
-				renameSync(tmp, this.definitionsPath);
-			} catch (error) {
-				// Windows 上目标已存在时 rename 可能拒绝覆盖；移除旧 JSON 后重试。
-				if (!existsSync(this.definitionsPath)) throw error;
-				rmSync(this.definitionsPath, { force: true });
-				renameSync(tmp, this.definitionsPath);
-			}
-		} finally {
-			rmSync(tmp, { force: true });
+			renameSync(tmp, path);
+		} catch (error) {
+			if (!existsSync(path)) throw error;
+			rmSync(path, { force: true });
+			renameSync(tmp, path);
 		}
+	} finally {
+		rmSync(tmp, { force: true });
 	}
 }
 

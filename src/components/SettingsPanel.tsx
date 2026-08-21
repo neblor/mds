@@ -67,7 +67,9 @@ export default function SettingsPanel(props: Props) {
 								onInput={(e) => set({ aiModel: e.currentTarget.value })}
 							/>
 						</label>
-						<p class="text-xs text-ink-faint">不配置则无法使用"默写释义"功能</p>
+						<p class="text-xs text-ink-faint">
+						不配置则无法使用"默写释义"和"中文词"功能
+					</p>
 					</div>
 
 					{/* 音色选择 */}

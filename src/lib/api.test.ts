@@ -7,6 +7,8 @@ import {
 	audioUrl,
 	playWithIntervals,
 	requestDefinitions,
+	requestChineseWords,
+	requestChineseGrades,
 	type PlaybackFailure,
 } from "./api";
 import { DEFAULT_SETTINGS } from "./settings";
@@ -217,5 +219,148 @@ describe("requestDefinitions", () => {
 		);
 
 		expect(result).toEqual({ apple: "A round fruit." });
+	});
+});
+
+describe("requestChineseWords", () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	const settings = {
+		...DEFAULT_SETTINGS,
+		aiBaseUrl: "https://example.test/v1",
+		aiApiKey: "test-key",
+	};
+
+	it("请求 /api/chinese-words 并返回中文词映射", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					words: { apple: "苹果", hello: "你好" },
+					missing: ["banana"],
+				}),
+				{ status: 200, headers: { "content-type": "application/json" } },
+			),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+
+		const result = await requestChineseWords(
+			["apple", "hello", "banana"],
+			settings,
+			new AbortController().signal,
+		);
+
+		expect(result).toEqual({ apple: "苹果", hello: "你好" });
+		const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+		expect(url).toBe("/api/chinese-words");
+		expect(JSON.parse(String(init.body))).toMatchObject({
+			words: ["apple", "hello", "banana"],
+			baseUrl: "https://example.test/v1",
+			apiKey: "test-key",
+		});
+	});
+
+	it("服务端错误透传 message 作为错误信息", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(
+				new Response(
+					JSON.stringify({ error: "no-config", message: "未配置 AI 服务" }),
+					{ status: 400 },
+				),
+			),
+		);
+
+		await expect(
+			requestChineseWords(["apple"], settings, new AbortController().signal),
+		).rejects.toThrow("未配置 AI 服务");
+	});
+
+	it("不可解析的响应给出明确错误而不是静默空结果", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(new Response("<html>oops</html>", { status: 200 })),
+		);
+
+		await expect(
+			requestChineseWords(["apple"], settings, new AbortController().signal),
+		).rejects.toThrow("无法解析");
+	});
+});
+
+describe("requestChineseGrades", () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	const settings = {
+		...DEFAULT_SETTINGS,
+		aiBaseUrl: "https://example.test/v1",
+		aiApiKey: "test-key",
+	};
+
+	it("请求 /api/chinese-grade 并返回批改结果", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					grades: [
+						{ word: "hello", correct: true },
+						{ word: "apple", correct: false, note: "词义不对" },
+					],
+					missing: [],
+				}),
+				{ status: 200, headers: { "content-type": "application/json" } },
+			),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+
+		const result = await requestChineseGrades(
+			[
+				{ word: "hello", expected: "你好", answer: "你好" },
+				{ word: "apple", expected: "苹果", answer: "香蕉" },
+			],
+			settings,
+			new AbortController().signal,
+		);
+
+		expect(result.grades).toEqual([
+			{ word: "hello", correct: true },
+			{ word: "apple", correct: false, note: "词义不对" },
+		]);
+		const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+		expect(url).toBe("/api/chinese-grade");
+		const body = JSON.parse(String(init.body)) as {
+			items: { word: string }[];
+			baseUrl: string;
+			apiKey: string;
+		};
+		expect(body).toMatchObject({
+			baseUrl: "https://example.test/v1",
+			apiKey: "test-key",
+		});
+		expect(body.items).toEqual([
+			{ word: "hello", expected: "你好", answer: "你好" },
+			{ word: "apple", expected: "苹果", answer: "香蕉" },
+		]);
+	});
+
+	it("服务端错误透传 message", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(
+				new Response(
+					JSON.stringify({ error: "network", message: "AI 服务不可用" }),
+					{ status: 502 },
+				),
+			),
+		);
+		await expect(
+			requestChineseGrades(
+				[{ word: "hello", expected: "你好", answer: "你好" }],
+				settings,
+				new AbortController().signal,
+			),
+		).rejects.toThrow("AI 服务不可用");
 	});
 });

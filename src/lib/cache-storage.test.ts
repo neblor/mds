@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { existsSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
 	createRuntimeCacheStorage,
@@ -42,6 +42,30 @@ describe("runtime cache storage", () => {
 			defs: { apple: "A fruit." },
 		});
 		expect(existsSync(join(root, "definitions.json"))).toBe(true);
+	});
+
+	it("中文词使用独立 JSON 文件读写，互不污染释义缓存", () => {
+		const storage = createRuntimeCacheStorage({ mode: "web", rootDir: root });
+		storage.writeDefinitions({ model: "m", defs: { apple: "A fruit." } });
+		storage.writeChineseWords({ model: "m", words: { apple: "苹果" } });
+		expect(storage.readChineseWords()).toEqual({
+			model: "m",
+			words: { apple: "苹果" },
+		});
+		expect(storage.readDefinitions()).toEqual({
+			model: "m",
+			defs: { apple: "A fruit." },
+		});
+		expect(existsSync(join(root, "chinese-words.json"))).toBe(true);
+		expect(existsSync(join(root, "definitions.json"))).toBe(true);
+	});
+
+	it("中文词缓存损坏/缺失时返回 undefined", () => {
+		const storage = createRuntimeCacheStorage({ mode: "web", rootDir: root });
+		expect(storage.readChineseWords()).toBeUndefined();
+		storage.writeChineseWords({ model: "m", words: { apple: "苹果" } });
+		writeFileSync(join(root, "chinese-words.json"), "{broken");
+		expect(storage.readChineseWords()).toBeUndefined();
 	});
 
 	it("音频名校验在存储边界阻断路径穿越", () => {

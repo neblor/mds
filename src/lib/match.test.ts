@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { isStrictMatch, isAllCorrect } from "./match";
+import {
+	isStrictMatch,
+	isChineseMatch,
+	normalizeChinese,
+	isAllCorrect,
+} from "./match";
 
 describe("isStrictMatch", () => {
 	it("完全一致算对", () => {
@@ -32,6 +37,37 @@ describe("isAllCorrect", () => {
 	});
 	it("有错不算全对", () => {
 		expect(isAllCorrect([{ correct: true }, { correct: false }])).toBe(false);
+	});
+});
+
+describe("isChineseMatch", () => {
+	it("完全一致算对", () => {
+		expect(isChineseMatch("你好", "你好")).toBe(true);
+		expect(isChineseMatch("放弃", "放弃")).toBe(true);
+	});
+	it("忽略中文标点", () => {
+		expect(isChineseMatch("你好！", "你好")).toBe(true);
+		expect(isChineseMatch("你好，", "你好")).toBe(true);
+		expect(isChineseMatch("苹果。", "苹果")).toBe(true);
+		expect(isChineseMatch("「你好」", "你好")).toBe(true);
+	});
+	it("忽略空白与全角空格", () => {
+		expect(isChineseMatch(" 你好 ", "你好")).toBe(true);
+		expect(isChineseMatch("你 好", "你好")).toBe(true);
+		expect(isChineseMatch("\u3000你好\u3000", "你好")).toBe(true);
+	});
+	it("词不同算错", () => {
+		expect(isChineseMatch("您好", "你好")).toBe(false);
+		expect(isChineseMatch("再见", "你好")).toBe(false);
+	});
+	it("空输入算错（标准非空时）", () => {
+		expect(isChineseMatch("", "你好")).toBe(false);
+		expect(isChineseMatch("   ", "你好")).toBe(false);
+		expect(isChineseMatch("", "")).toBe(true);
+	});
+	it("归一化只去除空白与中文标点，保留其他字符", () => {
+		expect(normalizeChinese("ABC，你好 ！")).toBe("ABC你好");
+		expect(normalizeChinese("a-b")).toBe("a-b");
 	});
 });
 

@@ -3,6 +3,7 @@ import WordBank from "~/components/WordBank";
 import PreparingOverlay from "~/components/PreparingOverlay";
 import ReadyOverlay from "~/components/ReadyOverlay";
 import DictatingView from "~/components/DictatingView";
+import GradingOverlay from "~/components/GradingOverlay";
 import ResultsView from "~/components/ResultsView";
 import SettingsPanel from "~/components/SettingsPanel";
 import { useDictation } from "~/lib/use-dictation";
@@ -25,14 +26,14 @@ export default function Home() {
 						<WordBank
 							words={d.words()}
 							speed={d.speed()}
-							withDefinition={d.withDefinition()}
+							contentMode={d.contentMode()}
 							error={d.error()}
 							onAdd={d.addWord}
 							onAddMany={d.addWords}
 							onRemove={d.removeWord}
 							onClear={d.clearWords}
 							onSpeed={d.setSpeed}
-							onWithDefinition={d.changeWithDefinition}
+							onContentMode={d.changeContentMode}
 							onStartWriting={() => d.startDictation("writing")}
 							onStartCyber={() => d.startDictation("cyber")}
 							onOpenSettings={() => d.setSettingsOpen(true)}
@@ -52,7 +53,7 @@ export default function Home() {
 				<Show when={d.phase() === "ready"}>
 					<ReadyOverlay
 						count={d.rounds().length}
-						withDefinition={d.withDefinition()}
+						contentMode={d.contentMode()}
 						onGo={d.go}
 					/>
 				</Show>
@@ -69,7 +70,7 @@ export default function Home() {
 						speechDone={d.speechDone()}
 						sounding={d.sounding()}
 						mode={d.mode()}
-						withDefinition={d.withDefinition()}
+						contentMode={d.contentMode()}
 						submittedWord={d.currentRound()?.answer}
 						submittedDef={d.currentRound()?.answerDef}
 						wordInput={d.wordInput()}
@@ -81,11 +82,16 @@ export default function Home() {
 					/>
 				</Show>
 
+				<Show when={d.phase() === "grading"}>
+					<GradingOverlay onAbort={d.abortGrading} />
+				</Show>
+
 				<Show when={d.phase() === "results"}>
 					<ResultsView
 						rows={d.resultRows()}
 						mode={d.mode()}
-						withDefinition={d.withDefinition()}
+						contentMode={d.contentMode()}
+						gradeNote={d.gradeNote()}
 						playingAudioName={d.resultAudioName()}
 						onPlayAudio={d.playResultAudio}
 						onClose={d.closeResults}

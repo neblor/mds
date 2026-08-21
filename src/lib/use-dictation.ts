@@ -18,16 +18,18 @@ import {
 	scaleTime,
 	type SpeedLevel,
 } from "./timing";
-import { isStrictMatch } from "./match";
 import {
 	requestTtsAll,
 	requestDefinitions,
+	requestChineseWords,
+	requestChineseGrades,
 	audioUrl,
 	playWithIntervals,
 	invalidateCacheFile,
 	type TtsItem,
+	type ChineseGradeItem,
 } from "./api";
-import { shuffle, type DictationMode } from "./state";
+import { shuffle, type DictationMode, type ContentMode } from "./state";
 import {
 	stepEngine,
 	type EngineEvent,
@@ -35,13 +37,26 @@ import {
 } from "./dictation-engine";
 import { loadWords, saveWords } from "./word-storage";
 import { timedOutInputPatch } from "./dictation-input";
+import {
+	buildResultRows,
+	type ResultRow,
+	type GradeOverride,
+} from "./results";
 
-export type Phase = "idle" | "preparing" | "ready" | "dictating" | "results";
+export type Phase =
+	| "idle"
+	| "preparing"
+	| "ready"
+	| "dictating"
+	| "grading"
+	| "results";
 
 export interface DictRound {
 	word: string;
 	audioName: string;
 	definition?: string;
+	/** 中文词模式：AI 抓取的常用中文对应词 */
+	chineseWord?: string;
 	repeatCount: number;
 	/** 计数轨时长（进度条），已含档位×倍率 */
 	countdownSec: number;
@@ -55,41 +70,39 @@ interface PrepData {
 	words: string[];
 	nameMap: Map<string, string>;
 	defs: Record<string, string>;
-}
-
-export interface ResultRow {
-	word: string;
-	audioName: string;
-	definition?: string;
-	answer?: string;
-	answerDef?: string;
-	correct?: boolean;
+	chinese: Record<string, string>;
 }
 
 interface BuildRoundsOptions {
 	words: string[];
 	data: PrepData;
 	level: SpeedLevel;
-	withDef: boolean;
+	contentMode: ContentMode;
 	multiplier: number;
 }
 
 function buildRounds(opts: BuildRoundsOptions): DictRound[] {
-	const { words, data, level, withDef, multiplier } = opts;
+	const { words, data, level, contentMode, multiplier } = opts;
 	return words.map((w) => {
 		// 只取自有属性，避免 constructor 等词键命中原型
 		const def = Object.hasOwn(data.defs, w) ? data.defs[w] : undefined;
+		const chineseWord = Object.hasOwn(data.chinese, w)
+			? data.chinese[w]
+			: undefined;
+		const withDef = contentMode === "definition";
 		const count = repeatCount(w, withDef);
 		return {
 			word: w,
 			audioName: data.nameMap.get(w) ?? "",
 			definition: def,
+			chineseWord,
 			repeatCount: count,
 			countdownSec: countdownDuration({
 				word: w,
 				level,
 				withDefinition: withDef,
 				definitionText: def,
+				chineseText: contentMode === "chinese" ? chineseWord : undefined,
 				multiplier,
 			}),
 			// 播音间隔按比例缩放（音频本身不动，只调间隔）
@@ -132,13 +145,15 @@ export function useDictation() {
 	const [repeatIndex, setRepeatIndex] = createSignal(-1);
 	const [sounding, setSounding] = createSignal(false);
 
-	// 释义开关持久化（刷新后保持值+视觉一致；浏览器表单恢复不再污染视觉）
-	const DEFINITION_KEY = "mds.withDefinition.v1";
-	const [withDefinition, setWithDefinition] = createSignal(false);
-	const changeWithDefinition = (v: boolean) => {
-		setWithDefinition(v);
+	// 默写内容模式持久化（刷新后保持值+视觉一致；浏览器表单恢复不再污染视觉）
+	// 兼容旧版释义开关：mds.withDefinition.v1 的 "1"/"0" 映射到 definition/word
+	const CONTENT_MODE_KEY = "mds.contentMode.v1";
+	const LEGACY_DEFINITION_KEY = "mds.withDefinition.v1";
+	const [contentMode, setContentMode] = createSignal<ContentMode>("word");
+	const changeContentMode = (m: ContentMode) => {
+		setContentMode(m);
 		try {
-			localStorage.setItem(DEFINITION_KEY, v ? "1" : "0");
+			localStorage.setItem(CONTENT_MODE_KEY, m);
 		} catch {
 			// 存储失败静默
 		}
@@ -153,6 +168,15 @@ export function useDictation() {
 	let resultAudioAbort: AbortController | null = null;
 	let roundSeq = 0;
 	const [resultAudioName, setResultAudioName] = createSignal<string | null>(null);
+
+	// —— AI 批改（中文词赛博模式）——
+	let gradeAbort: AbortController | null = null;
+	/** 批改任务递增序号：只有当前 token 的任务允许写状态 */
+	let gradeSeq = 0;
+	/** AI 批改结果：word → 判定 */
+	let lastGrades: Record<string, GradeOverride> | null = null;
+	/** 批改来源说明（失败/中止降级时展示给用户） */
+	const [gradeNote, setGradeNote] = createSignal<string | null>(null);
 
 	// —— 推进状态机（纯逻辑，见 dictation-engine.ts）——
 	/** 引擎状态（普通对象；SolidJS 信号仅用于 UI 渲染同步） */
@@ -175,14 +199,67 @@ export function useDictation() {
 	};
 
 	/**
-	 * 全部轮次的唯一结束出口：先让当前轮的异步回调失效，再清理运行时并立即展示结果。
-	 * 这样无论由提交、空格还是双轨自然完成触发，都不会等待播音间隔收尾。
+	 * 全部轮次的唯一结束出口：先让当前轮的异步回调失效，再清理运行时。
+	 * 中文词赛博模式先进入 grading（AI 批改）再展示结果；其余模式直接展示结果。
 	 */
 	const finishDictation = () => {
 		roundSeq++;
 		clearRoundRuntime();
+		if (mode() === "cyber" && contentMode() === "chinese") {
+			setPhase("grading");
+			void runGrading();
+		} else {
+			setPhase("results");
+		}
+	};
+
+	/* ---------- AI 批改（一次请求批改本场全部中文作答） ---------- */
+	const runGrading = async () => {
+		const items: ChineseGradeItem[] = rounds()
+			.filter((r) => r.answerDef !== undefined)
+			.map((r) => ({
+				word: r.word,
+				expected: r.chineseWord ?? "",
+				answer: r.answerDef ?? "",
+			}));
+		// 防御：没有可批改的作答（理论不会发生）直接进结果
+		if (items.length === 0) {
+			setPhase("results");
+			return;
+		}
+		const seq = ++gradeSeq;
+		gradeAbort = new AbortController();
+		const alive = () => seq === gradeSeq;
+		try {
+			const res = await requestChineseGrades(items, settings(), gradeAbort.signal);
+			if (!alive()) return;
+			const map: Record<string, GradeOverride> = {};
+			for (const g of res.grades) {
+				map[g.word] = { correct: g.correct, ...(g.note ? { note: g.note } : {}) };
+			}
+			lastGrades = map;
+			setGradeNote(
+				res.warning ? `AI 批改完成，部分题目降级为本地判定（${res.warning}）` : null,
+			);
+		} catch (err) {
+			if (!alive()) return;
+			lastGrades = null;
+			setGradeNote("AI 批改失败，已改用本地匹配判定");
+		} finally {
+			if (alive()) setPhase("results");
+		}
+	};
+
+	/** 中止批改：降级本地判定并直接进入结果页 */
+	const abortGrading = () => {
+		gradeSeq++;
+		gradeAbort?.abort();
+		gradeAbort = null;
+		lastGrades = null;
+		setGradeNote("已中止 AI 批改，改用本地匹配判定");
 		setPhase("results");
 	};
+	onCleanup(() => gradeAbort?.abort());
 
 	/**
 	 * 事件入口：状态机判定 → 执行动作（中止当前轮运行时/推进轮次）。
@@ -270,8 +347,14 @@ export function useDictation() {
 			return;
 		}
 		setError(null);
-		if (withDefinition() && !isAiConfigured(settings())) {
-			setError("释义模式需要先配置 AI 服务（右上角设置里填写）");
+		// 新一场默写：清掉上一场的批改状态（防止同词命中旧判定）
+		gradeSeq++;
+		gradeAbort?.abort();
+		gradeAbort = null;
+		lastGrades = null;
+		setGradeNote(null);
+		if (contentMode() !== "word" && !isAiConfigured(settings())) {
+			setError("释义/中文词模式需要先配置 AI 服务（右上角设置里填写）");
 			return;
 		}
 		setMode(m);
@@ -283,7 +366,7 @@ export function useDictation() {
 		const seq = ++prepSeq;
 		void runPreparation(
 			ws,
-			withDefinition(),
+			contentMode(),
 			settings().voice,
 			prepAbort.signal,
 			seq,
@@ -292,7 +375,7 @@ export function useDictation() {
 
 	const runPreparation = async (
 		ws: string[],
-		withDef: boolean,
+		content: ContentMode,
 		voice: string,
 		signal: AbortSignal,
 		seq: number,
@@ -300,6 +383,12 @@ export function useDictation() {
 		const shuffled = shuffle(ws);
 		// 陈旧任务（被更新的准备/中止取代）不得再写任何状态
 		const alive = () => seq === prepSeq && !signal.aborted;
+		const aiStatus =
+			content === "definition"
+				? " · 正在获取释义…"
+				: content === "chinese"
+					? " · 正在获取中文词…"
+					: "";
 		try {
 			const ttsPromise = requestTtsAll(
 				shuffled,
@@ -308,27 +397,33 @@ export function useDictation() {
 				(done, total) => {
 					if (!alive()) return;
 					setPrepProgress(done / total);
-					setPrepStatus(
-						`正在生成语音 ${done}/${total}${withDef ? " · 正在获取释义…" : ""}`,
-					);
+					setPrepStatus(`正在生成语音 ${done}/${total}${aiStatus}`);
 				},
 			);
-			const defsPromise = withDef
-				? requestDefinitions(shuffled, settings(), signal)
-				: Promise.resolve<Record<string, string>>({});
-			const [items, defs] = await Promise.all([ttsPromise, defsPromise]);
+			const aiPromise =
+				content === "definition"
+					? requestDefinitions(shuffled, settings(), signal)
+					: content === "chinese"
+						? requestChineseWords(shuffled, settings(), signal)
+						: Promise.resolve<Record<string, string>>({});
+			const [items, aiPairs] = await Promise.all([ttsPromise, aiPromise]);
 			if (!alive()) return;
 
 			const nameMap = new Map<string, string>(
 				items.map((i: TtsItem) => [i.word, i.name]),
 			);
-			lastPrep = { words: shuffled, nameMap, defs };
+			lastPrep = {
+				words: shuffled,
+				nameMap,
+				defs: content === "definition" ? aiPairs : {},
+				chinese: content === "chinese" ? aiPairs : {},
+			};
 			setRounds(
 				buildRounds({
 					words: shuffled,
 					data: lastPrep,
 					level: speed(),
-					withDef,
+					contentMode: content,
 					multiplier: settings().multiplier,
 				}),
 			);
@@ -371,7 +466,12 @@ export function useDictation() {
 		if (mode() !== "cyber") return true;
 		const r = rounds()[currentIndex()];
 		if (r?.answer === undefined) return false;
-		if (withDefinition() && r.answerDef === undefined) return false;
+		if (
+			(contentMode() === "definition" || contentMode() === "chinese") &&
+			r.answerDef === undefined
+		) {
+			return false;
+		}
 		return true;
 	};
 
@@ -380,7 +480,7 @@ export function useDictation() {
 		if (mode() !== "cyber") return;
 		const patch = timedOutInputPatch({
 			round: r,
-			withDefinition: withDefinition(),
+			contentMode: contentMode(),
 			wordInput: wordInput(),
 			definitionInput: defInput(),
 		});
@@ -467,7 +567,12 @@ export function useDictation() {
 		if (mode() !== "cyber") return "none";
 		const r = rounds()[currentIndex()];
 		if (r?.answer === undefined) return "word";
-		if (withDefinition() && r.answerDef === undefined) return "def";
+		if (
+			(contentMode() === "definition" || contentMode() === "chinese") &&
+			r.answerDef === undefined
+		) {
+			return "def";
+		}
 		return "done";
 	};
 	const submitWord = () => {
@@ -488,15 +593,7 @@ export function useDictation() {
 	/* ---------- 结果 ---------- */
 	// 结果行仅在结果页读取，直接由当前 rounds 派生，避免服务端渲染环境的惰性 memo 固化初值。
 	const resultRows = (): ResultRow[] =>
-		rounds().map((r) => ({
-			word: r.word,
-			audioName: r.audioName,
-			definition: r.definition,
-			answer: r.answer,
-			answerDef: r.answerDef,
-			correct:
-				mode() === "cyber" ? isStrictMatch(r.answer ?? "", r.word) : undefined,
-		}));
+		buildResultRows(rounds(), mode(), contentMode(), lastGrades ?? undefined);
 
 	const playResultAudio = (name: string) => {
 		if (phase() !== "results" || !name) return;
@@ -576,6 +673,10 @@ export function useDictation() {
 				e.preventDefault();
 				closeResults();
 			}
+			else if (phase() === "grading") {
+				e.preventDefault();
+				abortGrading();
+			}
 			else if (phase() === "ready") setPhase("idle");
 			else if (phase() === "preparing") abortPreparation();
 		}
@@ -590,20 +691,32 @@ export function useDictation() {
 			window.removeEventListener("keydown", onRootKeyDown);
 			window.removeEventListener("pagehide", flushPendingSettings);
 		});
-		// 恢复释义开关的持久化值（SSR 阶段信号无 localStorage，必须在客户端恢复）
+		// 恢复内容模式的持久化值（SSR 阶段信号无 localStorage，必须在客户端恢复）
 		try {
 			setWords(loadWords());
-			const saved = localStorage.getItem(DEFINITION_KEY);
-			if (saved === "1" || saved === "0") setWithDefinition(saved === "1");
+			const savedMode = localStorage.getItem(CONTENT_MODE_KEY);
+			if (
+				savedMode === "word" ||
+				savedMode === "definition" ||
+				savedMode === "chinese"
+			) {
+				setContentMode(savedMode);
+			} else {
+				// 兼容旧版释义开关
+				const legacy = localStorage.getItem(LEGACY_DEFINITION_KEY);
+				if (legacy === "1" || legacy === "0") {
+					setContentMode(legacy === "1" ? "definition" : "word");
+				}
+			}
 		} catch {
-			// localStorage 不可用（隐私模式等）时忽略，保持默认关闭
+			// localStorage 不可用（隐私模式等）时忽略，保持默认单词模式
 		}
 	});
 
 	return {
 		words,
 		speed,
-		withDefinition,
+		contentMode,
 		settings,
 		settingsOpen,
 		phase,
@@ -623,14 +736,16 @@ export function useDictation() {
 		currentRound,
 		resultRows,
 		resultAudioName,
+		gradeNote,
 		addWord,
 		addWords,
 		removeWord,
 		clearWords,
 		setSpeed,
-		changeWithDefinition,
+		changeContentMode,
 		startDictation,
 		abortPreparation,
+		abortGrading,
 		go,
 		step,
 		submitWord,

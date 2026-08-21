@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	fetchEnglishDefinitions,
+	fetchChineseWords,
+	fetchChineseGrades,
 	parseDefinitionAiResponse,
 } from "./definition-provider";
 
@@ -151,5 +153,287 @@ describe("parseDefinitionAiResponse", () => {
 			apple: "A fruit.",
 			banana: "A yellow fruit.",
 		});
+	});
+});
+
+describe("fetchChineseWords", () => {
+	function completion(words: Record<string, string>) {
+		return new Response(
+			JSON.stringify({
+				choices: [
+					{
+						finish_reason: "stop",
+						message: { content: JSON.stringify({ words }) },
+					},
+				],
+			}),
+			{ status: 200, headers: { "content-type": "application/json" } },
+		);
+	}
+
+	it("按 words 键解析并对齐中文词，请求体使用中文词提示词", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			completion({ apple: "苹果", hello: "你好" }),
+		);
+		const result = await fetchChineseWords({
+			words: ["apple", "hello"],
+			baseUrl: "https://example.test/v1",
+			apiKey: "secret",
+			model: "flash-model",
+			fetchImpl: fetchMock,
+		});
+
+		expect(result.words).toEqual({ apple: "苹果", hello: "你好" });
+		expect(result.missing).toEqual([]);
+		const requestBody = JSON.parse(
+			String(fetchMock.mock.calls[0][1]?.body),
+		) as { messages: { content: string }[] };
+		expect(requestBody.messages[0].content).toContain("Chinese");
+		expect(JSON.parse(requestBody.messages[1].content)).toEqual([
+			"apple",
+			"hello",
+		]);
+	});
+
+	it("全部返回非汉字内容（英文/拼音）时按空结果抛错（服务层转为警告继续）", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			completion({ apple: "ping guo", hello: "Hello" }),
+		);
+		await expect(
+			fetchChineseWords({
+				words: ["apple", "hello"],
+				baseUrl: "https://example.test/v1",
+				apiKey: "secret",
+				model: "flash-model",
+				fetchImpl: fetchMock,
+			}),
+		).rejects.toMatchObject({
+			code: "empty",
+			message: "AI 未返回任何有效中文词，请重试",
+		});
+	});
+
+	it("部分非汉字内容被过滤，只保留有效中文词", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			completion({ apple: "苹果", hello: "Hello" }),
+		);
+		const result = await fetchChineseWords({
+			words: ["apple", "hello"],
+			baseUrl: "https://example.test/v1",
+			apiKey: "secret",
+			model: "flash-model",
+			fetchImpl: fetchMock,
+		});
+
+		expect(result.words).toEqual({ apple: "苹果" });
+		expect(result.missing).toEqual(["hello"]);
+		expect(result.warning).toContain("1/2");
+	});
+
+	it("部分返回时缺失词可观测，不丢已取得的中文词", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			completion({ apple: "苹果" }),
+		);
+		const result = await fetchChineseWords({
+			words: ["apple", "banana"],
+			baseUrl: "https://example.test/v1",
+			apiKey: "secret",
+			model: "flash-model",
+			fetchImpl: fetchMock,
+		});
+
+		expect(result.words).toEqual({ apple: "苹果" });
+		expect(result.missing).toEqual(["banana"]);
+		expect(result.warning).toContain("1/2");
+	});
+
+	it("AI 返回数组形式 {word,value} 也能解析", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					choices: [
+						{
+							message: {
+								content: JSON.stringify({
+									words: [
+										{ word: "apple", value: "苹果" },
+										{ word: "hello", value: "你好" },
+									],
+								}),
+							},
+						},
+					],
+				}),
+				{ status: 200 },
+			),
+		);
+		const result = await fetchChineseWords({
+			words: ["apple", "hello"],
+			baseUrl: "https://example.test/v1",
+			apiKey: "secret",
+			model: "flash-model",
+			fetchImpl: fetchMock,
+		});
+		expect(result.words).toEqual({ apple: "苹果", hello: "你好" });
+	});
+});
+
+describe("fetchChineseGrades", () => {
+	const items = [
+		{ word: "hello", expected: "你好", answer: "你好" },
+		{ word: "apple", expected: "苹果", answer: "哈喽" },
+	];
+
+	function completion(results: unknown) {
+		return new Response(
+			JSON.stringify({
+				choices: [
+					{
+						finish_reason: "stop",
+						message: { content: JSON.stringify(results) },
+					},
+				],
+			}),
+			{ status: 200, headers: { "content-type": "application/json" } },
+		);
+	}
+
+	it("按 results 数组解析并对齐全部作答，请求体包含作答与标准词", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			completion({
+				results: [
+					{ word: "hello", correct: true, note: "完全正确" },
+					{ word: "apple", correct: false, note: "词义不对" },
+				],
+			}),
+		);
+		const result = await fetchChineseGrades({
+			items,
+			baseUrl: "https://example.test/v1",
+			apiKey: "secret",
+			model: "flash-model",
+			fetchImpl: fetchMock,
+		});
+
+		expect(result.grades).toEqual([
+			{ word: "hello", correct: true, note: "完全正确" },
+			{ word: "apple", correct: false, note: "词义不对" },
+		]);
+		expect(result.missing).toEqual([]);
+		const requestBody = JSON.parse(
+			String(fetchMock.mock.calls[0][1]?.body),
+		) as { messages: { content: string }[] };
+		expect(requestBody.messages[0].content).toContain("grader");
+		expect(JSON.parse(requestBody.messages[1].content)).toEqual(items);
+		// 关 thinking：扩展请求带 reasoning_effort none
+		expect(requestBody).toHaveProperty("reasoning_effort", "none");
+		expect(requestBody).toHaveProperty("response_format", {
+			type: "json_object",
+		});
+	});
+
+	it("兼容 words 映射形状（含对象与布尔值）", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			completion({
+				words: {
+					hello: true,
+					apple: { correct: false, note: "写错了" },
+				},
+			}),
+		);
+		const result = await fetchChineseGrades({
+			items,
+			baseUrl: "https://example.test/v1",
+			apiKey: "secret",
+			model: "flash-model",
+			fetchImpl: fetchMock,
+		});
+		expect(result.grades).toEqual([
+			{ word: "hello", correct: true },
+			{ word: "apple", correct: false, note: "写错了" },
+		]);
+	});
+
+	it("字符串/数字 correct 值归一化", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			completion({
+				results: [
+					{ word: "hello", correct: "yes" },
+					{ word: "apple", correct: 0 },
+				],
+			}),
+		);
+		const result = await fetchChineseGrades({
+			items,
+			baseUrl: "https://example.test/v1",
+			apiKey: "secret",
+			model: "flash-model",
+			fetchImpl: fetchMock,
+		});
+		expect(result.grades).toEqual([
+			{ word: "hello", correct: true },
+			{ word: "apple", correct: false },
+		]);
+	});
+
+	it("部分返回时缺失词可观测且不丢已取得结果", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			completion({ results: [{ word: "hello", correct: true }] }),
+		);
+		const result = await fetchChineseGrades({
+			items,
+			baseUrl: "https://example.test/v1",
+			apiKey: "secret",
+			model: "flash-model",
+			fetchImpl: fetchMock,
+		});
+		expect(result.grades).toEqual([{ word: "hello", correct: true }]);
+		expect(result.missing).toEqual(["apple"]);
+		expect(result.warning).toContain("1/2");
+	});
+
+	it("扩展参数被拒绝时降级且仍可批改", async () => {
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValueOnce(new Response("unsupported", { status: 400 }))
+			.mockResolvedValueOnce(
+				completion({ results: [{ word: "hello", correct: true }] }),
+			);
+		const onDiagnostic = vi.fn();
+		const result = await fetchChineseGrades({
+			items: [items[0]],
+			baseUrl: "https://example.test/v1",
+			apiKey: "secret",
+			model: "flash-model",
+			fetchImpl: fetchMock,
+			onDiagnostic,
+		});
+		expect(result.grades).toEqual([{ word: "hello", correct: true }]);
+		expect(result.diagnostics.fallbackUsed).toBe(true);
+		expect(onDiagnostic).toHaveBeenCalledWith(
+			expect.objectContaining({ event: "compatibility-fallback" }),
+		);
+		const fallbackBody = JSON.parse(
+			String(fetchMock.mock.calls[1][1]?.body),
+		) as Record<string, unknown>;
+		expect(fallbackBody).toHaveProperty("reasoning_effort", "none");
+		expect(fallbackBody).not.toHaveProperty("response_format");
+	});
+
+	it("没有可解析结果时抛空结果错误（服务层转降级）", async () => {
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValue(
+				completion({ results: [{ word: "hello", correct: "maybe" }] }),
+			);
+		await expect(
+			fetchChineseGrades({
+				items,
+				baseUrl: "https://example.test/v1",
+				apiKey: "secret",
+				model: "flash-model",
+				fetchImpl: fetchMock,
+			}),
+		).rejects.toMatchObject({ code: "empty" });
 	});
 });

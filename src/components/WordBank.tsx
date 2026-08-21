@@ -7,21 +7,28 @@ import {
 	Trash2,
 	X,
 	ListPlus,
+	Type,
+	BookOpen,
+	Languages,
 } from "lucide-solid";
 import BatchImportDialog from "~/components/BatchImportDialog";
+import SegmentedSlider, {
+	type SliderOption,
+} from "~/components/SegmentedSlider";
 import type { SpeedLevel } from "~/lib/timing";
+import type { ContentMode } from "~/lib/state";
 
 interface Props {
 	words: string[];
 	speed: SpeedLevel;
-	withDefinition: boolean;
+	contentMode: ContentMode;
 	error: string | null;
 	onAdd: (word: string) => void;
 	onAddMany: (words: string[]) => void;
 	onRemove: (word: string) => void;
 	onClear: () => void;
 	onSpeed: (s: SpeedLevel) => void;
-	onWithDefinition: (v: boolean) => void;
+	onContentMode: (m: ContentMode) => void;
 	onStartWriting: () => void;
 	onStartCyber: () => void;
 	onOpenSettings: () => void;
@@ -31,6 +38,12 @@ const SPEED_LEVELS: { key: SpeedLevel; label: string }[] = [
 	{ key: "fast", label: "快" },
 	{ key: "normal", label: "中" },
 	{ key: "slow", label: "慢" },
+];
+
+const CONTENT_MODES: SliderOption<ContentMode>[] = [
+	{ value: "word", label: "单词", icon: Type },
+	{ value: "definition", label: "释义", icon: BookOpen },
+	{ value: "chinese", label: "中文词", icon: Languages },
 ];
 
 export default function WordBank(props: Props) {
@@ -127,9 +140,9 @@ export default function WordBank(props: Props) {
 				</Show>
 			</div>
 
-			{/* 控制 */}
-			<div class="flex items-center justify-between">
-				<div class="flex gap-1 rounded-full bg-surface p-1 shadow-sm">
+			{/* 控制：速度 + 默写内容选择条同行靠左（默认 align-items: stretch，两条等高） */}
+			<div class="flex gap-3">
+				<div class="flex shrink-0 gap-1 rounded-full bg-surface p-1 shadow-sm">
 					<For each={SPEED_LEVELS}>
 						{(l) => (
 							<button type="button"
@@ -145,15 +158,13 @@ export default function WordBank(props: Props) {
 						)}
 					</For>
 				</div>
-				<label class="flex cursor-pointer items-center gap-2.5 text-sm text-ink-soft">
-					默写释义
-					<input
-						type="checkbox"
-						class="toggle-switch"
-						checked={props.withDefinition}
-						onChange={(e) => props.onWithDefinition(e.currentTarget.checked)}
-					/>
-				</label>
+				<SegmentedSlider
+					class="w-72"
+					options={CONTENT_MODES}
+					value={props.contentMode}
+					onChange={props.onContentMode}
+					ariaLabel="默写内容模式"
+				/>
 			</div>
 
 			<Show when={props.error}>

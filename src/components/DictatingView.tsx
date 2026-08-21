@@ -1,5 +1,6 @@
 import { Show } from "solid-js";
 import { Volume2, Check } from "lucide-solid";
+import type { ContentMode } from "~/lib/state";
 
 export interface DictatingViewProps {
 	index: number;
@@ -13,7 +14,7 @@ export interface DictatingViewProps {
 	/** 是否正在发声（播报间隔期间为 false） */
 	sounding: boolean;
 	mode: "writing" | "cyber";
-	withDefinition: boolean;
+	contentMode: ContentMode;
 	submittedWord: string | undefined;
 	submittedDef: string | undefined;
 	/** 输入框受控值 */
@@ -43,16 +44,31 @@ function playStatus(props: DictatingViewProps): string {
 function step(props: DictatingViewProps): "word" | "def" | "done" | "none" {
 	if (props.mode !== "cyber") return "none";
 	if (props.submittedWord === undefined) return "word";
-	if (props.withDefinition && props.submittedDef === undefined) return "def";
+	if (
+		(props.contentMode === "definition" || props.contentMode === "chinese") &&
+		props.submittedDef === undefined
+	) {
+		return "def";
+	}
 	return "done";
 }
 
 function statusText(props: DictatingViewProps): string {
 	const s = step(props);
 	if (s === "none") return "用笔写在纸上吧 ✍️";
-	if (s === "word") return "听语音打字，写完按回车";
-	if (s === "def") return "再写释义，写完按回车";
+	if (s === "word") return "听语音写单词，写完按回车";
+	if (s === "def")
+		return props.contentMode === "chinese"
+			? "再写中文词，写完按回车"
+			: "再写释义，写完按回车";
 	return "已提交，等时间到自动进入下一轮";
+}
+
+/** 是否两步输入（释义/中文词模式） */
+function hasSecondStep(props: DictatingViewProps): boolean {
+	return (
+		props.contentMode === "definition" || props.contentMode === "chinese"
+	);
 }
 
 function progressPct(remainingSec: number, durationSec: number): number {
@@ -62,7 +78,7 @@ function progressPct(remainingSec: number, durationSec: number): number {
 	);
 }
 
-/** 第 1 步：单词输入（或已提交显示，同一位置同一高度） */
+/** 第 1 步：单词/中文词输入（或已提交显示，同一位置同一高度） */
 function WordRow(props: DictatingViewProps) {
 	return (
 		<Show
@@ -77,8 +93,8 @@ function WordRow(props: DictatingViewProps) {
 			}
 		>
 			<div class="flex h-14 items-center gap-3 rounded-xl border-[1.5px] border-brand bg-surface px-4 shadow-sm">
-				{/* 仅释义模式才有两步输入，无释义时不需要“第 1 步”标记 */}
-				<Show when={props.withDefinition}>
+				{/* 仅两步模式才需要“第 1 步”标记 */}
+				<Show when={hasSecondStep(props)}>
 					<span class="flex h-[22px] w-11 shrink-0 items-center justify-center rounded-full bg-brand text-[11px] text-white">
 						第 1 步
 					</span>
@@ -126,7 +142,11 @@ function DefRow(props: DictatingViewProps) {
 					<input
 						ref={autoFocus}
 						class="w-full bg-transparent text-base text-ink outline-none placeholder:text-ink-faint"
-						placeholder="输入释义…"
+						placeholder={
+							props.contentMode === "chinese"
+								? "输入中文词…"
+								: "输入释义…"
+						}
 						value={props.defInput}
 						onInput={(e) => props.onDefInput(e.currentTarget.value)}
 						onKeyDown={(e) => {
@@ -196,7 +216,7 @@ export default function DictatingView(props: DictatingViewProps) {
 
 				<Show when={props.mode === "cyber"}>
 					<WordRow {...props} />
-					<Show when={props.withDefinition}>
+					<Show when={hasSecondStep(props)}>
 						<DefRow {...props} />
 					</Show>
 				</Show>

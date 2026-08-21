@@ -101,6 +101,114 @@ export async function requestDefinitions(
 	}
 }
 
+/** 一次请求获取全部单词的常用中文对应词 */
+export async function requestChineseWords(
+	words: string[],
+	settings: AppSettings,
+	signal: AbortSignal,
+): Promise<Record<string, string>> {
+	try {
+		const res = await fetch("/api/chinese-words", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				words,
+				baseUrl: settings.aiBaseUrl,
+				apiKey: settings.aiApiKey,
+				model: settings.aiModel,
+			}),
+			signal,
+		});
+		const data = (await res.json().catch(() => null)) as {
+			words?: Record<string, string>;
+			error?: string;
+			message?: string;
+		} | null;
+		if (!data) {
+			throw new Error(
+				res.ok
+					? "中文词服务返回了无法解析的内容，请重试"
+					: `中文词请求失败（${res.status}）`,
+			);
+		}
+		if (!res.ok || data.error) {
+			throw new Error(
+				data.message || data.error || `中文词请求失败（${res.status}）`,
+			);
+		}
+		return data.words ?? {};
+	} catch (err) {
+		if (err instanceof Error) throw err;
+		throw new Error("中文词请求失败");
+	}
+}
+
+export interface ChineseGradeItem {
+	word: string;
+	expected: string;
+	answer: string;
+}
+
+export interface ChineseWordGrade {
+	word: string;
+	correct: boolean;
+	note?: string;
+}
+
+export interface ChineseGradeResponse {
+	grades: ChineseWordGrade[];
+	missing?: string[];
+	warning?: string;
+}
+
+/** 一次请求批改全部中文词作答（AI 判定） */
+export async function requestChineseGrades(
+	items: ChineseGradeItem[],
+	settings: AppSettings,
+	signal: AbortSignal,
+): Promise<ChineseGradeResponse> {
+	try {
+		const res = await fetch("/api/chinese-grade", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				items,
+				baseUrl: settings.aiBaseUrl,
+				apiKey: settings.aiApiKey,
+				model: settings.aiModel,
+			}),
+			signal,
+		});
+		const data = (await res.json().catch(() => null)) as {
+			grades?: ChineseWordGrade[];
+			missing?: string[];
+			warning?: string;
+			error?: string;
+			message?: string;
+		} | null;
+		if (!data) {
+			throw new Error(
+				res.ok
+					? "批改服务返回了无法解析的内容，请重试"
+					: `批改请求失败（${res.status}）`,
+			);
+		}
+		if (!res.ok || data.error) {
+			throw new Error(
+				data.message || data.error || `批改请求失败（${res.status}）`,
+			);
+		}
+		return {
+			grades: Array.isArray(data.grades) ? data.grades : [],
+			...(typeof data.missing === "undefined" ? {} : { missing: data.missing }),
+			...(typeof data.warning === "undefined" ? {} : { warning: data.warning }),
+		};
+	} catch (err) {
+		if (err instanceof Error) throw err;
+		throw new Error("批改请求失败");
+	}
+}
+
 export interface PlayOptions {
 	url: string;
 	count: number;
