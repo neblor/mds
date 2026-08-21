@@ -1,20 +1,22 @@
 /**
- * 中文词 AI 批改业务编排：一次请求批改本场全部中文作答。
+ * 答案 AI 批改业务编排：一次请求批改本场全部作答（中文词 / 英文释义按 kind 选择口径）。
  * 只做第三方请求与结果对齐，不做磁盘缓存（批改是一次性结果）；
  * 响应不可解析时降级为空结果 + 警告，由调用方决定回退策略。
  */
 import {
 	DefinitionProviderError,
-	fetchChineseGrades,
-	type ChineseGradeItem,
-	type ChineseWordGrade,
+	fetchAnswerGrades,
+	type GradeItem,
+	type GradeKind,
+	type GradeResult,
 	type DefinitionProviderDiagnostics,
 	type DefinitionProviderDiagnosticEvent,
 } from "./definition-provider";
 import type { RuntimeDiagnosticLogger } from "./runtime-logger";
 
-export interface GradeChineseAnswersOptions {
-	items: ChineseGradeItem[];
+export interface GradeAnswersOptions {
+	kind: GradeKind;
+	items: GradeItem[];
 	baseUrl: string;
 	apiKey: string;
 	model: string;
@@ -23,18 +25,19 @@ export interface GradeChineseAnswersOptions {
 	fetchImpl?: typeof fetch;
 }
 
-export interface GradeChineseAnswersResult {
-	grades: ChineseWordGrade[];
+export interface GradeAnswersResult {
+	grades: GradeResult[];
 	missing?: string[];
 	warning?: string;
 	diagnostics?: DefinitionProviderDiagnostics;
 }
 
-export async function gradeChineseAnswers(
-	options: GradeChineseAnswersOptions,
-): Promise<GradeChineseAnswersResult> {
+export async function gradeAnswers(
+	options: GradeAnswersOptions,
+): Promise<GradeAnswersResult> {
 	try {
-		const result = await fetchChineseGrades({
+		const result = await fetchAnswerGrades({
+			kind: options.kind,
 			items: options.items,
 			baseUrl: options.baseUrl,
 			apiKey: options.apiKey,

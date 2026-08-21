@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -7,6 +7,10 @@ import {
 	parseBumpType,
 } from "../src/lib/client-package-version.ts";
 import { cleanupPackageOutput } from "../src/lib/client-package-cleanup.ts";
+import {
+	systemHasWine32Support,
+	shouldAutoUseNamespace,
+} from "../src/lib/client-wsl-env.ts";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packagePath = join(projectRoot, "package.json");
@@ -29,6 +33,43 @@ try {
 	bumpType = parseBumpType(process.argv.slice(2));
 } catch (error) {
 	console.error(error instanceof Error ? error.message : String(error));
+	process.exit(1);
+}
+
+// —— 非 Windows + 系统 wine 缺 32 位支持时，透明切换到受限环境打包 ——
+// （NSIS 安装器是 32 位 PE，electron-builder 在 Linux/macOS 需用 wine 运行安装器抽取卸载器）
+const inNamespace = process.env.MDS_PACKAGING_IN_NS === "1";
+const hasWine32 = systemHasWine32Support();
+const unshareAvailable =
+	existsSync("/usr/bin/unshare") ||
+	spawnSync("sh", ["-c", "command -v unshare"], { encoding: "utf8" }).status === 0;
+if (
+	shouldAutoUseNamespace({
+		platform: process.platform,
+		inNamespace,
+		hasWine32,
+		unshareAvailable,
+	})
+) {
+	console.log(
+		"检测到系统 wine 缺少 32 位支持，自动切换到受限环境打包流程（unshare 命名空间 + 自备 32 位 PE）…",
+	);
+	const wslScript = join(
+		dirname(fileURLToPath(import.meta.url)),
+		"package-client-wsl.mjs",
+	);
+	const result = spawnSync(process.execPath, [wslScript, bumpType], {
+		stdio: "inherit",
+		cwd: projectRoot,
+		env: process.env,
+	});
+	process.exit(result.status ?? 1);
+}
+if (process.platform !== "win32" && !inNamespace && !hasWine32 && !unshareAvailable) {
+	console.error(
+		"当前系统 wine 缺少 32 位支持，且无 unshare 可用（NSIS 安装器为 32 位 PE，" +
+			"electron-builder 需用 wine 运行安装器抽取卸载器）。请安装 wine32，或改用 pnpm client:package:wsl。",
+	);
 	process.exit(1);
 }
 

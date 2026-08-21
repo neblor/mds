@@ -3,11 +3,11 @@
  *
  * 结果行由“判定字段”（参与批改）与“参考字段”（只对照不批改）组成，按内容模式组装：
  * - word 模式：判定 = 单词（严格匹配）
- * - definition 模式：判定 = 单词（严格匹配）；参考 = 释义 + 我的释义
- * - chinese 模式（赛博）：判定 = 英文单词（严格匹配）+ 中文词（AI 批改，可用 grades 覆盖；
- *   无 AI 结果时回退本地归一化匹配）；书写模式只展示参考
+ * - definition 模式（赛博）：判定 = 英文单词（严格匹配）+ 英文释义（AI 批改，
+ *   可用 grades 覆盖；无 AI 结果时回退本地归一化匹配；书写模式只展示参考）
+ * - chinese 模式（赛博）：判定 = 英文单词（严格匹配）+ 中文词（AI 批改，同上）
  */
-import { isChineseMatch, isStrictMatch } from "./match";
+import { isChineseMatch, isDefinitionMatch, isStrictMatch } from "./match";
 import type { ContentMode } from "./state";
 
 export type ResultFieldKind = "word" | "definition" | "chinese";
@@ -68,11 +68,20 @@ function buildFields(
 	grades?: Record<string, GradeOverride>,
 ): ResultField[] {
 	if (mode === "cyber") {
-		if (contentMode === "chinese") {
-			// 两段式：英文单词（严格）+ 中文词（AI 批改，无结果回退本地匹配）
-			const expected = r.chineseWord?.trim() ?? "";
+		if (contentMode === "chinese" || contentMode === "definition") {
+			// 两段式：英文单词（严格）+ 第二步作答（AI 批改，无结果回退本地匹配）
+			// 中文词与释义同构：expected 取对应标准内容，answerDef 是学生第二步作答
+			const secondKind = contentMode === "chinese" ? "chinese" : "definition";
+			const expected =
+				contentMode === "chinese"
+					? (r.chineseWord?.trim() ?? "")
+					: (r.definition?.trim() ?? "");
 			const graded = expected.length > 0;
 			const override = grades?.[r.word];
+			const localMatch =
+				contentMode === "chinese"
+					? isChineseMatch(r.answerDef ?? "", expected)
+					: isDefinitionMatch(r.answerDef ?? "", expected);
 			return [
 				{
 					kind: "word",
@@ -82,19 +91,16 @@ function buildFields(
 					correct: isStrictMatch(r.answer ?? "", r.word),
 				},
 				{
-					kind: "chinese",
+					kind: secondKind,
 					expected,
 					userValue: r.answerDef,
 					graded,
-					correct: graded
-						? (override?.correct ??
-							isChineseMatch(r.answerDef ?? "", expected))
-						: undefined,
+					correct: graded ? (override?.correct ?? localMatch) : undefined,
 					...(override?.note ? { note: override.note } : {}),
 				},
 			];
 		}
-		const fields: ResultField[] = [
+		return [
 			{
 				kind: "word",
 				expected: r.word,
@@ -103,15 +109,6 @@ function buildFields(
 				correct: isStrictMatch(r.answer ?? "", r.word),
 			},
 		];
-		if (contentMode === "definition") {
-			fields.push({
-				kind: "definition",
-				expected: r.definition?.trim() ?? "",
-				userValue: r.answerDef,
-				graded: false,
-			});
-		}
-		return fields;
 	}
 
 	// 书写模式：无批改，参考字段供学生自检
@@ -146,7 +143,7 @@ export function isAllCorrectRows(rows: ResultRow[]): boolean {
 /** 各内容模式在结果页的判定说明 */
 export const JUDGEMENT_NOTES: Record<ContentMode, string> = {
 	word: "单词判定：大小写与标点需完全一致",
-	definition: "单词判定：大小写与标点需完全一致 · 释义不批改",
+	definition: "英文单词大小写与标点需完全一致 · 释义由 AI 批改，意思相同即算对",
 	chinese:
 		"中文词由 AI 批改，常见同义词也算对 · 英文单词大小写与标点需完全一致",
 };

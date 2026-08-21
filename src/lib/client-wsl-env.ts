@@ -7,6 +7,7 @@
  * 在用户挂载命名空间内 bind-mount 到 wine 系统目录，并用 tmpfs 覆盖只读的
  * /run/user/<uid>（wineserver socket 目录）。
  */
+import { existsSync } from "node:fs";
 
 /** 与系统 libwine:amd64 (9.0~repack-4build3) 版本对应的 i386 组件 */
 export const WINE32_DEB_URLS = [
@@ -16,6 +17,35 @@ export const WINE32_DEB_URLS = [
 
 export const SYSTEM_WINE_PEB_DIR =
 	"/usr/lib/x86_64-linux-gnu/wine/i386-windows";
+
+/** 系统 wine 具备 32 位支持的标志文件（Debian/Ubuntu/i386 布局） */
+const WINE32_NTDLL_CANDIDATES = [
+	"/usr/lib/x86_64-linux-gnu/wine/i386-windows/ntdll.dll",
+	"/usr/lib/i386-linux-gnu/wine/i386-windows/ntdll.dll",
+	"/usr/lib/wine/i386-windows/ntdll.dll",
+];
+
+/** 探测系统 wine 是否已具备 32 位 PE 支持（装了 wine32 / 完整 wow64 组件） */
+export function systemHasWine32Support(): boolean {
+	return WINE32_NTDLL_CANDIDATES.some((path) => existsSync(path));
+}
+
+/**
+ * 是否应自动切换到受限环境（命名空间 + 自备 32 位 PE）打包。
+ * Windows 直接用系统能力；已在命名空间内 / 系统已支持 32 位时无需切换；
+ * 其余（非 win32 且缺 32 位 wine）只要有 unshare 就切换。
+ */
+export function shouldAutoUseNamespace(options: {
+	platform: string;
+	inNamespace: boolean;
+	hasWine32: boolean;
+	unshareAvailable: boolean;
+}): boolean {
+	if (options.platform === "win32") return false;
+	if (options.inNamespace) return false;
+	if (options.hasWine32) return false;
+	return options.unshareAvailable;
+}
 
 export interface WslPackageEnv {
 	/** wine32 就绪状态与产物的根目录（.tmp/wine32） */
@@ -75,6 +105,8 @@ export function wslNamespaceScript(options: {
 		`export WINEPREFIX=${env.winePrefix}`,
 		`export ELECTRON_BUILDER_CACHE=${env.builderCache}`,
 		`export XDG_RUNTIME_DIR=${env.runtimeDir}`,
+		// 阻止命名空间内重入的 client:package 再次触发自动切换到命名空间（防循环）
+		"export MDS_PACKAGING_IN_NS=1",
 		"export WINEDEBUG=-all",
 		`export HOME=${process.env.HOME ?? "/root"}`,
 		`cd ${projectRoot}`,

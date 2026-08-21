@@ -1,12 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { POST } from "./chinese-grade";
+import { POST } from "./answer-grade";
 
-function eventFor(items: unknown[], extra: Record<string, unknown> = {}) {
+function eventFor(
+	items: unknown[],
+	kind = "chinese",
+	extra: Record<string, unknown> = {},
+) {
 	return {
-		request: new Request("http://localhost/api/chinese-grade", {
+		request: new Request("http://localhost/api/answer-grade", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({
+				kind,
 				items,
 				baseUrl: "https://example.test/v1",
 				apiKey: "test-key",
@@ -27,7 +32,7 @@ function aiContentResponse(content: unknown) {
 	);
 }
 
-describe("POST /api/chinese-grade", () => {
+describe("POST /api/answer-grade", () => {
 	afterEach(() => {
 		vi.unstubAllGlobals();
 	});
@@ -60,6 +65,8 @@ describe("POST /api/chinese-grade", () => {
 		const body = JSON.parse(
 			String(fetchMock.mock.calls[0][1]?.body),
 		) as { messages: { content: string }[] };
+		// kind 决定系统提示词口径（中文词：翻译可接受）
+		expect(body.messages[0].content).toContain("translation");
 		expect(JSON.parse(body.messages[1].content)).toEqual([
 			{ word: "hello", expected: "你好", answer: "你好" },
 			{ word: "apple", expected: "苹果", answer: "香蕉" },
@@ -76,10 +83,11 @@ describe("POST /api/chinese-grade", () => {
 	it("未配置 AI 时拒绝（no-config）", async () => {
 		await expect(
 			POST(
-				eventFor([{ word: "hello", answer: "你好" }], {
-					baseUrl: "",
-					apiKey: "",
-				}),
+				eventFor(
+					[{ word: "hello", answer: "你好" }],
+					"chinese",
+					{ baseUrl: "", apiKey: "" },
+				),
 			),
 		).rejects.toMatchObject({ status: 400, statusText: "no-config" });
 	});
@@ -111,5 +119,37 @@ describe("POST /api/chinese-grade", () => {
 			error: "network",
 			message: expect.stringContaining("AI"),
 		});
+	});
+
+	it("definition 口径透传 kind 并批改释义作答", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			aiContentResponse(
+				JSON.stringify({
+					results: [{ word: "apple", correct: true, note: "意思相同" }],
+				}),
+			),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+		const result = await POST(
+			eventFor(
+				[{ word: "apple", expected: "A round fruit.", answer: "round fruit" }],
+				"definition",
+			),
+		);
+		expect(result).toMatchObject({
+			grades: [{ word: "apple", correct: true, note: "意思相同" }],
+		});
+		const body = JSON.parse(
+			String(fetchMock.mock.calls[0][1]?.body),
+		) as { messages: { content: string }[] };
+		expect(body.messages[0].content).toContain("same core meaning");
+	});
+
+	it("非法 kind 拒绝", async () => {
+		await expect(
+			POST(
+				eventFor([{ word: "hello", answer: "你好" }], "unknown" as never),
+			),
+		).rejects.toMatchObject({ status: 400 });
 	});
 });

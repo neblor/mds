@@ -1,18 +1,20 @@
 /**
- * POST /api/chinese-grade — 中文词 AI 批改：参数校验与 HTTP 适配；业务位于 chinese-grade-service。
- * 请求：{ items: [{word, expected, answer}], baseUrl, apiKey, model }
+ * POST /api/answer-grade — 答案 AI 批改：参数校验与 HTTP 适配；业务位于 answer-grade-service。
+ * 请求：{ kind: "chinese" | "definition", items: [{word, expected, answer}], baseUrl, apiKey, model }
  * 返回：{ grades: [{word, correct, note?}], missing?, warning? }
  */
 import { HTTPError } from "h3";
 import {
 	DefinitionProviderError,
 	type DefinitionProviderErrorCode,
+	type GradeKind,
 } from "~/lib/definition-provider";
-import { gradeChineseAnswers } from "~/lib/chinese-grade-service";
+import { gradeAnswers } from "~/lib/answer-grade-service";
 import { runtimeDiagnosticLogger } from "~/lib/runtime-logger";
 import { readJsonBody, type RouteEvent } from "~/lib/server-body";
 
-interface ChineseGradeRequestBody {
+interface AnswerGradeRequestBody {
+	kind?: unknown;
 	items?: unknown[];
 	baseUrl?: string;
 	apiKey?: string;
@@ -21,6 +23,20 @@ interface ChineseGradeRequestBody {
 
 function errorResult(code: DefinitionProviderErrorCode, message: string) {
 	return { error: code, message };
+}
+
+const GRADE_KINDS: GradeKind[] = ["chinese", "definition"];
+
+function extractKind(raw: unknown): GradeKind {
+	const kind = String(raw ?? "").trim() as GradeKind;
+	if (!GRADE_KINDS.includes(kind)) {
+		throw new HTTPError({
+			status: 400,
+			statusText: "Bad Request",
+			message: 'kind 必须是 "chinese" 或 "definition"',
+		});
+	}
+	return kind;
 }
 
 /** 提取并校验批改条目：word/answer 必填字符串，expected 可选 */
@@ -40,7 +56,8 @@ function extractGradeItems(raw: unknown[] | undefined) {
 }
 
 export async function POST(event: RouteEvent) {
-	const body = (await readJsonBody(event)) as ChineseGradeRequestBody;
+	const body = (await readJsonBody(event)) as AnswerGradeRequestBody;
+	const kind = extractKind(body?.kind);
 	const items = extractGradeItems(body?.items);
 	const baseUrl = String(body?.baseUrl ?? "").trim();
 	const apiKey = String(body?.apiKey ?? "").trim();
@@ -61,7 +78,8 @@ export async function POST(event: RouteEvent) {
 	}
 
 	try {
-		return await gradeChineseAnswers({
+		return await gradeAnswers({
+			kind,
 			items,
 			baseUrl,
 			apiKey,
@@ -74,9 +92,10 @@ export async function POST(event: RouteEvent) {
 			return errorResult(error.code, error.message);
 		}
 		runtimeDiagnosticLogger.write({
-			event: "chinese-grade-service-failed",
+			event: "answer-grade-service-failed",
 			level: "error",
 			details: {
+				kind,
 				model,
 				itemCount: items.length,
 				message: error instanceof Error ? error.message : String(error),

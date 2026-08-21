@@ -16,13 +16,13 @@ mds（默点啥）把单词收集、发音准备、随机默写和结果对照�
 - 单词、词组和短句的快速录入、批量导入、删除与清空
 - 词库自动保存在浏览器本地存储中，刷新或重启后仍会保留
 - 书写默写与赛博默写两种模式
-- 默写内容三选一：单词、单词+英文释义（释义不批改）、中文对应词（两段式：先英文后中文，中文词由 AI 批改，同义词也算对）
+- 默写内容三选一：单词、单词+英文释义、中文对应词（两段式：先英文后中文；释义与中文词均由 AI 批改，同义/改述也算对）
 - 可滑动、可扩展的选择条组件切换默写内容，支持点击、拖拽与方向键
 - 快、中、慢三档节奏及自定义倍率（中文词第二步按字符数 ×5 系数计时）
 - Edge TTS 预生成发音，增量缓存，默写时流畅播放
 - 可选 AI 内容生成，支持部分结果、超时、中止和兼容降级，中文词独立缓存文件
 - 随机顺序、播报进度、倒计时和键盘连续操作
-- 中文词模式答完后先经「正在批改」遮罩，一次 AI 请求批改本场全部作答（关 thinking，自动兼容降级），失败/中止自动降级本地匹配
+- 释义/中文词模式答完后先经「正在批改」遮罩，一次 AI 请求批改本场全部作答（关 thinking，自动兼容降级），失败/中止自动降级本地匹配
 - 结果页按模式通用化：判定字段标红/绿，参考部分（释义对照等）只展示不批改，全对两波星星庆祝
 - Windows NSIS 安装包（引导式安装、仅当前用户、可选安装目录、卸载保留用户数据）
 
@@ -176,8 +176,9 @@ cp .env.example .env
 pnpm get:explain apple banana "look forward to"
 # Fetch Chinese equivalent words instead
 pnpm get:explain --chinese apple hello
-# AI-grade Chinese answers (word=student answer)
+# AI-grade answers (word=student answer)
 pnpm get:explain --grade "hello=你好" "apple=哈喽"
+pnpm get:explain --grade-def "apple=a round fruit"
 ```
 
 The output includes definitions (or Chinese words / grades), missing words, elapsed time, `finish_reason`, token usage, and compatibility fallbacks. `.env` is ignored by Git; never commit a real API key.

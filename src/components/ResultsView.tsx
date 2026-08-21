@@ -177,20 +177,18 @@ function ResultRowItem(props: {
 						/>
 					</button>
 				</div>
-				{/* 参考字段（释义/我的释义/书写模式自检） */}
+				{/* 参考字段（书写模式自检 / 无标准答案的对照） */}
 				<For each={references()}>
 					{(f) => <ReferenceFieldLines field={f} />}
 				</For>
-				{/* 中文词判定字段的标准行（题干是英文单词，标准中文词供对照） */}
-				<Show
-					when={
-						gradedFields().find((f) => f.kind === "chinese")?.expected
-					}
-				>
-					<span class="truncate text-[13px] text-ink-faint">
-						中文词：{gradedFields().find((f) => f.kind === "chinese")!.expected}
-					</span>
-				</Show>
+				{/* 判定性第二步字段的标准行（题干是英文单词，标准中文词/释义供对照） */}
+				<For each={gradedFields().filter((f) => f.kind !== "word" && f.expected)}>
+					{(f) => (
+						<span class="truncate text-[13px] text-ink-faint">
+							{labelOf(f.kind)}：{f.expected}
+						</span>
+					)}
+				</For>
 			</div>
 			{/* 右侧：全部判定字段的用户作答（赛博模式） */}
 			<Show when={props.mode === "cyber" && gradedFields().length > 0}>

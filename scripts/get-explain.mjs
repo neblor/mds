@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import {
 	fetchEnglishDefinitions,
 	fetchChineseWords,
-	fetchChineseGrades,
+	fetchAnswerGrades,
 } from "../src/lib/definition-provider.ts";
 
 const projectRoot = resolve(import.meta.dirname, "..");
@@ -13,11 +13,14 @@ if (existsSync(envFile)) process.loadEnvFile(envFile);
 
 const args = process.argv.slice(2);
 const grade = args.includes("--grade");
+const gradeDef = args.includes("--grade-def");
 const chinese = args.includes("--chinese");
-const rest = args.filter((a) => a !== "--grade" && a !== "--chinese");
+const rest = args.filter(
+	(a) => a !== "--grade" && a !== "--grade-def" && a !== "--chinese",
+);
 
-if (grade) {
-	// 用法：pnpm get:explain --grade "hello=你好" "apple=哈喽"
+if (grade || gradeDef) {
+	// 用法：pnpm get:explain --grade "hello=你好"（中文词）/ --grade-def "apple=a round fruit"（释义）
 	const items = rest.map((pair) => {
 		const sep = pair.includes("=") ? "=" : ":";
 		const [word, ...answerParts] = pair.split(sep);
@@ -28,10 +31,11 @@ if (grade) {
 		};
 	}).filter((i) => i.word && i.answer);
 	if (items.length === 0) {
-		console.log('用法：pnpm get:explain --grade "hello=你好" "apple=苹果"');
+		console.log('用法：pnpm get:explain --grade "hello=你好"  # 中文词批改');
+		console.log('      pnpm get:explain --grade-def "apple=a round fruit"  # 释义批改');
 		process.exit(1);
 	}
-	runGrade(items);
+	runGrade(items, gradeDef ? "definition" : "chinese");
 } else if (chinese) {
 	const words = [...new Set(rest.map((word) => word.trim()).filter(Boolean))];
 	if (words.length === 0) {
@@ -44,7 +48,8 @@ if (grade) {
 	if (words.length === 0 || args.includes("--help")) {
 		console.log("用法：pnpm get:explain word1 word2 \"a short phrase\"");
 		console.log("      pnpm get:explain --chinese hello world   # 抓中文对应词");
-		console.log('      pnpm get:explain --grade "hello=你好"    # AI 批改中文作答');
+		console.log('      pnpm get:explain --grade "hello=你好"    # AI 批改中文词作答');
+		console.log('      pnpm get:explain --grade-def "apple=a fruit"  # AI 批改释义作答');
 		console.log("配置：.env 中填写 MDS_AI_BASE_URL、MDS_AI_API_KEY、MDS_AI_MODEL");
 		process.exit(args.includes("--help") ? 0 : 1);
 	}
@@ -82,10 +87,10 @@ async function runPairs(words, isChinese) {
 	}
 }
 
-async function runGrade(items) {
+async function runGrade(items, kind) {
 	const diagnosticEvents = [];
 	try {
-		const result = await fetchChineseGrades({ items, baseUrl, apiKey, model, onDiagnostic: (event) => diagnosticEvents.push(event) });
+		const result = await fetchAnswerGrades({ kind, items, baseUrl, apiKey, model, onDiagnostic: (event) => diagnosticEvents.push(event) });
 		report({
 			grades: result.grades,
 			missing: result.missing,

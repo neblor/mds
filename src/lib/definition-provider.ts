@@ -649,31 +649,34 @@ export async function fetchChineseWords(
 	};
 }
 
-/* ---------- 中文词 AI 批改 ---------- */
+/* ---------- 答案 AI 批改（中文词 / 英文释义，结构同构） ---------- */
 
-export interface ChineseGradeItem {
+export type GradeKind = "chinese" | "definition";
+
+export interface GradeItem {
 	word: string;
-	/** 准备阶段抓取的标准中文词 */
+	/** 准备阶段抓取的标准答案（中文对应词或英文释义） */
 	expected: string;
-	/** 学生作答的中文词 */
+	/** 学生作答 */
 	answer: string;
 }
 
-export interface ChineseWordGrade {
+export interface GradeResult {
 	word: string;
 	correct: boolean;
 	note?: string;
 }
 
-export interface ChineseGradesProviderResult {
-	grades: ChineseWordGrade[];
+export interface GradesProviderResult {
+	grades: GradeResult[];
 	missing: string[];
 	warning?: string;
 	diagnostics: DefinitionProviderDiagnostics;
 }
 
-export interface FetchChineseGradesOptions {
-	items: ChineseGradeItem[];
+export interface FetchGradesOptions {
+	kind: GradeKind;
+	items: GradeItem[];
 	baseUrl: string;
 	apiKey: string;
 	model: string;
@@ -683,13 +686,23 @@ export interface FetchChineseGradesOptions {
 	onDiagnostic?: (event: DefinitionProviderDiagnosticEvent) => void;
 }
 
-const GRADE_SYSTEM_PROMPT =
-	"You are a strict but fair grader for an English-to-Chinese dictation exercise for kids. " +
-	'Reply with STRICT JSON only (no markdown fences, no extra text) using this shape: ' +
-	'{"results":[{"word":"<exact original word>","correct":true,"note":"<optional short reason>"}]}. ' +
-	"For each item judge whether the student's Chinese answer is an acceptable translation of the English word: " +
-	"common synonyms and reasonable word choices are acceptable; ignore leading/trailing whitespace and Chinese punctuation differences; " +
-	"a blank answer is incorrect; include every requested word exactly once, keyed by the exact original word.";
+const GRADE_SYSTEM_PROMPTS: Record<GradeKind, string> = {
+	chinese:
+		"You are a strict but fair grader for an English-to-Chinese dictation exercise for kids. " +
+		'Reply with STRICT JSON only (no markdown fences, no extra text) using this shape: ' +
+		'{"results":[{"word":"<exact original word>","correct":true,"note":"<optional short reason>"}]}. ' +
+		"For each item judge whether the student's Chinese answer is an acceptable translation of the English word: " +
+		"common synonyms and reasonable word choices are acceptable; ignore leading/trailing whitespace and Chinese punctuation differences; " +
+		"a blank answer is incorrect; include every requested word exactly once, keyed by the exact original word.",
+	definition:
+		"You are a strict but fair grader for an English vocabulary dictation exercise for kids. " +
+		'Reply with STRICT JSON only (no markdown fences, no extra text) using this shape: ' +
+		'{"results":[{"word":"<exact original word>","correct":true,"note":"<optional short reason>"}]}. ' +
+		"For each item judge whether the student's English definition expresses the same core meaning as the expected definition: " +
+		"paraphrases and different wording are acceptable; ignore capitalization, punctuation, and article (a/the) differences; " +
+		"minor spelling mistakes that do not obscure the meaning are acceptable; a blank answer is incorrect; " +
+		"include every requested word exactly once, keyed by the exact original word.",
+};
 
 function parseCorrectValue(value: unknown): boolean | undefined {
 	if (typeof value === "boolean") return value;
@@ -704,8 +717,8 @@ function parseCorrectValue(value: unknown): boolean | undefined {
 
 function gradesFromCandidate(
 	candidate: unknown,
-): Record<string, ChineseWordGrade> {
-	const result = Object.create(null) as Record<string, ChineseWordGrade>;
+): Record<string, GradeResult> {
+	const result = Object.create(null) as Record<string, GradeResult>;
 	const addItem = (word: unknown, correct: unknown, note?: unknown) => {
 		if (typeof word !== "string") return;
 		const w = word.trim();
@@ -761,7 +774,7 @@ function gradesFromCandidate(
 }
 
 /** 解析兼容 Chat Completions 响应中的批改结果，合并所有内容块。 */
-async function parseGradeAiResponse(response: Response): Promise<Record<string, ChineseWordGrade>> {
+async function parseGradeAiResponse(response: Response): Promise<Record<string, GradeResult>> {
 	if (!response.ok) {
 		const detail = await response.text().catch(() => "");
 		throw new DefinitionProviderError(
@@ -799,7 +812,7 @@ async function parseGradeAiResponse(response: Response): Promise<Record<string, 
 		);
 	}
 	let sawJson = false;
-	const grades = Object.create(null) as Record<string, ChineseWordGrade>;
+	const grades = Object.create(null) as Record<string, GradeResult>;
 	for (const source of sources) {
 		for (const candidate of contentCandidates(source)) {
 			sawJson = true;
@@ -817,9 +830,9 @@ async function parseGradeAiResponse(response: Response): Promise<Record<string, 
 	return grades;
 }
 
-/** 一次请求批改全部中文词作答（关 thinking；模型不支持时自动降级）。 */
-export async function fetchChineseGrades(
-	options: FetchChineseGradesOptions,
+/** 一次请求批改全部作答（中文词/英文释义按 kind 选择判定口径；关 thinking，模型不支持时自动降级）。 */
+export async function fetchAnswerGrades(
+	options: FetchGradesOptions,
 ): Promise<ChineseGradesProviderResult> {
 	const startedAt = performance.now();
 	const endpoint = `${options.baseUrl.replace(/\/+$/, "")}/chat/completions`;
@@ -835,7 +848,7 @@ export async function fetchChineseGrades(
 		temperature: 0,
 		max_tokens: 4096,
 		messages: [
-			{ role: "system", content: GRADE_SYSTEM_PROMPT },
+			{ role: "system", content: GRADE_SYSTEM_PROMPTS[options.kind] },
 			{ role: "user", content: JSON.stringify(options.items) },
 		],
 	};
@@ -850,7 +863,7 @@ export async function fetchChineseGrades(
 		onDiagnostic: options.onDiagnostic,
 	});
 
-	let parsed: Record<string, ChineseWordGrade>;
+	let parsed: Record<string, GradeResult>;
 	try {
 		parsed = await parseGradeAiResponse(response);
 	} catch (error) {

@@ -8,7 +8,7 @@ import {
 	playWithIntervals,
 	requestDefinitions,
 	requestChineseWords,
-	requestChineseGrades,
+	requestAnswerGrades,
 	type PlaybackFailure,
 } from "./api";
 import { DEFAULT_SETTINGS } from "./settings";
@@ -289,7 +289,7 @@ describe("requestChineseWords", () => {
 	});
 });
 
-describe("requestChineseGrades", () => {
+describe("requestAnswerGrades", () => {
 	afterEach(() => {
 		vi.unstubAllGlobals();
 	});
@@ -315,7 +315,8 @@ describe("requestChineseGrades", () => {
 		);
 		vi.stubGlobal("fetch", fetchMock);
 
-		const result = await requestChineseGrades(
+		const result = await requestAnswerGrades(
+			"chinese",
 			[
 				{ word: "hello", expected: "你好", answer: "你好" },
 				{ word: "apple", expected: "苹果", answer: "香蕉" },
@@ -329,8 +330,9 @@ describe("requestChineseGrades", () => {
 			{ word: "apple", correct: false, note: "词义不对" },
 		]);
 		const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-		expect(url).toBe("/api/chinese-grade");
+		expect(url).toBe("/api/answer-grade");
 		const body = JSON.parse(String(init.body)) as {
+			kind: string;
 			items: { word: string }[];
 			baseUrl: string;
 			apiKey: string;
@@ -339,6 +341,7 @@ describe("requestChineseGrades", () => {
 			baseUrl: "https://example.test/v1",
 			apiKey: "test-key",
 		});
+		expect(body.kind).toBe("chinese");
 		expect(body.items).toEqual([
 			{ word: "hello", expected: "你好", answer: "你好" },
 			{ word: "apple", expected: "苹果", answer: "香蕉" },
@@ -356,7 +359,8 @@ describe("requestChineseGrades", () => {
 			),
 		);
 		await expect(
-			requestChineseGrades(
+			requestAnswerGrades(
+				"chinese",
 				[{ word: "hello", expected: "你好", answer: "你好" }],
 				settings,
 				new AbortController().signal,

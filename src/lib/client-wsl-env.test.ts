@@ -5,6 +5,8 @@ import {
 	buildWslPackageEnv,
 	wslNamespaceScript,
 	wslPrefixInitScript,
+	systemHasWine32Support,
+	shouldAutoUseNamespace,
 } from "./client-wsl-env";
 
 describe("client-wsl-env", () => {
@@ -56,8 +58,38 @@ describe("client-wsl-env", () => {
 		);
 		expect(script).toContain("export XDG_RUNTIME_DIR=/run/user/1000");
 		expect(script).toContain("export PATH=/opt/node/bin:/opt/pnpm/bin");
+		expect(script).toContain("export MDS_PACKAGING_IN_NS=1");
 		expect(script).toMatch(/^pnpm client:package test$/m);
 		expect(script).toContain("cd /repo");
+	});
+
+	it("系统 32 位 wine 探测与自动切换判定", () => {
+		// 环境探测返回布尔（当前系统可能装或没装，只验证类型与一致性）
+		expect(typeof systemHasWine32Support()).toBe("boolean");
+		const has = systemHasWine32Support();
+		// Windows 不切换
+		expect(
+			shouldAutoUseNamespace({ platform: "win32", inNamespace: false, hasWine32: false, unshareAvailable: true }),
+		).toBe(false);
+		// 命名空间内不递归切换
+		expect(
+			shouldAutoUseNamespace({ platform: "linux", inNamespace: true, hasWine32: false, unshareAvailable: true }),
+		).toBe(false);
+		// 系统已支持 32 位就不切换
+		expect(
+			shouldAutoUseNamespace({ platform: "linux", inNamespace: false, hasWine32: true, unshareAvailable: true }),
+		).toBe(false);
+		// linux + 缺 32 位 + unshare 可用 → 切换
+		expect(
+			shouldAutoUseNamespace({ platform: "linux", inNamespace: false, hasWine32: false, unshareAvailable: true }),
+		).toBe(true);
+		// usize 不可用 → 不切换（调用方另行报错）
+		expect(
+			shouldAutoUseNamespace({ platform: "linux", inNamespace: false, hasWine32: false, unshareAvailable: false }),
+		).toBe(false);
+		expect(has).toBe(
+			shouldAutoUseNamespace({ platform: "linux", inNamespace: false, hasWine32: has, unshareAvailable: true }) === false,
+		);
 	});
 
 	it("前缀初始化脚本校验 syswow64 填充成功与否", () => {

@@ -22,12 +22,12 @@ import {
 	requestTtsAll,
 	requestDefinitions,
 	requestChineseWords,
-	requestChineseGrades,
+	requestAnswerGrades,
 	audioUrl,
 	playWithIntervals,
 	invalidateCacheFile,
 	type TtsItem,
-	type ChineseGradeItem,
+	type GradeItem,
 } from "./api";
 import { shuffle, type DictationMode, type ContentMode } from "./state";
 import {
@@ -200,12 +200,16 @@ export function useDictation() {
 
 	/**
 	 * 全部轮次的唯一结束出口：先让当前轮的异步回调失效，再清理运行时。
-	 * 中文词赛博模式先进入 grading（AI 批改）再展示结果；其余模式直接展示结果。
+	 * 两段式内容模式（释义/中文词）的赛博默写先进入 grading（AI 批改）再展示结果；
+	 * 其余模式直接展示结果。
 	 */
 	const finishDictation = () => {
 		roundSeq++;
 		clearRoundRuntime();
-		if (mode() === "cyber" && contentMode() === "chinese") {
+		if (
+			mode() === "cyber" &&
+			(contentMode() === "chinese" || contentMode() === "definition")
+		) {
 			setPhase("grading");
 			void runGrading();
 		} else {
@@ -213,13 +217,15 @@ export function useDictation() {
 		}
 	};
 
-	/* ---------- AI 批改（一次请求批改本场全部中文作答） ---------- */
+	/* ---------- AI 批改（一次请求批改本场全部第二步作答） ---------- */
 	const runGrading = async () => {
-		const items: ChineseGradeItem[] = rounds()
+		const kind = contentMode() === "chinese" ? "chinese" : "definition";
+		const items: GradeItem[] = rounds()
 			.filter((r) => r.answerDef !== undefined)
 			.map((r) => ({
 				word: r.word,
-				expected: r.chineseWord ?? "",
+				expected:
+					kind === "chinese" ? (r.chineseWord ?? "") : (r.definition ?? ""),
 				answer: r.answerDef ?? "",
 			}));
 		// 防御：没有可批改的作答（理论不会发生）直接进结果
@@ -231,7 +237,12 @@ export function useDictation() {
 		gradeAbort = new AbortController();
 		const alive = () => seq === gradeSeq;
 		try {
-			const res = await requestChineseGrades(items, settings(), gradeAbort.signal);
+			const res = await requestAnswerGrades(
+				kind,
+				items,
+				settings(),
+				gradeAbort.signal,
+			);
 			if (!alive()) return;
 			const map: Record<string, GradeOverride> = {};
 			for (const g of res.grades) {

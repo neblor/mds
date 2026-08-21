@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
 	isStrictMatch,
 	isChineseMatch,
+	isDefinitionMatch,
 	normalizeChinese,
+	normalizeDefinition,
 	isAllCorrect,
 } from "./match";
 
@@ -25,6 +27,34 @@ describe("isStrictMatch", () => {
 	});
 	it("首尾空白容忍（输入卫生）", () => {
 		expect(isStrictMatch("  apple ", "apple")).toBe(true);
+	});
+});
+
+describe("isDefinitionMatch", () => {
+	it("大小写/标点/空白差异容忍（本地兜底口径）", () => {
+		expect(
+			isDefinitionMatch("A round fruit.", "a round fruit"),
+		).toBe(true);
+		expect(
+			isDefinitionMatch("A  round   fruit!", "a round fruit"),
+		).toBe(true);
+		expect(
+			isDefinitionMatch("It is a big, red fruit.", "it is a big red fruit"),
+		).toBe(true);
+	});
+	it("措辞不同不算对（改述交给 AI，本地兜底从严是预期行为）", () => {
+		expect(
+			isDefinitionMatch("a red fruit that is round", "a round fruit"),
+		).toBe(false);
+	});
+	it("空/空白算错", () => {
+		expect(isDefinitionMatch("", "a round fruit")).toBe(false);
+		expect(isDefinitionMatch("  ", "a round fruit")).toBe(false);
+	});
+	it("归一化只处理大小写、英文标点与空白", () => {
+		expect(normalizeDefinition("Hello, World! It's fine.")).toBe(
+			"hello world it s fine",
+		);
 	});
 });
 

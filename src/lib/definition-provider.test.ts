@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	fetchEnglishDefinitions,
 	fetchChineseWords,
-	fetchChineseGrades,
+	fetchAnswerGrades,
 	parseDefinitionAiResponse,
 } from "./definition-provider";
 
@@ -278,7 +278,7 @@ describe("fetchChineseWords", () => {
 	});
 });
 
-describe("fetchChineseGrades", () => {
+describe("fetchAnswerGrades", () => {
 	const items = [
 		{ word: "hello", expected: "你好", answer: "你好" },
 		{ word: "apple", expected: "苹果", answer: "哈喽" },
@@ -307,7 +307,8 @@ describe("fetchChineseGrades", () => {
 				],
 			}),
 		);
-		const result = await fetchChineseGrades({
+		const result = await fetchAnswerGrades({
+			kind: "chinese",
 			items,
 			baseUrl: "https://example.test/v1",
 			apiKey: "secret",
@@ -341,7 +342,8 @@ describe("fetchChineseGrades", () => {
 				},
 			}),
 		);
-		const result = await fetchChineseGrades({
+		const result = await fetchAnswerGrades({
+			kind: "chinese",
 			items,
 			baseUrl: "https://example.test/v1",
 			apiKey: "secret",
@@ -363,7 +365,8 @@ describe("fetchChineseGrades", () => {
 				],
 			}),
 		);
-		const result = await fetchChineseGrades({
+		const result = await fetchAnswerGrades({
+			kind: "chinese",
 			items,
 			baseUrl: "https://example.test/v1",
 			apiKey: "secret",
@@ -380,7 +383,8 @@ describe("fetchChineseGrades", () => {
 		const fetchMock = vi.fn().mockResolvedValue(
 			completion({ results: [{ word: "hello", correct: true }] }),
 		);
-		const result = await fetchChineseGrades({
+		const result = await fetchAnswerGrades({
+			kind: "chinese",
 			items,
 			baseUrl: "https://example.test/v1",
 			apiKey: "secret",
@@ -400,7 +404,8 @@ describe("fetchChineseGrades", () => {
 				completion({ results: [{ word: "hello", correct: true }] }),
 			);
 		const onDiagnostic = vi.fn();
-		const result = await fetchChineseGrades({
+		const result = await fetchAnswerGrades({
+			kind: "chinese",
 			items: [items[0]],
 			baseUrl: "https://example.test/v1",
 			apiKey: "secret",
@@ -427,7 +432,8 @@ describe("fetchChineseGrades", () => {
 				completion({ results: [{ word: "hello", correct: "maybe" }] }),
 			);
 		await expect(
-			fetchChineseGrades({
+			fetchAnswerGrades({
+				kind: "chinese",
 				items,
 				baseUrl: "https://example.test/v1",
 				apiKey: "secret",
@@ -435,5 +441,41 @@ describe("fetchChineseGrades", () => {
 				fetchImpl: fetchMock,
 			}),
 		).rejects.toMatchObject({ code: "empty" });
+	});
+
+	it("definition 口径：判定英文释义是否同义，请求体含 kind 对应提示词", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			completion({
+				results: [
+					{ word: "apple", correct: true, note: "意思相同" },
+					{ word: "hello", correct: false, note: "词义不符" },
+				],
+			}),
+		);
+		const result = await fetchAnswerGrades({
+			kind: "definition",
+			items: [
+				{ word: "apple", expected: "A round fruit.", answer: "fruit that is round" },
+				{ word: "hello", expected: "A greeting word.", answer: "a fruit" },
+			],
+			baseUrl: "https://example.test/v1",
+			apiKey: "secret",
+			model: "flash-model",
+			fetchImpl: fetchMock,
+		});
+		expect(result.grades).toEqual([
+			{ word: "apple", correct: true, note: "意思相同" },
+			{ word: "hello", correct: false, note: "词义不符" },
+		]);
+		const requestBody = JSON.parse(
+			String(fetchMock.mock.calls[0][1]?.body),
+		) as { messages: { content: string }[] };
+		// 释义口径的提示词强调“同义改述可接受”
+		expect(requestBody.messages[0].content).toContain("same core meaning");
+		expect(requestBody.messages[0].content).toContain("paraphrases");
+		expect(JSON.parse(requestBody.messages[1].content)).toEqual([
+			{ word: "apple", expected: "A round fruit.", answer: "fruit that is round" },
+			{ word: "hello", expected: "A greeting word.", answer: "a fruit" },
+		]);
 	});
 });

@@ -143,35 +143,39 @@ export async function requestChineseWords(
 	}
 }
 
-export interface ChineseGradeItem {
+export type GradeKind = "chinese" | "definition";
+
+export interface GradeItem {
 	word: string;
 	expected: string;
 	answer: string;
 }
 
-export interface ChineseWordGrade {
+export interface GradeResult {
 	word: string;
 	correct: boolean;
 	note?: string;
 }
 
-export interface ChineseGradeResponse {
-	grades: ChineseWordGrade[];
+export interface GradeResponse {
+	grades: GradeResult[];
 	missing?: string[];
 	warning?: string;
 }
 
-/** 一次请求批改全部中文词作答（AI 判定） */
-export async function requestChineseGrades(
-	items: ChineseGradeItem[],
+/** 一次请求批改全部作答（中文词/英文释义按 kind 选择判定口径） */
+export async function requestAnswerGrades(
+	kind: GradeKind,
+	items: GradeItem[],
 	settings: AppSettings,
 	signal: AbortSignal,
-): Promise<ChineseGradeResponse> {
+): Promise<GradeResponse> {
 	try {
-		const res = await fetch("/api/chinese-grade", {
+		const res = await fetch("/api/answer-grade", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({
+				kind,
 				items,
 				baseUrl: settings.aiBaseUrl,
 				apiKey: settings.aiApiKey,
@@ -180,7 +184,7 @@ export async function requestChineseGrades(
 			signal,
 		});
 		const data = (await res.json().catch(() => null)) as {
-			grades?: ChineseWordGrade[];
+			grades?: GradeResult[];
 			missing?: string[];
 			warning?: string;
 			error?: string;

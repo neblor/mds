@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
 	requestTtsAll: vi.fn(),
 	requestDefinitions: vi.fn(),
 	requestChineseWords: vi.fn(),
-	requestChineseGrades: vi.fn(),
+	requestAnswerGrades: vi.fn(),
 	playWithIntervals: vi.fn(),
 	invalidateCacheFile: vi.fn(),
 }));
@@ -21,7 +21,7 @@ vi.mock("./api", () => ({
 	requestTtsAll: mocks.requestTtsAll,
 	requestDefinitions: mocks.requestDefinitions,
 	requestChineseWords: mocks.requestChineseWords,
-	requestChineseGrades: mocks.requestChineseGrades,
+	requestAnswerGrades: mocks.requestAnswerGrades,
 	playWithIntervals: mocks.playWithIntervals,
 	invalidateCacheFile: mocks.invalidateCacheFile,
 }));
@@ -99,7 +99,7 @@ describe("useDictation 生产流程编排", () => {
 			banana: "A long yellow fruit.",
 		});
 		mocks.requestChineseWords.mockResolvedValue({});
-		mocks.requestChineseGrades.mockResolvedValue({ grades: [] });
+		mocks.requestAnswerGrades.mockResolvedValue({ grades: [] });
 		mocks.playWithIntervals.mockImplementation((opts: PlayOptions) => {
 			const deferred = createDeferred<PlayOutcome>();
 			playDeferreds.push(deferred);
@@ -325,6 +325,15 @@ describe("useDictation 生产流程编排", () => {
 
 		d.setDefInput("A round fruit.");
 		d.submitDef();
+		// 释义模式答完先进入 AI 批改，再出结果
+		expect(d.phase()).toBe("grading");
+		expect(mocks.requestAnswerGrades).toHaveBeenCalledWith(
+			"definition",
+			[{ word: "apple", expected: "A round fruit.", answer: "A round fruit." }],
+			expect.anything(),
+			expect.any(AbortSignal),
+		);
+		await flushAsyncWork();
 		expect(d.phase()).toBe("results");
 		// 同一次输入框 Enter 冒泡到 window 时，不能关闭刚出现的结果页
 		d.onRootKeyDown({
@@ -363,6 +372,7 @@ describe("useDictation 生产流程编排", () => {
 		await vi.advanceTimersByTimeAsync(
 			Math.ceil(d.rounds()[0].countdownSec * 1_000) + 100,
 		);
+		await flushAsyncWork();
 
 		expect(d.remaining()).toBe(0);
 		expect(d.speechDone()).toBe(true);
@@ -402,7 +412,7 @@ describe("useDictation 准备任务竞态（token 隔离）", () => {
 		);
 		mocks.requestDefinitions.mockResolvedValue({});
 		mocks.requestChineseWords.mockResolvedValue({});
-		mocks.requestChineseGrades.mockResolvedValue({ grades: [] });
+		mocks.requestAnswerGrades.mockResolvedValue({ grades: [] });
 		mocks.playWithIntervals.mockImplementation((opts: PlayOptions) => {
 			opts.onPlay(0);
 			return Promise.resolve("completed" as const);
@@ -509,7 +519,7 @@ describe("useDictation 完整流程衔接（结果页）", () => {
 		);
 		mocks.requestDefinitions.mockResolvedValue({});
 		mocks.requestChineseWords.mockResolvedValue({});
-		mocks.requestChineseGrades.mockResolvedValue({ grades: [] });
+		mocks.requestAnswerGrades.mockResolvedValue({ grades: [] });
 		mocks.playWithIntervals.mockImplementation((opts: PlayOptions) => {
 			const deferred = createDeferred<PlayOutcome>();
 			playDeferreds.push(deferred);
@@ -722,7 +732,7 @@ describe("useDictation 中文词模式", () => {
 			apple: "苹果",
 			hello: "你好",
 		});
-		mocks.requestChineseGrades.mockResolvedValue({ grades: [] });
+		mocks.requestAnswerGrades.mockResolvedValue({ grades: [] });
 		playDeferreds = [];
 		audioStateCbs = [];
 		mocks.playWithIntervals.mockImplementation((opts: PlayOptions) => {
@@ -795,7 +805,8 @@ describe("useDictation 中文词模式", () => {
 		expect(d.phase()).toBe("grading");
 		await flushAsyncWork();
 		expect(d.phase()).toBe("results");
-		expect(mocks.requestChineseGrades).toHaveBeenCalledWith(
+		expect(mocks.requestAnswerGrades).toHaveBeenCalledWith(
+			"chinese",
 			[
 				{
 					word: "hello",
@@ -836,7 +847,7 @@ describe("useDictation 中文词模式", () => {
 		d.go();
 
 		// 作答与标准不同，但 AI 认为同义词算对
-		mocks.requestChineseGrades.mockResolvedValueOnce({
+		mocks.requestAnswerGrades.mockResolvedValueOnce({
 			grades: [{ word: "hello", correct: true, note: "同义词" }],
 		});
 		audioStateCbs[0](true);
@@ -867,7 +878,7 @@ describe("useDictation 中文词模式", () => {
 		d2.startDictation("cyber");
 		await flushAsyncWork();
 		d2.go();
-		mocks.requestChineseGrades.mockResolvedValueOnce({
+		mocks.requestAnswerGrades.mockResolvedValueOnce({
 			grades: [{ word: "hello", correct: false, note: "字写错了" }],
 		});
 		audioStateCbs[1](true);
@@ -898,7 +909,7 @@ describe("useDictation 中文词模式", () => {
 		await flushAsyncWork();
 		d.go();
 
-		mocks.requestChineseGrades.mockRejectedValueOnce(
+		mocks.requestAnswerGrades.mockRejectedValueOnce(
 			new Error("network down"),
 		);
 		audioStateCbs[0](true);
@@ -929,7 +940,7 @@ describe("useDictation 中文词模式", () => {
 		d.go();
 
 		let resolveGrade!: (v: { grades: { word: string; correct: boolean }[] }) => void;
-		mocks.requestChineseGrades.mockReturnValueOnce(
+		mocks.requestAnswerGrades.mockReturnValueOnce(
 			new Promise((r) => {
 				resolveGrade = r;
 			}),
@@ -966,7 +977,7 @@ describe("useDictation 中文词模式", () => {
 		audioStateCbs[0](false);
 		await flushAsyncWork();
 		expect(d.phase()).toBe("results");
-		expect(mocks.requestChineseGrades).not.toHaveBeenCalled();
+		expect(mocks.requestAnswerGrades).not.toHaveBeenCalled();
 	});
 
 	it("中文词模式未配置 AI 时阻止开始并提示", async () => {
@@ -997,7 +1008,7 @@ describe("useDictation 中文词模式", () => {
 		// 中文模式倒计时 = 单词段 7.0 + 中文段 5.0 = 12s
 		await vi.advanceTimersByTimeAsync(20_000);
 		expect(d.phase()).toBe("results");
-		expect(mocks.requestChineseGrades).not.toHaveBeenCalled();
+		expect(mocks.requestAnswerGrades).not.toHaveBeenCalled();
 		const field = d.resultRows()[0].fields[0];
 		expect(field).toMatchObject({ kind: "chinese", expected: "你好" });
 		expect(field.graded).toBe(false);

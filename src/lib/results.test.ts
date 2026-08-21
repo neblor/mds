@@ -43,13 +43,14 @@ describe("buildResultRows 赛博模式", () => {
 		expect(rowJudgement(wrong)).toBe(false);
 	});
 
-	it("释义模式：单词判定 + 释义参考（不批改）", () => {
+	it("释义模式：单词判定（严格）+ 释义判定（本地兜底口径）", () => {
 		const [row] = buildResultRows(
 			[
 				round({
+					word: "apple",
 					definition: "A round fruit.",
 					answer: "apple",
-					answerDef: "a fruit",
+					answerDef: "a round fruit",
 				}),
 			],
 			"cyber",
@@ -66,20 +67,70 @@ describe("buildResultRows 赛博模式", () => {
 			{
 				kind: "definition",
 				expected: "A round fruit.",
-				userValue: "a fruit",
-				graded: false,
+				userValue: "a round fruit",
+				graded: true,
+				correct: true,
 			},
 		]);
 		expect(rowJudgement(row)).toBe(true);
 	});
 
+	it("释义模式：AI 批改覆盖本地匹配（改述算对/判错）", () => {
+		const [paraphrase] = buildResultRows(
+			[
+				round({
+					word: "apple",
+					definition: "A round fruit.",
+					answer: "apple",
+					answerDef: "fruit that is red and round",
+				}),
+			],
+			"cyber",
+			"definition",
+			{ apple: { correct: true, note: "意思相同" } },
+		);
+		expect(paraphrase.fields[1]).toMatchObject({
+			kind: "definition",
+			correct: true,
+			note: "意思相同",
+		});
+		expect(rowJudgement(paraphrase)).toBe(true);
+
+		const [marked] = buildResultRows(
+			[
+				round({
+					word: "apple",
+					definition: "A round fruit.",
+					answer: "apple",
+					answerDef: "A round fruit.",
+				}),
+			],
+			"cyber",
+			"definition",
+			{ apple: { correct: false, note: "抄了题干之外的内容" } },
+		);
+		expect(marked.fields[1].correct).toBe(false);
+		expect(rowJudgement(marked)).toBe(false);
+	});
+
 	it("释义模式：单词写错但释义再对也不算整行对", () => {
 		const [row] = buildResultRows(
-			[round({ answer: "aple", answerDef: "A round fruit." })],
+			[round({ word: "apple", answer: "aple", answerDef: "A round fruit." })],
 			"cyber",
 			"definition",
 		);
 		expect(rowJudgement(row)).toBe(false);
+	});
+
+	it("释义模式：AI 未取到标准释义时释义不批改，单词仍判定", () => {
+		const [row] = buildResultRows(
+			[round({ word: "apple", definition: "", answer: "apple", answerDef: "x" })],
+			"cyber",
+			"definition",
+		);
+		expect(row.fields[0]).toMatchObject({ kind: "word", graded: true });
+		expect(row.fields[1]).toMatchObject({ kind: "definition", graded: false });
+		expect(rowJudgement(row)).toBe(true);
 	});
 
 	it("中文词模式：英文单词（严格）+ 中文词（本地归一化匹配）双判定", () => {
@@ -266,7 +317,7 @@ describe("模式文案", () => {
 	it("三种模式的判定说明与标签齐全", () => {
 		expect(JUDGEMENT_NOTES).toMatchObject({
 			word: expect.stringContaining("单词判定"),
-			definition: expect.stringContaining("释义不批改"),
+			definition: expect.stringContaining("AI 批改"),
 			chinese: expect.stringContaining("AI 批改"),
 		});
 		expect(CONTENT_MODE_LABELS).toEqual({
