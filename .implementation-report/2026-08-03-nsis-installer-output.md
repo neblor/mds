@@ -52,6 +52,12 @@ NSIS 3.x 只能产出 32 位 PE 安装器壳（所以才能同时支持 32/64 �
 - `pnpm check` 全绿；单测 285 个（34 文件）全部通过
 - AGENTS.md / README 已同步安装包说明与 WSL 打包入口
 
+## 补充（同轮反馈）
+
+- 删除旧 portable 遗留产物（`dist/electron/mds-0.2.1-x64.exe`）
+- `build.nsis.shortcutName: "默点啥"`：开始菜单快捷方式名用中文（用户确认豁免「产物文件名不用中文」约束——菜单中它被理解为应用名而非文件名）；产物文件名仍为英文 `mds-<version>-setup.exe`。已用 `client:package:wsl test` 重新打包验证，UTF-16LE 字符串「默点啥」确认已编入安装器内嵌脚本（NSIS 快捷方式名的存储方式）
+- 正式打包（含版本递增）由用户执行 `pnpm client:package:wsl <major|minor|patch>`
+
 ## 后续可处理
 
 - 正式发布仍由用户执行 `pnpm client:package major|minor|patch`（或 `client:package:wsl`）；建议首个安装包版本用 `minor`（0.2.x → 0.3.0）以区分输出形式变化

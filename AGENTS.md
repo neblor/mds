@@ -109,6 +109,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 ## 注意事项
 
 - **生成的文件及目录名不得使用中文**（包括打包产物、配置/脚本产出的文件名；界面显示名如窗口标题不受此限）
+  - 例外（用户已确认）：NSIS 安装器的**开始菜单快捷方式名**用中文「默点啥」（用户在系统菜单中将其理解为应用名而非文件名），由 `build.nsis.shortcutName` 控制；产物文件名仍保持英文 `mds-<version>-setup.exe`。
 
 ## 开发流程
 

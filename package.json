@@ -90,6 +90,7 @@
       "runAfterFinish": false,
       "deleteAppDataOnUninstall": false,
       "artifactName": "mds-${version}-setup.exe",
+      "shortcutName": "默点啥",
       "uninstallDisplayName": "默点啥",
       "language": "2052"
     },
