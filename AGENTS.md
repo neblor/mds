@@ -13,7 +13,7 @@
 ## 技术选型
 
 - 项目实际使用`pnpm`管理依赖和执行 Web 开发、构建工具链，单元测试使用`Vitest`并通过`pnpm`执行
-- `electron`负责 Desktop 运行与 Windows 打包（`pnpm electron:build` 产出单文件 portable exe）；Web 业务开发和测试用 pnpm 工具链
+- `electron`负责 Desktop 运行与 Windows 打包（`pnpm electron:build` 产出 NSIS Windows 安装包）；Web 业务开发和测试用 pnpm 工具链
 - 库选型：
   - solidstart 2.0 **框架已经创建**
   - tailwindcss
@@ -76,30 +76,31 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 | `pnpm client:start` | 使用当前已有`.output`启动 Electron；不会自动重新构建 |
 | `pnpm client:dev` | 先执行 Web 生产构建，再启动 Electron，适合本地联调 |
 | `pnpm client:package:dir` | 构建并生成快速调试用`dist/electron/win-unpacked/`，不生成交付 EXE |
-| `pnpm client:package <bump_type>` | 统一打包入口；`bump_type`必填且只能是`major`/`minor`/`patch`/`test`，依次执行`check` → Windows portable 打包 → 包内容校验 → 清理临时产物 |
-| `pnpm client:verify` | 打包清理前使用`win-unpacked`校验 portable EXE 的 MZ 头、必要运行文件，以及包内无`node_modules`和`word-cache` |
+| `pnpm client:package <bump_type>` | 统一打包入口；`bump_type`必填且只能是`major`/`minor`/`patch`/`test`，依次执行`check` → Windows NSIS 安装包打包 → 包内容校验 → 清理临时产物 |
+| `pnpm client:package:wsl <bump_type>` | WSL/受限环境打包入口；自动准备 wine 32 位运行件（下载解包 i386 deb 到`.tmp/wine32`）并在用户挂载命名空间内执行与`client:package`完全相同的流程，产物一致 |
+| `pnpm client:verify` | 打包清理前使用`win-unpacked`校验安装包 EXE 的 MZ 头、必要运行文件，以及包内无`node_modules`和`word-cache` |
 | `pnpm electron:start` | `pnpm client:start`的兼容别名 |
 | `pnpm electron:build <bump_type>` | `pnpm client:package <bump_type>`的兼容别名，同样必须传入参数 |
 
 - `package.json`的`version`是客户端版本的唯一数据源。`major`递增第一位并将后两位归零，`minor`递增第二位并将第三位归零，`patch`只递增第三位；例如`0.1.45`执行`major`后为`1.0.0`，执行`minor`后为`0.2.0`，执行`patch`后为`0.1.46`。
-- 正式发布必须由用户使用`pnpm client:package major|minor|patch`或其`electron:build`别名触发；打包成功后自动写回新版本，产物为`dist/electron/mds-<version>-x64.exe`。打包失败必须恢复原版本。
+- 正式发布必须由用户使用`pnpm client:package major|minor|patch`或其`electron:build`别名触发；打包成功后自动写回新版本，产物为`dist/electron/mds-<version>-setup.exe`。打包失败必须恢复原版本。
 - `pnpm client:package test`不修改版本号，测试产物固定输出到`dist/electron-test/`。Agent 做任何测试打包时只能使用`test`模式，禁止自行使用`major`、`minor`或`patch`；后三种发布递增值只允许用户决定和执行。
-- `client:package`必须先完成包内容校验，再删除对应输出目录中的`win-unpacked`、builder 调试文件、旧 EXE 等所有临时或历史项目；成功结束后输出目录只能保留本次生成的最终`mds-<version>-x64.exe`。
+- `client:package`必须先完成包内容校验，再删除对应输出目录中的`win-unpacked`、builder 调试文件、旧 EXE 等所有临时或历史项目；成功结束后输出目录只能保留本次生成的最终`mds-<version>-setup.exe`。
 - `client:package:dir`仅用于快速排查 Electron 启动与包内容，不是交付形式。
 - Client 启动依赖`.output`，需要最新业务代码时使用`client:dev`，不要直接运行可能陈旧的`client:start`。
-- electron-builder 下载运行时和 NSIS 资源时需要网络；Linux/WSL 交叉构建 Windows 产物还需要可用的 Wine 环境。
+- electron-builder 下载运行时和 NSIS 资源时需要网络；Linux/WSL 交叉构建 Windows 产物还需要可用的 Wine 环境（NSIS 安装器是 32 位 PE，electron-builder 需用 wine 运行安装器抽取卸载器，因此 wine 需具备 32 位支持）。系统目录只读/无法安装 wine32 时使用`client:package:wsl`。
 
 ## 项目输出形式
 
-项目使用`electron`方案输出为**单文件**（不需要安装、双击运行）的 Windows 桌面应用（暂不考虑其他平台）:
+项目使用`electron`方案输出为 **NSIS 安装包**（引导式安装、仅当前用户、可选安装目录、不建桌面快捷方式、卸载保留用户数据）的 Windows 桌面应用（暂不考虑其他平台）:
 
 - 主进程：`electron/main.mjs` — 启动内置 nitro server（`.output/server/index.mjs`，import 即监听）+ BrowserWindow 加载 `http://127.0.0.1:4827`
-- 运行时缓存不得写入或打包进静态 `public`：Web 默认使用项目 `.mds-data/word-cache`（部署时可用 `MDS_CACHE_DIR` 覆盖）；Electron portable 优先使用 exe 同目录的 `mds-data/word-cache`，目录不可写时回退到 `userData/mds-data/word-cache`
+- 运行时缓存不得写入或打包进静态 `public`：Web 默认使用项目 `.mds-data/word-cache`（部署时可用 `MDS_CACHE_DIR` 覆盖）；Electron 安装版统一使用 `userData/mds-data/word-cache`（卸载默认保留）
 - Client 主进程必须在启动内置服务前设置 `MDS_RUNTIME_MODE=client` 和 `MDS_CACHE_DIR`；业务层通过 `/api/audio` 动态读取外置音频，不依赖静态目录
 - Client 模式下第三方 AI 释义调用的降级、错误、缺词/截断及缓存写入失败记录到外置 `mds-data/logs/ai-definitions.log`，日志达到 1 MiB 时轮换一份 `.1`；日志不得记录 API Key
 - Electron 主窗口默认及最大尺寸为 `1120×820`，最小尺寸为各边约三分之二的 `747×547`；允许在该范围内缩放，但必须禁用最大化和全屏
 - 音频与释义缓存的命中、读取、原子写入和失效必须通过统一的 runtime cache storage 接口完成，由工厂按 Web/Client 环境选择实现；业务路由不得直接操作缓存文件或自行判断运行环境
-- 打包：`pnpm client:package <major|minor|patch|test>`（`pnpm electron:build <bump_type>`为兼容别名）；发布模式产出`dist/electron/mds-<version>-x64.exe`，测试模式产出`dist/electron-test/mds-<version>-x64.exe`，两个输出目录在成功后都只保留该最终 EXE
+- 打包：`pnpm client:package <major|minor|patch|test>`（`pnpm electron:build <bump_type>`为兼容别名）；发布模式产出`dist/electron/mds-<version>-setup.exe`，测试模式产出`dist/electron-test/mds-<version>-setup.exe`，两个输出目录在成功后都只保留该最终安装包
 - 交叉打包（Linux → Windows）需要 wine；Windows 上使用相同的带`bump_type`命令
 - 打包下载镜像：`ELECTRON_MIRROR`/`ELECTRON_BUILDER_BINARIES_MIRROR` 指向 npmmirror 加速
 

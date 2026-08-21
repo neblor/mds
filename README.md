@@ -24,7 +24,7 @@ mds（默点啥）把单词收集、发音准备、随机默写和结果对照�
 - 随机顺序、播报进度、倒计时和键盘连续操作
 - 中文词模式答完后先经「正在批改」遮罩，一次 AI 请求批改本场全部作答（关 thinking，自动兼容降级），失败/中止自动降级本地匹配
 - 结果页按模式通用化：判定字段标红/绿，参考部分（释义对照等）只展示不批改，全对两波星星庆祝
-- 单文件 Windows Portable 应用，无需安装
+- Windows NSIS 安装包（引导式安装、仅当前用户、可选安装目录、卸载保留用户数据）
 
 ### 快速开始
 
@@ -83,13 +83,20 @@ pnpm client:package test
 pnpm client:package patch
 ```
 
-`bump_type` 是必填参数：`major`、`minor`、`patch` 分别递增大、中、小版本号，其中大版本和中版本会将更低位归零；`test` 不修改版本。正式产物位于 `dist/electron/mds-<version>-x64.exe`，测试产物位于 `dist/electron-test/`。打包会先使用展开目录完成内容校验，成功后删除展开目录、builder 调试文件和旧产物，因此对应输出目录最终只保留本次 EXE。只有正式打包成功后，新版本才会写回 `package.json`；失败会恢复原版本。Linux/WSL 交叉打包 Windows 应用需要 Wine。
+WSL/受限环境（系统目录只读、无法安装 wine32）时改用：
+
+```bash
+pnpm client:package:wsl test
+```
+
+它会自动下载解包 wine 32 位运行件到 `.tmp/wine32`，并在用户挂载命名空间内执行与 `client:package` 完全相同的流程。
+
+`bump_type` 是必填参数：`major`、`minor`、`patch` 分别递增大、中、小版本号，其中大版本和中版本会将更低位归零；`test` 不修改版本。正式产物位于 `dist/electron/mds-<version>-setup.exe`，测试产物位于 `dist/electron-test/`。打包会先使用展开目录完成内容校验，成功后删除展开目录、builder 调试文件和旧产物，因此对应输出目录最终只保留本次 EXE。只有正式打包成功后，新版本才会写回 `package.json`；失败会恢复原版本。Linux/WSL 交叉打包 Windows 应用需要 Wine。
 
 ### 数据与日志
 
 - Web 默认缓存：`.mds-data/word-cache`（音频 `*.mp3`、释义 `definitions.json`、中文词 `chinese-words.json`）
-- Portable 客户端：优先使用 EXE 同目录的 `mds-data/word-cache`
-- 目录不可写时：回退到 Electron `userData/mds-data/word-cache`
+- 安装版客户端：统一使用 Electron `userData/mds-data/word-cache`（卸载默认保留）
 - AI 诊断日志：Client 的 `mds-data/logs/ai-definitions.log`
 
 AI 日志会记录请求失败、兼容降级、响应缺项或截断及缓存写入失败，但不会记录 API Key；达到 1 MiB 后保留一份轮换日志。
@@ -103,7 +110,7 @@ AI 日志会记录请求失败、兼容降级、响应缺项或截断及缓存�
 | `pnpm check` | 测试、生产构建和 HTTP 冒烟 |
 | `pnpm get:explain ...` | 直接诊断 AI 释义接口（`--chinese` 诊断中文词） |
 | `pnpm client:dev` | 构建并启动 Electron 客户端 |
-| `pnpm client:package <major\|minor\|patch\|test>` | 自动检查、按模式管理版本并构建 Windows Portable EXE |
+| `pnpm client:package <major\|minor\|patch\|test>` | 自动检查、按模式管理版本并构建 Windows NSIS 安装包 |
 
 ### 技术栈
 
@@ -129,7 +136,7 @@ mds is a small English dictation app that keeps word collection, speech preparat
 - Optional AI-generated content with abort and fallback handling; Chinese words use a separate cache file
 - Shuffled rounds, playback progress, countdowns, and keyboard-first interaction
 - Mode-aware result review: graded fields in red/green, reference fields ungraded, two-wave star celebration
-- A single portable Windows executable with no installer
+- A guided Windows NSIS installer (per-user, custom install directory, data kept on uninstall)
 
 ### Getting started
 
@@ -188,13 +195,20 @@ pnpm client:package test
 pnpm client:package patch
 ```
 
-The required `bump_type` is one of `major`, `minor`, `patch`, or `test`. Major and minor bumps reset lower version positions; test packages keep the current version. Release artifacts go to `dist/electron/mds-<version>-x64.exe`, while test packages go to `dist/electron-test/`. Packaging verifies the expanded app first, then removes the unpacked directory, builder diagnostics, and older artifacts, leaving only the newly built EXE in that output directory. The release version is committed to `package.json` only after a successful package and verification run; failures restore the previous version. Cross-building for Windows from Linux/WSL requires Wine.
+On WSL or restricted environments (read-only system dirs, no wine32), use:
+
+```bash
+pnpm client:package:wsl test
+```
+
+It downloads and extracts the wine 32-bit runtime into `.tmp/wine32` and runs the exact same pipeline inside a user mount namespace.
+
+The required `bump_type` is one of `major`, `minor`, `patch`, or `test`. Major and minor bumps reset lower version positions; test packages keep the current version. Release artifacts go to `dist/electron/mds-<version>-setup.exe`, while test packages go to `dist/electron-test/`. Packaging verifies the expanded app first, then removes the unpacked directory, builder diagnostics, and older artifacts, leaving only the newly built EXE in that output directory. The release version is committed to `package.json` only after a successful package and verification run; failures restore the previous version. Cross-building for Windows from Linux/WSL requires Wine.
 
 ### Runtime data and diagnostics
 
 - Web cache: `.mds-data/word-cache` (audio `*.mp3`, `definitions.json`, `chinese-words.json`)
-- Portable client cache: `mds-data/word-cache` beside the executable when writable
-- Fallback cache: Electron `userData/mds-data/word-cache`
+- Installed client cache: Electron `userData/mds-data/word-cache` (kept on uninstall by default)
 - Client AI diagnostics: `mds-data/logs/ai-definitions.log`
 
 Diagnostic logs cover request failures, compatibility fallbacks, truncated or incomplete responses, and cache write failures. API keys are never logged, and the file rotates at 1 MiB.
@@ -208,7 +222,7 @@ Diagnostic logs cover request failures, compatibility fallbacks, truncated or in
 | `pnpm check` | Run tests, production build, and HTTP smoke test |
 | `pnpm get:explain ...` | Diagnose the AI definition provider directly |
 | `pnpm client:dev` | Build and launch the Electron client |
-| `pnpm client:package <major\|minor\|patch\|test>` | Check, manage the version, and build the portable Windows executable |
+| `pnpm client:package <major\|minor\|patch\|test>` | Check, manage the version, and build the Windows NSIS installer |
 
 ### Stack
 

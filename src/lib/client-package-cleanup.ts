@@ -8,7 +8,7 @@ export interface PackageCleanupResult {
 
 /**
  * 校验最终产物后清理 electron-builder 的展开目录、调试文件及旧产物。
- * 输出目录中只保留本次已经通过校验的 portable EXE。
+ * 输出目录中只保留本次已经通过校验的安装包（setup EXE）。
  */
 export function cleanupPackageOutput(
 	outputDir: string,

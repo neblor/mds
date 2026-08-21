@@ -27,9 +27,9 @@ describe("client package output cleanup", () => {
 	it("校验产物存在后删除所有临时目录、调试文件和旧 EXE", () => {
 		const outputDir = mkdtempSync(join(tmpdir(), "mds-package-cleanup-"));
 		temporaryDirectories.push(outputDir);
-		const artifactName = "mds-1.2.3-x64.exe";
+		const artifactName = "mds-1.2.3-setup.exe";
 		writeFileSync(join(outputDir, artifactName), "portable");
-		writeFileSync(join(outputDir, "mds-1.2.2-x64.exe"), "old");
+		writeFileSync(join(outputDir, "mds-1.2.2-setup.exe"), "old");
 		writeFileSync(join(outputDir, "builder-debug.yml"), "debug");
 		mkdirSync(join(outputDir, "win-unpacked"));
 		writeFileSync(join(outputDir, "win-unpacked", "mds.exe"), "unpacked");
@@ -39,7 +39,7 @@ describe("client package output cleanup", () => {
 		expect(readdirSync(outputDir)).toEqual([artifactName]);
 		expect(result.removedEntries.sort()).toEqual([
 			"builder-debug.yml",
-			"mds-1.2.2-x64.exe",
+			"mds-1.2.2-setup.exe",
 			"win-unpacked",
 		]);
 	});
@@ -50,7 +50,7 @@ describe("client package output cleanup", () => {
 		writeFileSync(join(outputDir, "keep.txt"), "keep");
 
 		expect(() =>
-			cleanupPackageOutput(outputDir, "mds-1.2.3-x64.exe"),
+			cleanupPackageOutput(outputDir, "mds-1.2.3-setup.exe"),
 		).toThrow("未找到");
 		expect(() => cleanupPackageOutput(outputDir, "../outside.exe")).toThrow(
 			"非法",

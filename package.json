@@ -21,6 +21,7 @@
     "client:dev": "pnpm web:build && pnpm client:start",
     "client:package:dir": "pnpm web:build && electron-builder --win dir",
     "client:package": "node scripts/package-client.mjs",
+    "client:package:wsl": "node scripts/package-client-wsl.mjs",
     "client:verify": "node scripts/verify-electron-package.mjs",
     "electron:start": "pnpm client:start",
     "electron:build": "pnpm client:package"
@@ -76,12 +77,21 @@
     "asar": false,
     "win": {
       "target": [
-        "portable"
+        "nsis"
       ],
       "icon": "public/icons/app.ico"
     },
-    "portable": {
-      "artifactName": "mds-${version}-${arch}.exe"
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": false,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": false,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "mds-${version}-setup.exe",
+      "uninstallDisplayName": "默点啥",
+      "language": "2052"
     },
     "electronDownload": {
       "mirror": "https://npmmirror.com/mirrors/electron/"

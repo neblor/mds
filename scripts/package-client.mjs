@@ -52,7 +52,7 @@ try {
 	runPnpm(["check"]);
 	writePackage(packagingPackage);
 	packageWasChanged = true;
-	runPnpm(["exec", "electron-builder", "--win", "portable"]);
+	runPnpm(["exec", "electron-builder", "--win", "nsis"]);
 	runPnpm([
 		"client:verify",
 		"--",

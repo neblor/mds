@@ -4,17 +4,15 @@ import { join, resolve } from "node:path";
 const defaultFs = { mkdirSync, unlinkSync, writeFileSync };
 
 /**
- * portable 构建优先把运行时数据放在用户持有的 exe 同目录；
- * 开发态或同目录不可写时，回退到 Electron 的 userData。
+ * 安装版（NSIS）运行时数据统一放在 Electron userData 下的 mds-data：
+ * 符合 Windows 惯例，且按用户选择卸载时保留（deleteAppDataOnUninstall=false）；
+ * 不在安装目录（Program Files / 用户 Programs）留运行时数据残渣。
  */
-export function clientDataDirCandidates({ portableExecutableDir, userDataDir }) {
-	const fallback = resolve(userDataDir, "mds-data");
-	if (!portableExecutableDir?.trim()) return [fallback];
-	const portable = resolve(portableExecutableDir, "mds-data");
-	return portable === fallback ? [portable] : [portable, fallback];
+export function clientDataDirCandidates({ userDataDir }) {
+	return [resolve(userDataDir, "mds-data")];
 }
 
-/** 确认目录真实可写；portable exe 被放进只读目录时可安全走下一候选。 */
+/** 确认目录真实可写；不可写时按候选顺序回退，全部失败给出明确错误。 */
 export function ensureWritableDataDir(candidates, fs = defaultFs) {
 	let lastError;
 	for (const candidate of candidates) {

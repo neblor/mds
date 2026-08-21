@@ -38,7 +38,7 @@ export function createPackagePlan(version: string, bumpType: BumpType) {
 		bumpType,
 		currentVersion: version,
 		targetVersion,
-		artifactName: `mds-${targetVersion}-x64.exe`,
+		artifactName: `mds-${targetVersion}-setup.exe`,
 		changesVersion: bumpType !== "test",
 		outputDir:
 			bumpType === "test" ? "dist/electron-test" : "dist/electron",

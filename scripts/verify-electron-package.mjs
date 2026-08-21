@@ -32,12 +32,12 @@ const packageJson = JSON.parse(
 );
 const outputDir = resolve(projectRoot, options["output-dir"] ?? "dist/electron");
 const packageVersion = options.version ?? packageJson.version;
-const artifact = join(outputDir, `mds-${packageVersion}-x64.exe`);
+const artifact = join(outputDir, `mds-${packageVersion}-setup.exe`);
 const appDir = join(outputDir, "win-unpacked", "resources", "app");
 
 const failures = [];
 if (!existsSync(artifact)) {
-	failures.push(`缺少 portable EXE：${artifact}`);
+	failures.push(`缺少安装包：${artifact}`);
 } else {
 	const stat = statSync(artifact);
 	const header = Buffer.alloc(2);
@@ -47,9 +47,9 @@ if (!existsSync(artifact)) {
 	} finally {
 		closeSync(descriptor);
 	}
-	if (stat.size < 1024 * 1024) failures.push("portable EXE 体积异常小");
+	if (stat.size < 1024 * 1024) failures.push("安装包体积异常小");
 	if (header[0] !== 0x4d || header[1] !== 0x5a) {
-		failures.push("portable 产物不是有效的 Windows MZ 可执行文件");
+		failures.push("安装包不是有效的 Windows MZ 可执行文件");
 	}
 }
 
@@ -79,5 +79,5 @@ if (failures.length > 0) {
 
 const size = statSync(artifact).size;
 const topLevelFiles = readdirSync(outputDir).sort();
-console.log(`Electron portable verified: ${artifact} (${size} bytes)`);
+console.log(`Electron NSIS installer verified: ${artifact} (${size} bytes)`);
 console.log(`Output entries: ${topLevelFiles.join(", ")}`);

@@ -1,8 +1,7 @@
 /**
  * 默点啥 — electron 主进程
  * 启动内置 nitro server（.output/server/index.mjs，import 即监听），
- * BrowserWindow 加载本地 http。portable 缓存优先放在 exe 同目录的 mds-data，
- * 不可写时回退到 userData/mds-data。
+ * BrowserWindow 加载本地 http。安装版运行时数据统一放 userData/mds-data。
  * 启动/运行错误写入 <userData>/mds-error.log 便于排查。
  */
 import { app, BrowserWindow, dialog } from "electron";
@@ -43,7 +42,6 @@ async function startServer() {
 	const serverPath = join(app.getAppPath(), ".output", "server", "index.mjs");
 	const dataDir = ensureWritableDataDir(
 		clientDataDirCandidates({
-			portableExecutableDir: process.env.PORTABLE_EXECUTABLE_DIR,
 			userDataDir: app.getPath("userData"),
 		}),
 	);

@@ -5,19 +5,9 @@ import {
 } from "../../electron/runtime-paths.mjs";
 
 describe("Electron runtime paths", () => {
-	it("portable 模式优先 exe 同目录，userData 作为回退", () => {
+	it("安装版运行时数据统一使用 userData/mds-data", () => {
 		expect(
 			clientDataDirCandidates({
-				portableExecutableDir: "/portable",
-				userDataDir: "/user-data",
-			}),
-		).toEqual(["/portable/mds-data", "/user-data/mds-data"]);
-	});
-
-	it("非 portable 模式只使用 userData", () => {
-		expect(
-			clientDataDirCandidates({
-				portableExecutableDir: "",
 				userDataDir: "/tmp/mds-user-data",
 			}),
 		).toEqual(["/tmp/mds-user-data/mds-data"]);
@@ -34,8 +24,21 @@ describe("Electron runtime paths", () => {
 				.mockImplementationOnce(() => undefined),
 			unlinkSync: vi.fn(),
 		};
-		expect(ensureWritableDataDir(["/portable", "/fallback"], fs)).toBe(
+		expect(ensureWritableDataDir(["/ro", "/fallback"], fs)).toBe(
 			"/fallback",
+		);
+	});
+
+	it("所有候选都不可写时抛错并携带原因", () => {
+		const fs = {
+			mkdirSync: vi.fn(),
+			writeFileSync: vi.fn(() => {
+				throw new Error("denied");
+			}),
+			unlinkSync: vi.fn(),
+		};
+		expect(() => ensureWritableDataDir(["/a", "/b"], fs)).toThrow(
+			"没有可写的应用数据目录",
 		);
 	});
 });
