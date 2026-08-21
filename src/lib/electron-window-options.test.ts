@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	WINDOW_BOUNDS,
 	createMainWindowOptions,
+	createMainWindowTitle,
 } from "../../electron/window-options.mjs";
 
 describe("Electron window options", () => {
@@ -19,6 +20,7 @@ describe("Electron window options", () => {
 	it("允许范围内缩放，但禁用最大化和全屏", () => {
 		const options = createMainWindowOptions("/app");
 		expect(options).toMatchObject({
+			title: "默点啥",
 			resizable: true,
 			maximizable: false,
 			fullscreen: false,
@@ -29,5 +31,13 @@ describe("Electron window options", () => {
 				nodeIntegration: false,
 			},
 		});
+	});
+
+	it("带版本号时标题为「默点啥 v版本号」", () => {
+		expect(createMainWindowTitle("0.2.2")).toBe("默点啥 v0.2.2");
+		expect(createMainWindowTitle(undefined)).toBe("默点啥");
+		expect(createMainWindowOptions("/app", "0.2.2").title).toBe(
+			"默点啥 v0.2.2",
+		);
 	});
 });

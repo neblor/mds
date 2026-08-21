@@ -94,7 +94,11 @@ app.whenReady().then(async () => {
 		return;
 	}
 
-	mainWindow = new BrowserWindow(createMainWindowOptions(app.getAppPath()));
+	mainWindow = new BrowserWindow(
+		createMainWindowOptions(app.getAppPath(), app.getVersion()),
+	);
+	// 阻止页面 <title>（SSR 的「默点啥」）覆盖窗口标题，保持「默点啥 v版本号」。
+	mainWindow.on("page-title-updated", (event) => event.preventDefault());
 	// 再通过实例 API 明确关闭最大化/全屏，避免平台窗口管理器忽略构造选项。
 	mainWindow.setMaximizable(false);
 	mainWindow.setFullScreenable(false);
