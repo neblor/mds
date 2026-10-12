@@ -13,8 +13,8 @@ import {
 	ensureWritableDataDir,
 } from "./runtime-paths.mjs";
 import { createMainWindowOptions } from "./window-options.mjs";
+import { acquireServerPort } from "./port-picker.mjs";
 
-const PORT = 4827;
 let mainWindow;
 
 /** 错误日志（userData 下，窗口异常退出时排查用） */
@@ -47,27 +47,32 @@ async function startServer() {
 	);
 	const cacheDir = join(dataDir, "word-cache");
 	mkdirSync(cacheDir, { recursive: true });
-	process.env.PORT = String(PORT);
-	process.env.NITRO_PORT = String(PORT);
+	// Windows 的动态端口保留段可能圈走任意固定端口（listen 报 EACCES 且被
+	// srvx 静默吞掉），必须先探测再绑定：首选 4827，不可绑则由 OS 分配空闲端口。
+	const { port, release } = await acquireServerPort();
+	process.env.PORT = String(port);
+	process.env.NITRO_PORT = String(port);
 	process.env.HOST = "127.0.0.1";
 	process.env.NITRO_HOST = "127.0.0.1";
 	process.env.MDS_RUNTIME_MODE = "client";
 	process.env.MDS_CACHE_DIR = cacheDir;
-	log(`启动 server: ${serverPath}; cache: ${cacheDir}`);
+	log(`启动 server: ${serverPath}; port: ${port}; cache: ${cacheDir}`);
+	// 释放探测占位后立即让 nitro 绑定（缩短端口被第三方抢占的窗口）
+	await release();
 	await import(pathToFileURL(serverPath).href);
 	for (let i = 0; i < 50; i++) {
 		try {
-			const r = await fetch(`http://127.0.0.1:${PORT}/`);
+			const r = await fetch(`http://127.0.0.1:${port}/`);
 			if (r.ok) {
-				log(`server 就绪 (${PORT})`);
-				return;
+				log(`server 就绪 (${port})`);
+				return port;
 			}
 		} catch {
 			// 未就绪，重试
 		}
 		await new Promise((r) => setTimeout(r, 200));
 	}
-	throw new Error("内置服务启动超时");
+	throw new Error(`内置服务启动超时 (端口 ${port})`);
 }
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
@@ -83,8 +88,9 @@ if (!hasSingleInstanceLock) {
 
 app.whenReady().then(async () => {
 	if (!hasSingleInstanceLock) return;
+	let port;
 	try {
-		await startServer();
+		port = await startServer();
 	} catch (e) {
 		log(`启动失败: ${e?.stack ?? e}`);
 		dialog.showErrorBox("默点啥启动失败", String(e?.message ?? e));
@@ -100,7 +106,7 @@ app.whenReady().then(async () => {
 	// 再通过实例 API 明确关闭最大化/全屏，避免平台窗口管理器忽略构造选项。
 	mainWindow.setMaximizable(false);
 	mainWindow.setFullScreenable(false);
-	await mainWindow.loadURL(`http://127.0.0.1:${PORT}`);
+	await mainWindow.loadURL(`http://127.0.0.1:${port}`);
 	mainWindow.on("closed", () => {
 		mainWindow = undefined;
 		app.quit();

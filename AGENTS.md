@@ -10,6 +10,15 @@
   - 设计目录下每一套设计至少由2个文件组成，一个是`.pen`文件，以及文件主名与之相同的`.md`文件为设计和功能做说明注解，阅读时一起对照理解
 - `.implementation-report` 实施报告目录，也可供自己回顾之前的改动
 
+## 项目文档
+
+- **[FUTURE.md](FUTURE.md) —— 「现在不做、但以后要做的事」的唯一登记处**，核心原则是「先存后显」：
+  未来功能要用的数据，现在就必须完整落盘，界面上先不做过多展示，不允许出现「可惜当初没存」。
+  - 每条写清：要做成什么样、触发条件（什么时候值得做）、代价/前置、相关落点或引用。
+  - **本轮没做的额外项**（可选加固、被砍的优化、一次性待复核、Agent 建议）**必须登记到这里**；
+    `.implementation-report` 与 `plans/` 是回顾档案，不是待办清单 —— 只写在那边等于没记。
+  - 做掉某条时：标注「已完成」并链到对应实施报告，不静默删除（后来者需要知道为何不再做）。
+
 ## 技术选型
 
 - 项目实际使用`pnpm`管理依赖和执行 Web 开发、构建工具链，单元测试使用`Vitest`并通过`pnpm`执行
@@ -57,7 +66,9 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 - 环境变量：`HOST`/`NITRO_HOST`、`PORT`/`NITRO_PORT`、`MDS_CACHE_DIR`。
 - 命令行参数优先于环境变量；未指定缓存目录时使用项目`.mds-data/word-cache`。
 - 当前 Nitro 3 beta 的 node-server listener 不会单独维持 Node 事件循环，生产启动必须经过`scripts/start-web.mjs`保活，不得退回直接执行`node .output/server/index.mjs`。
-- Nitro 3 beta 的 Vite 开发中间件会把浏览器`Sec-Fetch-Dest: audio`请求当作静态资源并跳过动态路由；`scripts/vite-api-media-route.mjs`只在`configureServer`阶段将`/api/audio`改写为普通 fetch，保证 Web dev 可播放。该兼容层不得进入或改变生产 Nitro/Electron 路由。
+- Nitro 3 beta 的 Vite 开发中间件有两类分流缺陷，均由`scripts/vite-api-media-route.mjs`的 dev-only 前置中间件补偿，不得进入或改变生产 Nitro/Electron 路由：
+  - 会把浏览器`Sec-Fetch-Dest: audio`请求当作静态资源并跳过动态路由；中间件只在`configureServer`阶段将`/api/audio`改写为普通 fetch，保证 Web dev 可播放
+  - 资产扩展名白名单不含`json`：`?import`的 JSON 模块（如 pnpm 深路径的`package.json?import`）会被当成页面路由 SSR 返回`text/html`，浏览器拒绝执行导致整条 import 链断裂、界面不水合；中间件将这类请求的`Sec-Fetch-Dest`改写为`script`，让 Nitro 放行给 Vite transform
 
 ### 测试
 
@@ -94,7 +105,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 
 项目使用`electron`方案输出为 **NSIS 安装包**（引导式安装、仅当前用户、可选安装目录、不建桌面快捷方式、卸载保留用户数据）的 Windows 桌面应用（暂不考虑其他平台）:
 
-- 主进程：`electron/main.mjs` — 启动内置 nitro server（`.output/server/index.mjs`，import 即监听）+ BrowserWindow 加载 `http://127.0.0.1:4827`
+- 主进程：`electron/main.mjs` — 启动内置 nitro server（`.output/server/index.mjs`，import 即监听）+ BrowserWindow 加载 `http://127.0.0.1:<port>`；端口由 `electron/port-picker.mjs` 动态挑选（首选 4827，被 Windows 动态保留段拒绝时由 OS 分配空闲端口，避免 srvx 静默吞掉 listen 失败导致"启动超时"）
 - 运行时缓存不得写入或打包进静态 `public`：Web 默认使用项目 `.mds-data/word-cache`（部署时可用 `MDS_CACHE_DIR` 覆盖）；Electron 安装版统一使用 `userData/mds-data/word-cache`（卸载默认保留）
 - Client 主进程必须在启动内置服务前设置 `MDS_RUNTIME_MODE=client` 和 `MDS_CACHE_DIR`；业务层通过 `/api/audio` 动态读取外置音频，不依赖静态目录
 - Client 模式下第三方 AI 释义调用的降级、错误、缺词/截断及缓存写入失败记录到外置 `mds-data/logs/ai-definitions.log`，日志达到 1 MiB 时轮换一份 `.1`；日志不得记录 API Key
@@ -137,7 +148,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 - AI 释义功能的批量回归测试至少覆盖 20 个单词，并同时验证请求解析、请求词对齐、缓存写入及写后复读；不得只测试少量理想输入
 - 需要人工排查的第三方功能应提供项目根目录下可通过`pnpm`执行的诊断脚本；脚本必须复用生产 provider、输出耗时/缺项/降级等诊断信息，且不得在命令输出或日志中泄露 Key
 - 第三方调用即使存在自动降级也必须留下诊断记录；Client 模式统一写入外置`mds-data/logs`，至少记录网络/HTTP/超时、兼容降级、响应截断或缺项、缓存写入失败，并控制日志轮换大小
-- 完成后汇总实施报告存到`.implementation-report`，涉及到当前实现的需求，实现中的关键决策，以及结果，是否有后续可能要处理的部分
+- 完成后汇总实施报告存到`.implementation-report`，涉及到当前实现的需求，实现中的关键决策，以及结果，是否有后续可能要处理的部分；报告里「后续可能要处理的部分」必须同步登记到 [FUTURE.md](FUTURE.md)（那里是待办唯一入口）
 
 ## 系统基础功能
 

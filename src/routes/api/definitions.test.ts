@@ -120,6 +120,7 @@ describe("POST /api/definitions 部分释义缓存策略", () => {
 		);
 
 		const result = await POST(eventFor(words));
+		if ("error" in result) throw new Error(`路由返回错误：${result.error}`);
 		expect(Object.keys(result.definitions)).toHaveLength(20);
 		expect(result.missing).toBeUndefined();
 		const cache = JSON.parse(
@@ -177,6 +178,7 @@ describe("POST /api/definitions 原型属性与键过滤", () => {
 		vi.stubGlobal("fetch", fetchMock);
 
 		const result = await POST(eventFor(["apple"]));
+		if ("error" in result) throw new Error(`路由返回错误：${result.error}`);
 		expect(result.definitions).toEqual({ apple: "A round fruit." });
 		const cache = JSON.parse(
 			readFileSync(testPaths.definitionsFile, "utf8"),

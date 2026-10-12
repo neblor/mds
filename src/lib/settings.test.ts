@@ -47,6 +47,23 @@ describe("loadSettings", () => {
 		expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
 	});
 
+	it("自定义清单地址：缺省为空串，非字符串回退，首尾空白去掉", () => {
+		mockStorage();
+		expect(loadSettings().bankManifestUrl).toBe("");
+
+		const { setItem } = mockStorage();
+		saveSettings({ ...DEFAULT_SETTINGS, bankManifestUrl: " https://example.test/m.json " });
+		expect(setItem).toHaveBeenCalled();
+		const stored = JSON.parse(
+			String((setItem.mock.calls.at(-1)?.[1] as string) ?? "{}"),
+		) as AppSettings;
+		expect(stored.bankManifestUrl).toBe(" https://example.test/m.json ");
+
+		mockStorage();
+		localStorage.setItem(KEY, JSON.stringify({ bankManifestUrl: 42 }));
+		expect(loadSettings().bankManifestUrl).toBe("");
+	});
+
 	it("JSON 损坏回退默认不抛错", () => {
 		mockStorage().getItem.mockReturnValue("{broken json!!");
 		expect(loadSettings()).toEqual(DEFAULT_SETTINGS);

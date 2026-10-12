@@ -179,7 +179,7 @@ export function extractJsonCandidates(text: string): unknown[] {
 	return parsed;
 }
 
-function contentCandidates(content: unknown): unknown[] {
+export function contentCandidates(content: unknown): unknown[] {
 	if (content == null) return [];
 	if (typeof content === "string") return extractJsonCandidates(content);
 	if (!Array.isArray(content)) return [content];
@@ -266,11 +266,21 @@ function pairsFromCandidate(
 	return pairs;
 }
 
-/** 解析兼容 Chat Completions 响应，并合并所有内容块中的有效条目。 */
-export async function parseDefinitionAiResponse(
+/** 兼容 Chat Completions 响应里的内容块与元信息（不含业务语义） */
+export interface ChatResponseContent {
+	/** 所有可能承载内容的块（parsed / content / text / tool_calls arguments） */
+	sources: unknown[];
+	finishReason?: string;
+	usage?: DefinitionProviderDiagnostics["usage"];
+}
+
+/**
+ * 解析兼容 Chat Completions 响应：状态码 → JSON → 内容块抽取。
+ * 只做传输层适配（释义 / 中文词 / 批改 / 组句共用），业务解析由各自的 parse 函数负责。
+ */
+export async function readChatSources(
 	response: Response,
-	kind: AiPairKind = "definition",
-): Promise<ParsedAiResponse> {
+): Promise<ChatResponseContent> {
 	if (!response.ok) {
 		const detail = await response.text().catch(() => "");
 		throw new DefinitionProviderError(
@@ -323,6 +333,31 @@ export async function parseDefinitionAiResponse(
 		);
 	}
 
+	const numberOrUndefined = (value: unknown) =>
+		typeof value === "number" && Number.isFinite(value) ? value : undefined;
+	return {
+		sources,
+		finishReason:
+			typeof choice?.finish_reason === "string"
+				? choice.finish_reason
+				: undefined,
+		usage: data.usage
+			? {
+					promptTokens: numberOrUndefined(data.usage.prompt_tokens),
+					completionTokens: numberOrUndefined(data.usage.completion_tokens),
+					totalTokens: numberOrUndefined(data.usage.total_tokens),
+				}
+			: undefined,
+	};
+}
+
+/** 解析兼容 Chat Completions 响应，并合并所有内容块中的有效条目。 */
+export async function parseDefinitionAiResponse(
+	response: Response,
+	kind: AiPairKind = "definition",
+): Promise<ParsedAiResponse> {
+	const { sources, finishReason, usage } = await readChatSources(response);
+
 	let sawJson = false;
 	const definitions = Object.create(null) as Record<string, string>;
 	const pairLabel = kind === "definition" ? "释义" : "中文词";
@@ -346,21 +381,10 @@ export async function parseDefinitionAiResponse(
 		);
 	}
 
-	const numberOrUndefined = (value: unknown) =>
-		typeof value === "number" && Number.isFinite(value) ? value : undefined;
 	return {
 		definitions,
-		finishReason:
-			typeof choice?.finish_reason === "string"
-				? choice.finish_reason
-				: undefined,
-		usage: data.usage
-			? {
-					promptTokens: numberOrUndefined(data.usage.prompt_tokens),
-					completionTokens: numberOrUndefined(data.usage.completion_tokens),
-					totalTokens: numberOrUndefined(data.usage.total_tokens),
-				}
-			: undefined,
+		finishReason,
+		usage,
 	};
 }
 
@@ -423,7 +447,7 @@ interface ChatCompletionCallOptions {
  * 调用 OpenAI 兼容 Chat Completions，带两级兼容降级（response_format → reasoning_effort → 最小请求体）
  * 与网络/超时/中止错误映射。返回响应与是否发生过降级。
  */
-async function callChatCompletion(
+export async function callChatCompletion(
 	options: ChatCompletionCallOptions,
 ): Promise<{ response: Response; fallbackUsed: boolean }> {
 	const extendedBody = {
@@ -833,7 +857,7 @@ async function parseGradeAiResponse(response: Response): Promise<Record<string, 
 /** 一次请求批改全部作答（中文词/英文释义按 kind 选择判定口径；关 thinking，模型不支持时自动降级）。 */
 export async function fetchAnswerGrades(
 	options: FetchGradesOptions,
-): Promise<ChineseGradesProviderResult> {
+): Promise<GradesProviderResult> {
 	const startedAt = performance.now();
 	const endpoint = `${options.baseUrl.replace(/\/+$/, "")}/chat/completions`;
 	const fetchImpl = options.fetchImpl ?? fetch;
@@ -884,7 +908,7 @@ export async function fetchAnswerGrades(
 		throw error;
 	}
 
-	const grades: ChineseWordGrade[] = [];
+	const grades: GradeResult[] = [];
 	const missing: string[] = [];
 	for (const item of options.items) {
 		const exact = parsed[item.word];

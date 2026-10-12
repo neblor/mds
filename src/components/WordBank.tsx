@@ -10,15 +10,29 @@ import {
 	Type,
 	BookOpen,
 	Languages,
+	TextCursorInput,
+	History,
+	Undo2,
 } from "lucide-solid";
 import BatchImportDialog from "~/components/BatchImportDialog";
+import BankPickerDialog from "~/components/BankPickerDialog";
+import ManifestUpdateDialog from "~/components/ManifestUpdateDialog";
+import NewBankDialog from "~/components/NewBankDialog";
+import BankDetailScreen from "~/components/BankDetailScreen";
+import BankSourceCard from "~/components/BankSourceCard";
+import SourceModeSwitch from "~/components/SourceModeSwitch";
+import TodayQueueCard from "~/components/TodayQueueCard";
 import SegmentedSlider, {
 	type SliderOption,
 } from "~/components/SegmentedSlider";
 import type { SpeedLevel } from "~/lib/timing";
 import type { ContentMode } from "~/lib/state";
+import type { WordBanksApi } from "~/lib/use-wordbanks";
 
 interface Props {
+	/** 词库/复习状态层（录入 / 词表 双模式与今日队列） */
+	vocab: WordBanksApi;
+	/** 录入模式的单词表 */
 	words: string[];
 	speed: SpeedLevel;
 	contentMode: ContentMode;
@@ -32,6 +46,10 @@ interface Props {
 	onStartWriting: () => void;
 	onStartCyber: () => void;
 	onOpenSettings: () => void;
+	onOpenHistory: () => void;
+	/** 暂存词表数量（再次默写覆盖前存的当前词表）；>0 时显示「恢复词汇」按钮 */
+	stashCount?: number;
+	onRestoreStash: () => void;
 }
 
 const SPEED_LEVELS: { key: SpeedLevel; label: string }[] = [
@@ -44,11 +62,16 @@ const CONTENT_MODES: SliderOption<ContentMode>[] = [
 	{ value: "word", label: "单词", icon: Type },
 	{ value: "definition", label: "释义", icon: BookOpen },
 	{ value: "chinese", label: "中文词", icon: Languages },
+	{ value: "cloze", label: "组句", icon: TextCursorInput },
 ];
 
 export default function WordBank(props: Props) {
 	const [input, setInput] = createSignal("");
 	const [batchOpen, setBatchOpen] = createSignal(false);
+	const [pickerOpen, setPickerOpen] = createSignal(false);
+	const [manifestOpen, setManifestOpen] = createSignal(false);
+	const [newBankOpen, setNewBankOpen] = createSignal(false);
+	const [detailBankId, setDetailBankId] = createSignal<string | null>(null);
 
 	const submit = () => {
 		const v = input().trim();
@@ -57,8 +80,13 @@ export default function WordBank(props: Props) {
 		setInput("");
 	};
 
+	const isEntry = () => props.vocab.mode() === "entry";
+	const bannerError = () => props.error ?? props.vocab.error();
+	/** 组句只允许赛博作答：书写按钮置灰 + 信息条说明原因 */
+	const clozeOnly = () => props.contentMode === "cloze";
+
 	return (
-		<div class="flex h-full flex-col gap-5 p-7">
+		<div class="relative flex h-full flex-col gap-5 p-7">
 			{/* 头部 */}
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-3">
@@ -68,84 +96,149 @@ export default function WordBank(props: Props) {
 						<p class="text-[13px] text-ink-faint">记单词 · 听写 · 默写小帮手</p>
 					</div>
 				</div>
-				<button type="button"
-					class="rounded-full p-2 text-ink-faint transition hover:bg-soft hover:text-ink"
-					onClick={props.onOpenSettings}
-					aria-label="设置"
-				>
-					<Settings class="h-[22px] w-[22px]" />
-				</button>
+				<div class="flex items-center gap-1">
+					<button
+						type="button"
+						class="rounded-full p-2 text-ink-faint transition hover:bg-soft hover:text-ink"
+						onClick={props.onOpenHistory}
+						aria-label="默写记录"
+						title="最近几场默写记录"
+					>
+						<History class="h-[22px] w-[22px]" />
+					</button>
+					<button
+						type="button"
+						class="rounded-full p-2 text-ink-faint transition hover:bg-soft hover:text-ink"
+						onClick={props.onOpenSettings}
+						aria-label="设置"
+					>
+						<Settings class="h-[22px] w-[22px]" />
+					</button>
+				</div>
 			</div>
 
-			{/* 输入 */}
-			<div class="flex items-center gap-2.5 rounded-2xl bg-surface px-4 py-3.5 shadow-sm">
-				<PenLine class="h-5 w-5 shrink-0 text-brand" />
-				<input
-					class="w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-faint"
-					placeholder="输入单词或词组，回车添加…"
-					value={input()}
-					onInput={(e) => setInput(e.currentTarget.value)}
-					onKeyDown={(e) => {
-						if (e.key === "Enter") submit();
-					}}
-				/>
-				<button
-					type="button"
-					class="flex shrink-0 items-center gap-1.5 rounded-xl bg-canvas px-3 py-2 text-[13px] font-semibold text-ink-soft transition hover:bg-soft hover:text-ink"
-					onClick={() => setBatchOpen(true)}
-				>
-					<ListPlus class="h-4 w-4 text-brand" />
-					批量导入
-				</button>
-			</div>
+			{/* 词源模式：录入 / 词表 */}
+			<SourceModeSwitch
+				mode={props.vocab.mode()}
+				onChange={props.vocab.setMode}
+			/>
 
-			{/* 词库 */}
-			<div class="flex flex-col gap-3 rounded-2xl bg-surface p-4 shadow-sm">
-				<div class="flex items-center justify-between">
-					<span class="text-[13px] text-ink-soft">
-						单词表 · {props.words.length} 个
-					</span>
-					<Show when={props.words.length > 0}>
-						<button type="button"
-							class="flex items-center gap-1 rounded-full px-2 py-1 text-[12px] text-ink-faint transition hover:bg-err-bg hover:text-err"
-							onClick={props.onClear}
+			{/* 词源：录入模式是输入框，词表模式是「当前词表 + 今天默几个」 */}
+			<Show
+				when={isEntry()}
+				fallback={
+					<BankSourceCard
+						bankName={props.vocab.activeBank()?.name ?? null}
+						hasBank={Boolean(props.vocab.activeBankId())}
+						todayTarget={props.vocab.todayTarget()}
+						busy={props.vocab.busy()}
+						onOpenPicker={() => setPickerOpen(true)}
+						onTodayTarget={props.vocab.setTodayTarget}
+					/>
+				}
+			>
+				<div class="flex items-center gap-2.5 rounded-2xl bg-surface px-4 py-3.5 shadow-sm">
+					<PenLine class="h-5 w-5 shrink-0 text-brand" />
+					<input
+						class="w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-faint"
+						placeholder="输入单词或词组，回车添加…"
+						value={input()}
+						onInput={(e) => setInput(e.currentTarget.value)}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") submit();
+						}}
+					/>
+					<button
+						type="button"
+						class="flex shrink-0 items-center gap-1.5 rounded-xl bg-canvas px-3 py-2 text-[13px] font-semibold text-ink-soft transition hover:bg-soft hover:text-ink"
+						onClick={() => setBatchOpen(true)}
+					>
+						<ListPlus class="h-4 w-4 text-brand" />
+						批量导入
+					</button>
+					<Show when={(props.stashCount ?? 0) > 0}>
+						<button
+							type="button"
+							class="flex shrink-0 items-center gap-1.5 rounded-xl bg-brand/10 px-2.5 py-2 text-[13px] font-semibold text-brand transition hover:bg-brand/20 active:scale-[0.98]"
+							onClick={props.onRestoreStash}
+							aria-label="恢复词汇"
+							title={`恢复词汇（暂存了 ${props.stashCount} 个词，点击换回当前词表）`}
 						>
-							<Trash2 class="h-4 w-4" />
-							清空
+							<Undo2 class="h-4 w-4" />
 						</button>
 					</Show>
 				</div>
-				<Show
-					when={props.words.length > 0}
-					fallback={
-						<p class="py-6 text-center text-[13px] text-ink-faint">
-							还没有单词，从上面输入开始吧 ✏️
-						</p>
-					}
-				>
-					<div class="flex flex-wrap gap-2">
-						<For each={props.words}>
-							{(w) => (
-								<button type="button"
-									class="group flex items-center gap-1.5 rounded-full bg-[#EDF3F2] px-3.5 py-2 text-sm text-ink transition hover:bg-err-bg"
-									onClick={() => props.onRemove(w)}
-									title="点击删除"
-								>
-									{w}
-									<X class="h-3 w-3 text-ink-faint group-hover:text-err" />
-								</button>
-							)}
-						</For>
-					</div>
-				</Show>
-			</div>
+			</Show>
 
-			{/* 控制：速度 + 默写内容选择条同行靠左（默认 align-items: stretch，两条等高） */}
+			{/* 唯一的弹性区：录入模式是单词表，词表模式是今日队列 */}
+			<Show
+				when={isEntry()}
+				fallback={
+					<TodayQueueCard
+						queue={props.vocab.queue()}
+						progress={props.vocab.queue()?.progress ?? null}
+						hasBank={Boolean(props.vocab.activeBankId())}
+						busy={props.vocab.busy()}
+						onRefresh={() => void props.vocab.refreshQueue()}
+						onOpenPicker={() => setPickerOpen(true)}
+						onNewBank={() => setNewBankOpen(true)}
+					/>
+				}
+			>
+				<div class="flex min-h-0 flex-1 flex-col gap-3 rounded-2xl bg-surface p-4 shadow-sm">
+					<div class="flex items-center justify-between">
+						<span class="text-[13px] text-ink-soft">
+							单词表 · {props.words.length} 个
+						</span>
+						<Show when={props.words.length > 0}>
+							<button
+								type="button"
+								class="flex items-center gap-1 rounded-full px-2 py-1 text-[12px] text-ink-faint transition hover:bg-err-bg hover:text-err"
+								onClick={props.onClear}
+							>
+								<Trash2 class="h-4 w-4" />
+								清空
+							</button>
+						</Show>
+					</div>
+					<div class="min-h-0 flex-1 overflow-y-auto">
+						<Show
+							when={props.words.length > 0}
+							fallback={
+								<div class="flex h-full items-center justify-center">
+									<p class="text-center text-[13px] text-ink-faint">
+										还没有单词，从上面输入开始吧 ✏️
+									</p>
+								</div>
+							}
+						>
+							<div class="flex flex-wrap gap-2">
+								<For each={props.words}>
+									{(w) => (
+										<button
+											type="button"
+											class="group flex items-center gap-1.5 rounded-full bg-[#EDF3F2] px-3.5 py-2 text-sm text-ink transition hover:bg-err-bg"
+											onClick={() => props.onRemove(w)}
+											title="点击删除"
+										>
+											{w}
+											<X class="h-3 w-3 text-ink-faint group-hover:text-err" />
+										</button>
+									)}
+								</For>
+							</div>
+						</Show>
+					</div>
+				</div>
+			</Show>
+
+			{/* 控制：速度 + 默写内容选择条 */}
 			<div class="flex gap-3">
 				<div class="flex shrink-0 gap-1 rounded-full bg-surface p-1 shadow-sm">
 					<For each={SPEED_LEVELS}>
 						{(l) => (
-							<button type="button"
+							<button
+								type="button"
 								class={`rounded-full px-4 py-2 text-[13px] transition ${
 									props.speed === l.key
 										? "bg-brand text-white"
@@ -159,7 +252,7 @@ export default function WordBank(props: Props) {
 					</For>
 				</div>
 				<SegmentedSlider
-					class="w-72"
+					class="w-[366px]"
 					options={CONTENT_MODES}
 					value={props.contentMode}
 					onChange={props.onContentMode}
@@ -167,22 +260,39 @@ export default function WordBank(props: Props) {
 				/>
 			</div>
 
-			<Show when={props.error}>
+			<Show
+				when={bannerError()}
+				fallback={
+					<Show when={clozeOnly()}>
+						<div class="flex items-center gap-2 rounded-xl bg-brand/10 px-4 py-3 text-sm text-brand">
+							组句模式请用赛博默写：选词作答需要在屏幕上完成
+						</div>
+					</Show>
+				}
+			>
 				<div class="flex items-center gap-2 rounded-xl bg-err-bg px-4 py-3 text-sm text-err">
-					{props.error}
+					{bannerError()}
 				</div>
 			</Show>
 
 			{/* 操作 */}
-			<div class="mt-auto flex gap-3.5">
-				<button type="button"
-					class="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3.5 text-base text-white shadow-sm transition hover:brightness-105 active:scale-[0.99]"
+			<div class="flex gap-3.5">
+				<button
+					type="button"
+					class={`flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3.5 text-base text-white shadow-sm transition ${
+						clozeOnly()
+							? "cursor-not-allowed opacity-45"
+							: "hover:brightness-105 active:scale-[0.99]"
+					}`}
+					disabled={clozeOnly()}
+					title={clozeOnly() ? "组句模式请用赛博默写" : undefined}
 					onClick={props.onStartWriting}
 				>
 					<PenLine class="h-[18px] w-[18px]" />
 					开始书写默写
 				</button>
-				<button type="button"
+				<button
+					type="button"
 					class="flex flex-1 items-center justify-center gap-2 rounded-xl border-[1.5px] border-soft bg-surface px-6 py-3.5 text-base text-ink shadow-sm transition hover:border-brand/40 active:scale-[0.99]"
 					onClick={props.onStartCyber}
 				>
@@ -197,6 +307,74 @@ export default function WordBank(props: Props) {
 					onImport={props.onAddMany}
 					onClose={() => setBatchOpen(false)}
 				/>
+			</Show>
+
+			<Show when={pickerOpen()}>
+				<BankPickerDialog
+					banks={props.vocab.banks()}
+					catalog={props.vocab.catalog()}
+					activeBankId={props.vocab.activeBankId()}
+					busy={props.vocab.busy()}
+					onSelect={(bankId) => {
+						props.vocab.selectBank(bankId);
+						setPickerOpen(false);
+					}}
+					onDownload={(row) => {
+						void props.vocab.download(row).then(() => setPickerOpen(false));
+					}}
+					onEdit={(bankId) => {
+						setPickerOpen(false);
+						setDetailBankId(bankId);
+					}}
+					onDelete={(bankId) => void props.vocab.deleteBank(bankId)}
+					onNewBank={() => {
+						setPickerOpen(false);
+						setNewBankOpen(true);
+					}}
+					onCheckUpdate={() => {
+						setPickerOpen(false);
+						setManifestOpen(true);
+					}}
+					onClose={() => setPickerOpen(false)}
+				/>
+			</Show>
+
+			<Show when={manifestOpen()}>
+				<ManifestUpdateDialog
+					manifestUrl={props.vocab.manifestUrl()}
+					busy={props.vocab.busy()}
+					onSaveUrl={props.vocab.setManifestUrl}
+					onCheck={props.vocab.checkManifest}
+					onDownload={(row) => props.vocab.download(row)}
+					onClose={() => setManifestOpen(false)}
+				/>
+			</Show>
+
+			<Show when={newBankOpen()}>
+				<NewBankDialog
+					existingWords={props.words}
+					busy={props.vocab.busy()}
+					onSubmit={(name, words) => {
+						void props.vocab.createNew(name, words).then(() => {
+							setNewBankOpen(false);
+						});
+					}}
+					onClose={() => setNewBankOpen(false)}
+				/>
+			</Show>
+
+			{/* 词表详情：整屏覆盖（与历史界面同层级） */}
+			<Show when={detailBankId()}>
+				{(bankId) => (
+					<div class="absolute inset-0 z-30 bg-canvas">
+						<BankDetailScreen
+							bankId={bankId()}
+							api={props.vocab}
+							entryWords={props.words}
+							onBack={() => setDetailBankId(null)}
+						/>
+					</div>
+				)}
 			</Show>
 		</div>
 	);

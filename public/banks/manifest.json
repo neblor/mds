@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "banks": [
+    {
+      "id": "core3000",
+      "name": "高频核心 3000",
+      "description": "按语料词频取前 3000 · 3000 词 · ECDICT (MIT) · https://github.com/skywind3000/ECDICT",
+      "count": 3000,
+      "version": 1,
+      "url": "./core3000.json",
+      "bundled": true,
+      "license": "ECDICT (MIT)"
+    },
+    {
+      "id": "zk",
+      "name": "中考核心词",
+      "description": "中考考纲 · 1603 词 · ECDICT (MIT) · https://github.com/skywind3000/ECDICT",
+      "count": 1603,
+      "version": 1,
+      "url": "./zk.json",
+      "bundled": true,
+      "license": "ECDICT (MIT)"
+    },
+    {
+      "id": "gk",
+      "name": "高考核心词",
+      "description": "高考考纲 · 3677 词 · ECDICT (MIT) · https://github.com/skywind3000/ECDICT",
+      "count": 3677,
+      "version": 1,
+      "url": "./gk.json",
+      "bundled": true,
+      "license": "ECDICT (MIT)"
+    },
+    {
+      "id": "cet4",
+      "name": "CET-4 核心词",
+      "description": "大学英语四级考纲 · 3849 词 · ECDICT (MIT) · https://github.com/skywind3000/ECDICT",
+      "count": 3849,
+      "version": 1,
+      "url": "./cet4.json",
+      "bundled": true,
+      "license": "ECDICT (MIT)"
+    },
+    {
+      "id": "cet6",
+      "name": "CET-6 核心词",
+      "description": "大学英语六级考纲 · 5407 词 · ECDICT (MIT) · https://github.com/skywind3000/ECDICT",
+      "count": 5407,
+      "version": 1,
+      "url": "./cet6.json",
+      "bundled": true,
+      "license": "ECDICT (MIT)"
+    },
+    {
+      "id": "ky",
+      "name": "考研核心词",
+      "description": "考研英语大纲 · 4801 词 · ECDICT (MIT) · https://github.com/skywind3000/ECDICT",
+      "count": 4801,
+      "version": 1,
+      "url": "./ky.json",
+      "bundled": true,
+      "license": "ECDICT (MIT)"
+    },
+    {
+      "id": "ielts",
+      "name": "IELTS 核心词",
+      "description": "雅思核心词汇 · 5040 词 · ECDICT (MIT) · https://github.com/skywind3000/ECDICT",
+      "count": 5040,
+      "version": 1,
+      "url": "./ielts.json",
+      "bundled": true,
+      "license": "ECDICT (MIT)"
+    },
+    {
+      "id": "toefl",
+      "name": "TOEFL 核心词",
+      "description": "托福核心词汇 · 6974 词 · ECDICT (MIT) · https://github.com/skywind3000/ECDICT",
+      "count": 6974,
+      "version": 1,
+      "url": "./toefl.json",
+      "bundled": true,
+      "license": "ECDICT (MIT)"
+    },
+    {
+      "id": "gre",
+      "name": "GRE 核心词",
+      "description": "GRE 核心词汇 · 7504 词 · ECDICT (MIT) · https://github.com/skywind3000/ECDICT",
+      "count": 7504,
+      "version": 1,
+      "url": "./gre.json",
+      "bundled": true,
+      "license": "ECDICT (MIT)"
+    }
+  ]
+}

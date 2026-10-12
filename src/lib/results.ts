@@ -8,6 +8,7 @@
  * - chinese 模式（赛博）：判定 = 英文单词（严格匹配）+ 中文词（AI 批改，同上）
  */
 import { isChineseMatch, isDefinitionMatch, isStrictMatch } from "./match";
+import { sentenceOfBlank } from "./cloze-parse";
 import type { ContentMode } from "./state";
 
 export type ResultFieldKind = "word" | "definition" | "chinese";
@@ -29,17 +30,35 @@ export interface ResultField {
 export interface ResultRow {
 	word: string;
 	audioName: string;
+	/** 组句模式的句子上下文（答案已填入）；其余模式无 */
+	context?: string;
 	fields: ResultField[];
 }
 
 /** 结果行所需的最少轮次数据（use-dictation 的 DictRound 满足该形状） */
-export interface RoundLike {
+export interface WordRoundLike {
+	kind?: "word";
 	word: string;
 	audioName: string;
 	definition?: string;
 	chineseWord?: string;
 	answer?: string;
 	answerDef?: string;
+}
+
+/** 组句轮（一题 2–3 句、2–4 空）的结果行所需数据 */
+export interface ClozeRoundLike {
+	kind: "cloze";
+	sentences: string[];
+	blanks: { index: number; answer: string; chosen?: string }[];
+	/** 答案词 → 音频文件名（只为答案词生成，缺省时结果页发音按钮置灰） */
+	audioNames?: Record<string, string>;
+}
+
+export type RoundLike = WordRoundLike | ClozeRoundLike;
+
+function isClozeRound(round: RoundLike): round is ClozeRoundLike {
+	return round.kind === "cloze";
 }
 
 /** AI 批改覆盖：按单词给出的中文词判定结果 */
@@ -54,15 +73,50 @@ export function buildResultRows(
 	contentMode: ContentMode,
 	grades?: Record<string, GradeOverride>,
 ): ResultRow[] {
-	return rounds.map((r) => ({
-		word: r.word,
-		audioName: r.audioName,
-		fields: buildFields(r, mode, contentMode, grades),
-	}));
+	const rows: ResultRow[] = [];
+	for (const round of rounds) {
+		// 组句轮：每个空一行（同一题可能出现同一个词两次，各自独立判定）
+		if (isClozeRound(round)) {
+			rows.push(...buildClozeRows(round, mode));
+			continue;
+		}
+		rows.push({
+			word: round.word,
+			audioName: round.audioName,
+			fields: buildFields(round, mode, contentMode, grades),
+		});
+	}
+	return rows;
+}
+
+/** 组句轮 → 结果行：每空一行，带该空所在句（答案已填入） */
+function buildClozeRows(
+	round: ClozeRoundLike,
+	mode: "writing" | "cyber",
+): ResultRow[] {
+	return round.blanks.map((blank) => {
+		const expected = blank.answer;
+		const graded = mode === "cyber";
+		const correct = graded ? isStrictMatch(blank.chosen ?? "", expected) : undefined;
+		return {
+			word: expected,
+			audioName: round.audioNames?.[expected] ?? "",
+			context: sentenceOfBlank(round.sentences, round.blanks, blank.index),
+			fields: [
+				{
+					kind: "word",
+					expected,
+					...(blank.chosen !== undefined ? { userValue: blank.chosen } : {}),
+					graded,
+					...(correct !== undefined ? { correct } : {}),
+				},
+			],
+		};
+	});
 }
 
 function buildFields(
-	r: RoundLike,
+	r: WordRoundLike,
 	mode: "writing" | "cyber",
 	contentMode: ContentMode,
 	grades?: Record<string, GradeOverride>,
@@ -146,6 +200,7 @@ export const JUDGEMENT_NOTES: Record<ContentMode, string> = {
 	definition: "英文单词大小写与标点需完全一致 · 释义由 AI 批改，意思相同即算对",
 	chinese:
 		"中文词由 AI 批改，常见同义词也算对 · 英文单词大小写与标点需完全一致",
+	cloze: "组句判定：每个空独立比对，选中与正确词完全一致才算对（忽略首尾空格）",
 };
 
 /** 内容模式的中文名（供界面标签复用） */
@@ -153,4 +208,5 @@ export const CONTENT_MODE_LABELS: Record<ContentMode, string> = {
 	word: "单词",
 	definition: "释义",
 	chinese: "中文词",
+	cloze: "组句",
 };

@@ -140,7 +140,10 @@ export default function SegmentedSlider<T extends string>(props: Props<T>) {
 							onClick={() => props.onChange(o.value)}
 						>
 							<Show when={o.icon}>
-								{(Icon) => <Icon class="h-4 w-4" />}
+								{(icon) => {
+									const Icon = icon();
+									return <Icon class="h-4 w-4" />;
+								}}
 							</Show>
 							{o.label}
 						</button>

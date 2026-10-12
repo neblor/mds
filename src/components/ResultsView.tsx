@@ -17,9 +17,19 @@ interface Props {
 	contentMode: ContentMode;
 	/** AI 批改来源说明（失败/中止降级提示，仅中文词模式有） */
 	gradeNote?: string | null;
+	/** 其它结算提示（如组句的语音降级） */
+	note?: string | null;
 	playingAudioName: string | null;
 	onPlayAudio: (audioName: string) => void;
 	onClose: () => void;
+	/** 复习计划反馈（词表模式结算写回后才有） */
+	reviewNote?: string | null;
+	/** 覆盖标题（历史回看带时间与模式）；默认「默写结果」 */
+	title?: string;
+	/** 覆盖底部提示文案；默认回词库引导 */
+	footerHint?: string;
+	/** 追加到根节点的样式（历史弹窗内需 flex-1 min-h-0 配合 max-h 裁剪滚动） */
+	class?: string;
 }
 
 function labelOf(kind: ResultFieldKind): string {
@@ -95,8 +105,8 @@ function StarBurst(props: { spec: StarSpec }) {
 function Celebration() {
 	return (
 		<div class="pointer-events-none absolute inset-0 z-10 overflow-hidden">
-			{/* 顶部柔光 */}
-			<div class="absolute left-1/2 top-[16%] h-72 w-72 -translate-x-1/2 rounded-full bg-gold/25 blur-3xl" />
+			{/* 顶部柔光（约 3.4s 后收缩淡出；margin 居中避免与动画 transform 叠加） */}
+			<div class="celebrate-glow absolute left-1/2 top-[16%] ml-[-9rem] h-72 w-72 rounded-full bg-gold/25 blur-3xl" />
 			<For each={WAVE_A}>{(spec) => <StarBurst spec={spec} />}</For>
 			<For each={WAVE_B}>{(spec) => <StarBurst spec={spec} />}</For>
 			{/* 中心主礼花 */}
@@ -177,6 +187,12 @@ function ResultRowItem(props: {
 						/>
 					</button>
 				</div>
+				{/* 组句轮的句子上下文（答案已填入，便于对照自己填错了什么） */}
+				<Show when={props.row.context}>
+					<span class="truncate text-[13px] text-ink-faint">
+						句子：{props.row.context}
+					</span>
+				</Show>
 				{/* 参考字段（书写模式自检 / 无标准答案的对照） */}
 				<For each={references()}>
 					{(f) => <ReferenceFieldLines field={f} />}
@@ -217,11 +233,13 @@ export default function ResultsView(props: Props) {
 	);
 
 	return (
-		<div class="flex h-full flex-col gap-4 p-7">
+		<div class={`flex h-full min-h-0 flex-col gap-4 p-7 ${props.class ?? ""}`}>
 			{/* 头部：标题 + 得分 + 关闭（结果页只有一个关闭动作，回车也可关闭） */}
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-4">
-					<h2 class="font-heading text-2xl text-ink">默写结果</h2>
+					<h2 class="font-heading text-2xl text-ink">
+						{props.title ?? "默写结果"}
+					</h2>
 					<Show when={props.mode === "cyber"}>
 						<span class="rounded-full bg-soft px-4 py-2 font-data text-xl text-ink">
 							{correct()} / {props.rows.length}
@@ -257,9 +275,12 @@ export default function ResultsView(props: Props) {
 				</For>
 			</div>
 
-			{/* 判定说明（按内容模式） */}
-			<Show when={props.mode === "cyber"}>
-				<div class="flex flex-col items-end gap-0.5">
+			{/* 复习计划反馈（词表模式）与判定说明（按内容模式） */}
+			<div class="flex flex-col items-end gap-0.5">
+				<Show when={props.reviewNote}>
+					<p class="text-right text-xs text-brand">{props.reviewNote}</p>
+				</Show>
+				<Show when={props.mode === "cyber"}>
 					<p class="text-right text-xs text-ink-faint">
 						{JUDGEMENT_NOTES[props.contentMode]}
 					</p>
@@ -268,12 +289,16 @@ export default function ResultsView(props: Props) {
 							{props.gradeNote}
 						</p>
 					</Show>
-				</div>
-			</Show>
+				</Show>
+				<Show when={props.note}>
+					<p class="text-right text-xs text-ink-faint/80">{props.note}</p>
+				</Show>
+			</div>
 
 			{/* 底部提示：回车可关闭，回到词库数据全保留 */}
 			<p class="mt-auto text-center text-xs text-ink-faint">
-				关闭后回到词库，单词保留；要重默直接点开始，要清空点清空
+				{props.footerHint ??
+				"关闭后回到词库，单词保留；要重默直接点开始，要清空点清空"}
 			</p>
 		</div>
 	);

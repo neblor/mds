@@ -9,6 +9,10 @@
  * 2. 在用户挂载命名空间内初始化 wine 前缀（bind-mount PE 目录 + tmpfs 运行时目录）
  * 3. 在同一命名空间内执行 `pnpm client:package <bump_type>`
  * 在正常 Linux/Windows 环境直接使用 `pnpm client:package` 即可。
+ *
+ * wine 前缀与 electron-builder 缓存落在 `~/.cache/mds`（仓库之外）：
+ * 前缀按设计必含 `dosdevices/z: -> /`，一旦落在源码树内，跟随软链的遍历工具
+ * 会逃逸到根文件系统（见 plans/wine-prefix-rootfs-escape.md）。
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import {
@@ -26,6 +30,7 @@ import {
 	WINE32_DEB_URLS,
 	SYSTEM_WINE_PEB_DIR,
 	buildWslPackageEnv,
+	defaultCacheRoot,
 	wslNamespaceScript,
 	wslPrefixInitScript,
 } from "../src/lib/client-wsl-env.ts";
@@ -68,6 +73,16 @@ function ensureWine32PebSet(env) {
 	console.log(`wine32 PE 集合就绪：${readdirSync(env.pebDir).length} 个文件`);
 }
 
+/**
+ * 解析仓库之外的缓存根目录：先确保存在，再 realpath 解析符号链接，
+ * 避免把 `~/.cache` 这类软链路径写进命名空间脚本（与 nodeDir/pnpmDir 同理）。
+ */
+function resolveCacheRoot() {
+	const root = defaultCacheRoot();
+	mkdirSync(root, { recursive: true });
+	return realpathSync(root);
+}
+
 function runInNamespace(lines) {
 	const result = spawnSync(
 		"unshare",
@@ -86,6 +101,7 @@ const env = buildWslPackageEnv(
 	projectRoot,
 	process.getuid(),
 	existsSync(join(projectRoot, ".tmp/wine32/root/usr/lib/i386-linux-gnu/wine/i386-windows/ntdll.dll")),
+	resolveCacheRoot(),
 );
 
 ensureWine32PebSet(env);

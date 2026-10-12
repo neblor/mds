@@ -6,11 +6,12 @@ import {
 	isAllCorrectRows,
 	JUDGEMENT_NOTES,
 	CONTENT_MODE_LABELS,
-	type RoundLike,
+	type WordRoundLike,
 } from "./results";
 
-function round(overrides: Partial<RoundLike> = {}): RoundLike {
+function round(overrides: Partial<WordRoundLike> = {}): WordRoundLike {
 	return {
+		kind: "word",
 		word: "apple",
 		audioName: "apple.mp3",
 		...overrides,
@@ -314,16 +315,106 @@ describe("统计与庆祝判定", () => {
 });
 
 describe("模式文案", () => {
-	it("三种模式的判定说明与标签齐全", () => {
+	it("四种模式的判定说明与标签齐全", () => {
 		expect(JUDGEMENT_NOTES).toMatchObject({
 			word: expect.stringContaining("单词判定"),
 			definition: expect.stringContaining("AI 批改"),
 			chinese: expect.stringContaining("AI 批改"),
+			cloze: expect.stringContaining("每个空独立比对"),
 		});
 		expect(CONTENT_MODE_LABELS).toEqual({
 			word: "单词",
 			definition: "释义",
 			chinese: "中文词",
+			cloze: "组句",
 		});
+	});
+});
+
+describe("buildResultRows 组句模式", () => {
+	/** 一题 2 空：apple 填对，umbrella 填成了 orange */
+	function clozeRound() {
+		return {
+			kind: "cloze" as const,
+			sentences: ["I like to eat ##1 after lunch.", "She took an ##2 because it will rain."],
+			blanks: [
+				{ index: 1, answer: "apple", chosen: "apple" },
+				{ index: 2, answer: "umbrella", chosen: "orange" },
+			],
+			audioNames: { apple: "apple.mp3", umbrella: "umbrella.mp3" },
+		};
+	}
+
+	it("每个空一行，带句上下文与逐空判定", () => {
+		const rows = buildResultRows([clozeRound()], "cyber", "cloze");
+		expect(rows).toHaveLength(2);
+		expect(rows[0]).toMatchObject({
+			word: "apple",
+			audioName: "apple.mp3",
+			context: "I like to eat apple after lunch.",
+		});
+		expect(rows[0].fields).toEqual([
+			{
+				kind: "word",
+				expected: "apple",
+				userValue: "apple",
+				graded: true,
+				correct: true,
+			},
+		]);
+		expect(rows[1]).toMatchObject({
+			word: "umbrella",
+			context: "She took an umbrella because it will rain.",
+		});
+		expect(rowJudgement(rows[1])).toBe(false);
+		expect(correctCount(rows)).toBe(1);
+		expect(isAllCorrectRows(rows)).toBe(false);
+	});
+
+	it("未作答的空按未填处理（判定为错，不崩）", () => {
+		const rows = buildResultRows(
+			[
+				{
+					kind: "cloze",
+					sentences: ["A ##1 sentence.", "B ##2 sentence."],
+					blanks: [
+						{ index: 1, answer: "apple" },
+						{ index: 2, answer: "orange", chosen: "orange" },
+					],
+				},
+			],
+			"cyber",
+			"cloze",
+		);
+		expect(rows).toHaveLength(2);
+		expect(rows[0].fields[0].userValue).toBeUndefined();
+		expect(rowJudgement(rows[0])).toBe(false);
+		expect(rowJudgement(rows[1])).toBe(true);
+	});
+
+	it("同一个词被两个空用到时各自独立成行", () => {
+		const rows = buildResultRows(
+			[
+				{
+					kind: "cloze",
+					sentences: ["Eat ##1 now.", "Eat ##2 again."],
+					blanks: [
+						{ index: 1, answer: "apple", chosen: "apple" },
+						{ index: 2, answer: "apple", chosen: "banana" },
+					],
+				},
+			],
+			"cyber",
+			"cloze",
+		);
+		expect(rows.map((row) => row.word)).toEqual(["apple", "apple"]);
+		expect(rows.map((row) => rowJudgement(row))).toEqual([true, false]);
+		expect(correctCount(rows)).toBe(1);
+	});
+
+	it("书写模式（无判定字段）只展示答案", () => {
+		const rows = buildResultRows([clozeRound()], "writing", "cloze");
+		expect(rows[0].fields[0]).toMatchObject({ graded: false });
+		expect(rowJudgement(rows[0])).toBeUndefined();
 	});
 });

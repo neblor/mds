@@ -15,8 +15,9 @@ export type DictationMode = "writing" | "cyber";
  * - word：只默单词，批改单词
  * - definition：默单词 + 英文释义，批改单词，释义只对照不批改
  * - chinese：默中文对应词，批改中文词（准备阶段由 AI 抓取）
+ * - cloze：范例组句（准备阶段由 AI 一次出整场题，每空选词作答）
  */
-export type ContentMode = "word" | "definition" | "chinese";
+export type ContentMode = "word" | "definition" | "chinese" | "cloze";
 
 export interface Round {
 	word: string;

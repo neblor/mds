@@ -1,6 +1,6 @@
 import { CircleCheckBig, Play } from "lucide-solid";
 import { onMount } from "solid-js";
-import { isReadyOverlayConfirmKey } from "~/lib/ready-overlay";
+import { isReadyOverlayConfirmKey, readyOverlaySummary } from "~/lib/ready-overlay";
 import { CONTENT_MODE_LABELS } from "~/lib/results";
 import type { ContentMode } from "~/lib/state";
 
@@ -22,10 +22,11 @@ export default function ReadyOverlay(props: Props) {
 				<CircleCheckBig class="h-10 w-10 text-ok" />
 				<h2 class="font-heading text-[26px] text-ink">准备完成</h2>
 				<p class="text-sm text-ink-faint">
-					{props.count} 个单词 · 语音已就绪 · 顺序已打乱
-					{props.contentMode !== "word"
-						? ` · 含${CONTENT_MODE_LABELS[props.contentMode]}`
-						: ""}
+					{readyOverlaySummary({
+						count: props.count,
+						contentMode: props.contentMode,
+						summaryLabel: CONTENT_MODE_LABELS[props.contentMode],
+					})}
 				</p>
 				<button type="button"
 					ref={goButton}

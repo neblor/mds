@@ -2,6 +2,8 @@
  * 客户端 API 辅助：TTS 合成（分块进度 + 中止）、AI 释义、音频时长探测、重复播报
  */
 import type { AppSettings } from "./settings";
+import type { ClozeCandidate } from "./cloze-provider";
+import type { ClozeItem } from "./cloze-parse";
 
 export interface TtsItem {
 	word: string;
@@ -140,6 +142,51 @@ export async function requestChineseWords(
 	} catch (err) {
 		if (err instanceof Error) throw err;
 		throw new Error("中文词请求失败");
+	}
+}
+
+/** 一次请求生成本场全部组句题（失败即抛错，调用方按「AI 当前不可用」结束本场） */
+export async function requestClozeQuestions(
+	candidates: ClozeCandidate[],
+	settings: AppSettings,
+	signal: AbortSignal,
+): Promise<ClozeItem[]> {
+	try {
+		const res = await fetch("/api/cloze", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				candidates,
+				baseUrl: settings.aiBaseUrl,
+				apiKey: settings.aiApiKey,
+				model: settings.aiModel,
+			}),
+			signal,
+		});
+		const data = (await res.json().catch(() => null)) as {
+			items?: ClozeItem[];
+			error?: string;
+			message?: string;
+		} | null;
+		if (!data) {
+			throw new Error(
+				res.ok
+					? "组句服务返回了无法解析的内容，请重试"
+					: `组句请求失败（${res.status}）`,
+			);
+		}
+		if (!res.ok || data.error) {
+			throw new Error(
+				data.message || data.error || `组句请求失败（${res.status}）`,
+			);
+		}
+		if (!Array.isArray(data.items) || data.items.length === 0) {
+			throw new Error("AI 没有返回任何题目");
+		}
+		return data.items;
+	} catch (err) {
+		if (err instanceof Error) throw err;
+		throw new Error("组句请求失败");
 	}
 }
 

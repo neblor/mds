@@ -14,8 +14,10 @@ import {
 	fetchEnglishDefinitions,
 	ownDefinition,
 	type AiPairKind,
+	type ChineseWordsProviderResult,
 	type DefinitionProviderDiagnosticEvent,
 	type DefinitionProviderDiagnostics,
+	type DefinitionProviderResult,
 } from "./definition-provider";
 
 export interface GetAiPairsOptions {
@@ -24,8 +26,8 @@ export interface GetAiPairsOptions {
 	baseUrl: string;
 	apiKey: string;
 	model: string;
-	storage: Pick<RuntimeCacheStorage, "readDefinitions" | "writeDefinitions"> &
-		Partial<Pick<RuntimeCacheStorage, "readChineseWords" | "writeChineseWords">>;
+	/** 该类数据的缓存读写对（按 kind 由调用方注入，互不串文件） */
+	storage: { read(): AiPairCacheFile | undefined; write(value: unknown): void };
 	logger?: RuntimeDiagnosticLogger;
 	signal?: AbortSignal;
 	fetchImpl?: typeof fetch;
@@ -39,20 +41,18 @@ export interface GetAiPairsResult {
 	diagnostics?: DefinitionProviderDiagnostics;
 }
 
-/** 每类数据的缓存键与取值入口（隔离不同文件的读写） */
-function kindStorage(
-	kind: AiPairKind,
-	storage: GetAiPairsOptions["storage"],
-): { read(): unknown; write(value: unknown): void } {
-	return kind === "chinese"
-		? {
-				read: () => storage.readChineseWords?.(),
-				write: (value) => storage.writeChineseWords?.(value),
-			}
-		: {
-				read: () => storage.readDefinitions(),
-				write: (value) => storage.writeDefinitions(value),
-			};
+/** 缓存文件读入形态：字段逐个校验，坏文件当未命中 */
+export interface AiPairCacheFile {
+	model?: unknown;
+	defs?: unknown;
+	words?: unknown;
+}
+
+/** 缓存读取是外部输入边界：只做形状归一，字段级校验在 readCache 内 */
+export function asAiPairCacheFile(value: unknown): AiPairCacheFile | undefined {
+	return typeof value === "object" && value !== null
+		? (value as AiPairCacheFile)
+		: undefined;
 }
 
 /** 缓存 JSON 的字段名：definitions.json 用 defs，chinese-words.json 用 words */
@@ -61,14 +61,12 @@ function cacheKey(kind: AiPairKind): "defs" | "words" {
 }
 
 function readCache(
-	read: () => unknown,
+	read: () => AiPairCacheFile | undefined,
 	model: string,
 	key: "defs" | "words",
 ): Record<string, string> {
 	try {
-		const raw = read() as
-			| { model?: unknown; [key: string]: unknown }
-			| undefined;
+		const raw = read();
 		if (!raw || raw.model !== model || !raw[key] || typeof raw[key] !== "object") {
 			return {};
 		}
@@ -104,7 +102,7 @@ export async function getAiPairs(
 	options: GetAiPairsOptions,
 ): Promise<GetAiPairsResult> {
 	const key = cacheKey(options.kind);
-	const storage = kindStorage(options.kind, options.storage);
+	const storage = options.storage;
 	const cached = readCache(storage.read, options.model, key);
 	const cachedPairs = requestedPairs(options.words, cached);
 	const cachedCount = Object.keys(cachedPairs).length;
@@ -148,8 +146,8 @@ export async function getAiPairs(
 
 	const provided =
 		options.kind === "chinese"
-			? providerResult.words
-			: providerResult.definitions;
+			? (providerResult as ChineseWordsProviderResult).words
+			: (providerResult as DefinitionProviderResult).definitions;
 	const merged = { ...cached, ...provided };
 	let cacheWarning: string | undefined;
 	if (!options.signal?.aborted && Object.keys(provided).length > 0) {

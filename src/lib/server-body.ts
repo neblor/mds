@@ -21,8 +21,22 @@ export async function readJsonBody(event: RouteEvent): Promise<unknown> {
 	}
 }
 
+/** 读路由参数（/api/xxx/:id 这种路径参数），不是查询参数 */
 export function getParam(event: RouteEvent, name: string): string {
 	return String(event.params?.[name] ?? "");
+}
+
+/**
+ * 读查询参数（?bankId=xxx&target=20）。
+ * 与 getParam 分开命名：本项目路由都是「单文件 + 查询参数」风格（见 audio.ts），
+ * 把两者混用会静默拿到空字符串，最终变成“词库不存在”这种很难查的 404。
+ */
+export function getQuery(event: RouteEvent, name: string): string {
+	try {
+		return new URL(event.request.url).searchParams.get(name) ?? "";
+	} catch {
+		return "";
+	}
 }
 
 /** 从请求体提取去重后的单词列表（服务端通用） */
@@ -59,8 +73,8 @@ export function serveCacheFile(fileName: string): Response {
 			message: "音频不存在",
 		});
 	}
-	// readFileSync 返回 Buffer (Uint8Array<ArrayBufferLike>)，TS 泛型 TypedArray
-	// 与 DOM BodyInit 中的 Uint8Array<ArrayBuffer> 不兼容，运行时完全正常。
+	// SAFETY: readFileSync 返回 Buffer (Uint8Array<ArrayBufferLike>)，与 DOM BodyInit 里的
+	// Uint8Array<ArrayBuffer> 在 TS 泛型上不兼容，但运行时是合法的 Response body。
 	return new Response(data as unknown as BodyInit, {
 		headers: {
 			"content-type": "audio/mpeg",

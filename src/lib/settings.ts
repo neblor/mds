@@ -12,6 +12,10 @@ export interface AppSettings {
 	showCountdownNumber: boolean;
 	/** 语音音色（edge-tts 角色） */
 	voice: string;
+	/** 复习期望保持率（FSRS，0.7–0.97，默认 0.9；越高复习越频繁） */
+	requestRetention: number;
+	/** 自定义词库清单地址（留空只用随包内置清单）；在「选择词表 → 检查清单更新」里编辑 */
+	bankManifestUrl: string;
 }
 
 /** 可选音色（edge-tts 标准 voice 参数，如命令行 `--voice en-US-AvaNeural`） */
@@ -34,6 +38,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	multiplier: 1,
 	showCountdownNumber: true,
 	voice: "en-US-AvaNeural",
+	requestRetention: 0.9,
+	bankManifestUrl: "",
 };
 
 const KEY = "mds.settings.v1";
@@ -51,6 +57,11 @@ export function loadSettings(): AppSettings {
 				typeof parsed.multiplier === "number"
 					? clampMultiplier(parsed.multiplier)
 					: 1,
+			requestRetention: clampRequestRetentionSetting(parsed.requestRetention),
+			bankManifestUrl:
+				typeof parsed.bankManifestUrl === "string"
+					? parsed.bankManifestUrl.trim()
+					: "",
 			voice:
 				typeof parsed.voice === "string" &&
 				VOICES.some((v) => v.id === parsed.voice)
@@ -73,6 +84,14 @@ export function saveSettings(s: AppSettings): void {
 
 export function clampMultiplier(v: number): number {
 	return Math.min(3, Math.max(0.3, Math.round(v * 10) / 10));
+}
+
+/** 期望保持率：与 srs.ts 的口径保持一致（0.7–0.97，非法回落 0.9） */
+export function clampRequestRetentionSetting(v: unknown): number {
+	const num = typeof v === "number" ? v : Number.NaN;
+	if (!Number.isFinite(num)) return 0.9;
+	const rounded = Math.round(num * 100) / 100;
+	return Math.min(0.97, Math.max(0.7, rounded));
 }
 
 export function isAiConfigured(s: AppSettings): boolean {

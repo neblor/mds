@@ -7,6 +7,10 @@ import {
 	speechIntervals,
 	scaleTime,
 	countdownDuration,
+	clozeDuration,
+	CLOZE_BASE_SECONDS,
+	CLOZE_CHAR_SECONDS,
+	CLOZE_BLANK_SECONDS,
 	THINK_SECONDS,
 	LETTER_SECONDS,
 	DEF_THINK_SECONDS,
@@ -298,5 +302,87 @@ describe("timing 边界用例", () => {
 			});
 			expect(d).toBeLessThan(200); // (2+30)*3 = 96
 		});
+	});
+});
+
+describe("clozeDuration", () => {
+	const round1 = (v: number) => Math.round(v * 10) / 10;
+
+	it("基准 + 每字符阅读 + 每空选择（中档 ×1.0）", () => {
+		const sentences = ["I like to eat ##1 after lunch.", "She bought an ##2."];
+		const chars = [...sentences.join(" ").replace(/##\d+/g, " ")].filter(
+			(char) => !/\s/u.test(char),
+		).length;
+		expect(
+			clozeDuration({ sentences, blankCount: 2, level: "normal" }),
+		).toBe(
+			round1(CLOZE_BASE_SECONDS + CLOZE_CHAR_SECONDS * chars + CLOZE_BLANK_SECONDS * 2),
+		);
+	});
+
+	it("占位符不计入字符数（##1 不是三个字符）", () => {
+		const withMarkers = clozeDuration({
+			sentences: ["Eat ##1 now.", "Drink ##2 now."],
+			blankCount: 2,
+			level: "normal",
+		});
+		const plain = clozeDuration({
+			sentences: ["Eat now.", "Drink now."],
+			blankCount: 2,
+			level: "normal",
+		});
+		expect(withMarkers).toBe(plain);
+	});
+
+	it("句子越长、空越多，时长越长（单调性）", () => {
+		const short = clozeDuration({
+			sentences: ["Short ##1.", "Short ##2."],
+			blankCount: 2,
+			level: "normal",
+		});
+		const long = clozeDuration({
+			sentences: ["A much longer sentence with ##1 here.", "Another long one with ##2 here."],
+			blankCount: 2,
+			level: "normal",
+		});
+		const moreBlanks = clozeDuration({
+			sentences: ["Short ##1.", "Short ##2.", "Short ##3."],
+			blankCount: 4,
+			level: "normal",
+		});
+		expect(long).toBeGreaterThan(short);
+		expect(moreBlanks).toBeGreaterThan(short);
+	});
+
+	it("档位与倍率生效（快 0.85 / 慢 1.3 / 倍率 2），保留 0.1s", () => {
+		const sentences = ["I like to eat ##1 after lunch.", "She bought an ##2."];
+		const chars = [...sentences.join(" ").replace(/##\d+/g, " ")].filter(
+			(char) => !/\s/u.test(char),
+		).length;
+		const raw =
+			CLOZE_BASE_SECONDS + CLOZE_CHAR_SECONDS * chars + CLOZE_BLANK_SECONDS * 2;
+		expect(
+			clozeDuration({ sentences, blankCount: 2, level: "fast" }),
+		).toBe(round1(raw * SPEED_RATE.fast));
+		expect(
+			clozeDuration({ sentences, blankCount: 2, level: "slow" }),
+		).toBe(round1(raw * SPEED_RATE.slow));
+		expect(
+			clozeDuration({
+				sentences,
+				blankCount: 2,
+				level: "normal",
+				multiplier: 2,
+			}),
+		).toBe(round1(raw * 2));
+	});
+
+	it("空句/负空数不产生负数时长", () => {
+		expect(
+			clozeDuration({ sentences: [], blankCount: 0, level: "normal" }),
+		).toBe(CLOZE_BASE_SECONDS);
+		expect(
+			clozeDuration({ sentences: [], blankCount: -3, level: "normal" }),
+		).toBe(CLOZE_BASE_SECONDS);
 	});
 });

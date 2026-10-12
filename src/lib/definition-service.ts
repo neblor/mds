@@ -3,7 +3,7 @@
  * 通用编排实现在 ai-pair-service.ts，本文件保持原导出签名与结果形状：
  * 路由、诊断脚本与既有测试无需改动。
  */
-import { getAiPairs } from "./ai-pair-service";
+import { asAiPairCacheFile, getAiPairs } from "./ai-pair-service";
 import type { RuntimeCacheStorage } from "./cache-storage";
 import type { RuntimeDiagnosticLogger } from "./runtime-logger";
 import type { DefinitionProviderDiagnostics } from "./definition-provider";
@@ -40,8 +40,8 @@ export async function getEnglishDefinitions(
 		apiKey: options.apiKey,
 		model: options.model,
 		storage: {
-			readDefinitions: () => options.storage.readDefinitions(),
-			writeDefinitions: (value) => options.storage.writeDefinitions(value),
+			read: () => asAiPairCacheFile(options.storage.readDefinitions()),
+			write: (value) => options.storage.writeDefinitions(value),
 		},
 		logger: options.logger,
 		signal: options.signal,

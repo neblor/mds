@@ -2,7 +2,7 @@
  * 中文对应词业务编排（英文单词 → 常用简体中文词）。
  * 通用编排实现在 ai-pair-service.ts；独立缓存文件 chinese-words.json。
  */
-import { getAiPairs } from "./ai-pair-service";
+import { asAiPairCacheFile, getAiPairs } from "./ai-pair-service";
 import type { RuntimeCacheStorage } from "./cache-storage";
 import type { RuntimeDiagnosticLogger } from "./runtime-logger";
 import type { DefinitionProviderDiagnostics } from "./definition-provider";
@@ -39,8 +39,8 @@ export async function getChineseWords(
 		apiKey: options.apiKey,
 		model: options.model,
 		storage: {
-			readChineseWords: () => options.storage.readChineseWords(),
-			writeChineseWords: (value) => options.storage.writeChineseWords(value),
+			read: () => asAiPairCacheFile(options.storage.readChineseWords()),
+			write: (value) => options.storage.writeChineseWords(value),
 		},
 		logger: options.logger,
 		signal: options.signal,

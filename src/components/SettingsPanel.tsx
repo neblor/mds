@@ -1,7 +1,11 @@
 import { For } from "solid-js";
 import { X, Minus, Plus } from "lucide-solid";
 import type { AppSettings } from "~/lib/settings";
-import { clampMultiplier, VOICES } from "~/lib/settings";
+import {
+	clampMultiplier,
+	clampRequestRetentionSetting,
+	VOICES,
+} from "~/lib/settings";
 import { isSettingsBackdropClick } from "~/lib/settings-panel";
 
 interface Props {
@@ -10,6 +14,14 @@ interface Props {
 	onClose: () => void;
 }
 
+/**
+ * 设置面板
+ *
+ * 三张卡：AI 服务 / 语音音色 / 参数卡（倍率调整、倒计时数字、复习期望保持率三行并存）。
+ * 参数卡是合并来的：三个设置各占一张卡时面板总高会超过 820 窗口高度（实测 919），
+ * 合并并收紧内边距后为 779，刚好装下且不用滚动。
+ * 无确认按钮：改动即生效，由外层防抖 1.5s 落盘。
+ */
 export default function SettingsPanel(props: Props) {
 	const set = (patch: Partial<AppSettings>) =>
 		props.onChange({ ...props.settings, ...patch });
@@ -21,10 +33,11 @@ export default function SettingsPanel(props: Props) {
 				if (isSettingsBackdropClick(event)) props.onClose();
 			}}
 		>
-			<div class="flex max-h-[90%] w-[540px] flex-col gap-4 rounded-2xl bg-surface p-7 shadow-xl">
+			<div class="flex max-h-[90%] w-[540px] flex-col gap-3.5 rounded-2xl bg-surface p-6 shadow-xl">
 				<div class="flex items-center justify-between">
 					<h2 class="font-heading text-2xl text-ink">设置</h2>
-					<button type="button"
+					<button
+						type="button"
 						class="rounded-full p-2 text-ink-faint transition hover:bg-soft hover:text-ink"
 						onClick={props.onClose}
 						aria-label="关闭"
@@ -33,9 +46,9 @@ export default function SettingsPanel(props: Props) {
 					</button>
 				</div>
 
-				<div class="flex flex-col gap-4 overflow-y-auto pr-1">
+				<div class="flex flex-col gap-3.5 overflow-y-auto pr-1">
 					{/* AI 配置 */}
-					<div class="flex flex-col gap-3 rounded-2xl bg-canvas p-5">
+					<div class="flex flex-col gap-2.5 rounded-2xl bg-canvas p-[18px]">
 						<p class="text-[15px] font-semibold text-ink">
 							AI 释义服务（OpenAI 兼容）
 						</p>
@@ -68,12 +81,12 @@ export default function SettingsPanel(props: Props) {
 							/>
 						</label>
 						<p class="text-xs text-ink-faint">
-						不配置则无法使用"默写释义"和"中文词"功能
-					</p>
+							不配置则无法使用「默写释义」和「中文词」功能
+						</p>
 					</div>
 
 					{/* 音色选择 */}
-					<div class="flex flex-col gap-3 rounded-2xl bg-canvas p-5">
+					<div class="flex flex-col gap-2.5 rounded-2xl bg-canvas p-[18px]">
 						<p class="text-[15px] font-semibold text-ink">
 							语音音色（发音角色）
 						</p>
@@ -89,65 +102,112 @@ export default function SettingsPanel(props: Props) {
 						<p class="text-xs text-ink-faint">不同音色缓存互不冲突</p>
 					</div>
 
-					{/* 倍率调整 */}
-					<div class="flex items-center justify-between rounded-2xl bg-canvas p-5">
-						<div class="flex flex-col gap-1">
-							<p class="text-[15px] font-semibold text-ink">默写速度倍率调整</p>
-							<p class="text-xs text-ink-faint">
-								在计算出的每轮时长上再乘以此系数
-							</p>
+					{/* 参数卡：三个旋钮三行并存（合并是为了不超出窗口高度） */}
+					<div class="flex flex-col gap-3.5 rounded-2xl bg-canvas p-[18px]">
+						<div class="flex items-center justify-between">
+							<div class="flex flex-col gap-1">
+								<p class="text-[15px] font-semibold text-ink">
+									默写速度倍率调整
+								</p>
+								<p class="text-xs text-ink-faint">
+									在计算出的每轮时长上再乘以此系数
+								</p>
+							</div>
+							<div class="flex items-center gap-3 rounded-full bg-surface px-3 py-1.5 shadow-sm">
+								<button
+									type="button"
+									class="h-7 w-7 rounded-full text-ink-soft transition hover:bg-soft hover:text-ink"
+									onClick={() =>
+										set({
+											multiplier: clampMultiplier(
+												props.settings.multiplier - 0.1,
+											),
+										})
+									}
+									aria-label="减小"
+								>
+									<Minus class="h-4 w-4" />
+								</button>
+								<span class="w-10 text-center font-data text-lg text-ink tabular-nums">
+									{props.settings.multiplier.toFixed(1)}
+								</span>
+								<button
+									type="button"
+									class="h-7 w-7 rounded-full text-ink-soft transition hover:bg-soft hover:text-ink"
+									onClick={() =>
+										set({
+											multiplier: clampMultiplier(
+												props.settings.multiplier + 0.1,
+											),
+										})
+									}
+									aria-label="增大"
+								>
+									<Plus class="h-4 w-4" />
+								</button>
+							</div>
 						</div>
-						<div class="flex items-center gap-3 rounded-full bg-surface px-3 py-1.5 shadow-sm">
-							<button type="button"
-								class="h-7 w-7 rounded-full text-ink-soft transition hover:bg-soft hover:text-ink"
-								onClick={() =>
-									set({
-										multiplier: clampMultiplier(
-											props.settings.multiplier - 0.1,
-										),
-									})
-								}
-								aria-label="减小"
-							>
-								<Minus class="h-4 w-4" />
-							</button>
-							<span class="w-10 text-center font-data text-lg text-ink tabular-nums">
-								{props.settings.multiplier.toFixed(1)}
-							</span>
-							<button type="button"
-								class="h-7 w-7 rounded-full text-ink-soft transition hover:bg-soft hover:text-ink"
-								onClick={() =>
-									set({
-										multiplier: clampMultiplier(
-											props.settings.multiplier + 0.1,
-										),
-									})
-								}
-								aria-label="增大"
-							>
-								<Plus class="h-4 w-4" />
-							</button>
-						</div>
-					</div>
 
-					{/* 倒计时数字 */}
-					<div class="flex items-center justify-between rounded-2xl bg-canvas p-5">
-						<div class="flex flex-col gap-1">
-							<p class="text-[15px] font-semibold text-ink">
-								每轮倒计时显示数字
-							</p>
-							<p class="text-xs text-ink-faint">
-								精确到 0.1 秒，关闭后只显示进度条
-							</p>
+						<div class="flex items-center justify-between">
+							<div class="flex flex-col gap-1">
+								<p class="text-[15px] font-semibold text-ink">
+									每轮倒计时显示数字
+								</p>
+								<p class="text-xs text-ink-faint">
+									精确到 0.1 秒，关闭后只显示进度条
+								</p>
+							</div>
+							<input
+								type="checkbox"
+								class="toggle-switch"
+								checked={props.settings.showCountdownNumber}
+								onChange={(e) =>
+									set({ showCountdownNumber: e.currentTarget.checked })
+								}
+							/>
 						</div>
-						<input
-							type="checkbox"
-							class="toggle-switch"
-							checked={props.settings.showCountdownNumber}
-							onChange={(e) =>
-								set({ showCountdownNumber: e.currentTarget.checked })
-							}
-						/>
+
+						<div class="flex items-center justify-between">
+							<div class="flex flex-col gap-1">
+								<p class="text-[15px] font-semibold text-ink">
+									复习期望保持率
+								</p>
+								<p class="text-xs text-ink-faint">越高复习越频繁；默认 0.9</p>
+							</div>
+							<div class="flex items-center gap-3 rounded-full bg-surface px-3 py-1.5 shadow-sm">
+								<button
+									type="button"
+									class="h-7 w-7 rounded-full text-ink-soft transition hover:bg-soft hover:text-ink"
+									onClick={() =>
+										set({
+											requestRetention: clampRequestRetentionSetting(
+												props.settings.requestRetention - 0.01,
+											),
+										})
+									}
+									aria-label="降低期望保持率"
+								>
+									<Minus class="h-4 w-4" />
+								</button>
+								<span class="w-11 text-center font-data text-lg text-ink tabular-nums">
+									{props.settings.requestRetention.toFixed(2)}
+								</span>
+								<button
+									type="button"
+									class="h-7 w-7 rounded-full text-ink-soft transition hover:bg-soft hover:text-ink"
+									onClick={() =>
+										set({
+											requestRetention: clampRequestRetentionSetting(
+												props.settings.requestRetention + 0.01,
+											),
+										})
+									}
+									aria-label="提高期望保持率"
+								>
+									<Plus class="h-4 w-4" />
+								</button>
+							</div>
+						</div>
 					</div>
 				</div>
 			</div>

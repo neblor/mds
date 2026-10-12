@@ -17,6 +17,7 @@
     "test:run": "node scripts/run-vitest.mjs run",
     "test:watch": "node scripts/run-vitest.mjs",
     "get:explain": "node scripts/get-explain.mjs",
+    "get:cloze": "node scripts/get-cloze.mjs",
     "client:start": "electron .",
     "client:dev": "pnpm web:build && pnpm client:start",
     "client:package:dir": "pnpm web:build && electron-builder --win dir",
@@ -24,7 +25,8 @@
     "client:package:wsl": "node scripts/package-client-wsl.mjs",
     "client:verify": "node scripts/verify-electron-package.mjs",
     "electron:start": "pnpm client:start",
-    "electron:build": "pnpm client:package"
+    "electron:build": "pnpm client:package",
+    "build:banks": "node scripts/build-banks.mjs"
   },
   "dependencies": {
     "@solidjs/router": "^1.0.0",
@@ -35,6 +37,7 @@
     "lucide-solid": "^1.28.0",
     "nitro": "^3.0.260610-beta",
     "solid-js": "^1.9.14",
+    "ts-fsrs": "^5.4.2",
     "vite": "^8.0.0"
   },
   "devDependencies": {
@@ -98,7 +101,7 @@
       "mirror": "https://npmmirror.com/mirrors/electron/"
     }
   },
-  "version": "0.4.0",
+  "version": "0.6.0",
   "description": "默点啥 — 记单词 · 听写 · 默写小帮手",
   "author": "neblor"
 }

@@ -56,18 +56,45 @@ export interface WslPackageEnv {
 	systemPebDir: string;
 	/** wineserver socket 目录（命名空间内用 tmpfs 覆盖） */
 	runtimeDir: string;
-	/** wine 前缀（独立于只读 HOME 缓存） */
+	/**
+	 * wine 前缀。**必须在项目目录之外**：wine 前缀按设计固定含
+	 * `dosdevices/z: -> /`，落在仓库内会让「递归遍历 + 跟随符号链接」的工具
+	 * （VS Code 搜索、文件索引器等）从 `/` 开始遍历整个文件系统。
+	 * 见 plans/wine-prefix-rootfs-escape.md。
+	 */
 	winePrefix: string;
-	/** electron-builder 缓存（默认 ~/.cache 只读时重定向） */
+	/** electron-builder 缓存（同样放在仓库之外，避免任何指回仓库外的软链被源码树带走） */
 	builderCache: string;
 	/** 32 位 PE 集合是否已就绪（以 ntdll.dll 为标志） */
 	pebReady: boolean;
+}
+
+/** 环境变量取值：空串/纯空白视为未设置（XDG 规范要求绝对路径） */
+function nonEmptyAbsolute(value: string | undefined): string | undefined {
+	const trimmed = value?.trim();
+	if (!trimmed || !trimmed.startsWith("/")) return undefined;
+	return trimmed;
+}
+
+/**
+ * 仓库之外的缓存根目录：`$XDG_CACHE_HOME/mds`（未设置则 `~/.cache/mds`）。
+ * 前缀与 builder 缓存都落在这里，绝不进源码树 —— 理由见 plans/wine-prefix-rootfs-escape.md。
+ * 注意不可用 `XDG_RUNTIME_DIR`：命名空间内会用 tmpfs 覆盖 `/run/user/<uid>`。
+ */
+export function defaultCacheRoot(
+	env: NodeJS.ProcessEnv = process.env,
+): string {
+	const xdgCache = nonEmptyAbsolute(env.XDG_CACHE_HOME);
+	const home = nonEmptyAbsolute(env.HOME);
+	const base = xdgCache ?? (home ? joinPosix(home, ".cache") : "/tmp");
+	return joinPosix(base, "mds");
 }
 
 export function buildWslPackageEnv(
 	projectRoot: string,
 	uid: number,
 	pebReady: boolean,
+	cacheRoot: string = defaultCacheRoot(),
 ): WslPackageEnv {
 	const wine32Root = joinPosix(projectRoot, ".tmp/wine32");
 	return {
@@ -75,8 +102,8 @@ export function buildWslPackageEnv(
 		pebDir: joinPosix(wine32Root, "root/usr/lib/i386-linux-gnu/wine/i386-windows"),
 		systemPebDir: SYSTEM_WINE_PEB_DIR,
 		runtimeDir: `/run/user/${uid}`,
-		winePrefix: joinPosix(projectRoot, ".tmp/wine-prefix"),
-		builderCache: joinPosix(projectRoot, ".tmp/eb-cache"),
+		winePrefix: joinPosix(cacheRoot, "wine-prefix"),
+		builderCache: joinPosix(cacheRoot, "eb-cache"),
 		pebReady,
 	};
 }
@@ -102,8 +129,8 @@ export function wslNamespaceScript(options: {
 		`mount -t tmpfs tmpfs ${env.runtimeDir}`,
 		`mount --bind ${env.pebDir} ${env.systemPebDir}`,
 		`export PATH=${nodeDir}:${pnpmDir}:/usr/bin:/bin`,
-		`export WINEPREFIX=${env.winePrefix}`,
-		`export ELECTRON_BUILDER_CACHE=${env.builderCache}`,
+		`export WINEPREFIX="${env.winePrefix}"`,
+		`export ELECTRON_BUILDER_CACHE="${env.builderCache}"`,
 		`export XDG_RUNTIME_DIR=${env.runtimeDir}`,
 		// 阻止命名空间内重入的 client:package 再次触发自动切换到命名空间（防循环）
 		"export MDS_PACKAGING_IN_NS=1",
@@ -120,7 +147,7 @@ export function wslPrefixInitScript(env: WslPackageEnv): string[] {
 		"set -e",
 		`mount -t tmpfs tmpfs ${env.runtimeDir}`,
 		`mount --bind ${env.pebDir} ${env.systemPebDir}`,
-		`export WINEPREFIX=${env.winePrefix}`,
+		`export WINEPREFIX="${env.winePrefix}"`,
 		`export XDG_RUNTIME_DIR=${env.runtimeDir}`,
 		"export PATH=/usr/bin:/bin",
 		"export WINEDEBUG=-all",

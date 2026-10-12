@@ -110,6 +110,7 @@ describe("POST /api/chinese-words 部分缓存策略", () => {
 		);
 
 		const result = await POST(eventFor(words));
+		if ("error" in result) throw new Error(`路由返回错误：${result.error}`);
 		expect(Object.keys(result.words)).toHaveLength(20);
 		expect(result.missing).toBeUndefined();
 		const cache = JSON.parse(
@@ -149,6 +150,7 @@ describe("POST /api/chinese-words 部分缓存策略", () => {
 		vi.stubGlobal("fetch", fetchMock);
 
 		const result = await POST(eventFor(["apple"]));
+		if ("error" in result) throw new Error(`路由返回错误：${result.error}`);
 		expect(result.words).toEqual({ apple: "苹果" });
 		const cache = JSON.parse(
 			readFileSync(testPaths.chineseFile, "utf8"),

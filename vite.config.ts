@@ -20,14 +20,16 @@ export default defineConfig({
 	resolve: {
 		alias: [
 			// lucide 按需入口：dev 模式不再全量载入图标库（见 src/lib/icons.tsx）。
-			// ① 主入口 → 本地 re-export；② 深路径（icons.tsx 内部用）→ 实际目录，
-			// 绕过 exports 字段限制（rolldown 对不在 exports 里的深路径会拒绝）
+			// ① 主入口 → 本地 re-export（按需图标入口）
 			{
 				find: /^lucide-solid$/,
 				replacement: resolve(import.meta.dirname, "src/lib/icons.tsx"),
 			},
+			// ② `lucide-solid/icons/<name>` 子路径 → 实际单文件目录
+			// （solid 条件在 dev 下不被 vite 用于 exports 解析，显式指向源码单文件；
+			// 该子路径在 package.json 的 exports 里有 types，tsc 能解析，见 icons.tsx）
 			{
-				find: /^lucide-solid\/dist\/source\/icons\//,
+				find: /^lucide-solid\/icons\//,
 				replacement:
 					resolve(
 						import.meta.dirname,
@@ -41,9 +43,10 @@ export default defineConfig({
 		port: 5199,
 		strictPort: true,
 		watch: {
-			// 忽略项目内运行时/构建缓存目录：wine 前缀（.tmp/wine-prefix）含
-			// dosdevices/z: → / 的符号链接，监听器追到根文件系统会撞上符号链接环
-			// （/run/udev/watch 等）触发 ELOOP 使 dev 服务崩溃。
+			// 忽略项目内运行时/构建缓存目录：历史上 wine 前缀曾落在 .tmp/ 下，其
+			// dosdevices/z: → / 会让跟随软链的监听器追到根文件系统、撞上符号链接环
+			// （/run/udev/watch 等）触发 ELOOP 使 dev 服务崩溃。前缀现已外移到
+			// ~/.cache/mds（见 plans/wine-prefix-rootfs-escape.md），此处保留作纵深防护。
 			ignored: [
 				"**/.tmp/**",
 				"**/.output/**",

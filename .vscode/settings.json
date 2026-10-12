@@ -1,0 +1,10 @@
+{
+	"search.followSymlinks": false,
+	"search.exclude": {
+		"**/.tmp": true,
+		"**/.tmp/**": true
+	},
+	"files.watcherExclude": {
+		"**/.tmp/**": true
+	}
+}

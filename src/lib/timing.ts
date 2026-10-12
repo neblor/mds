@@ -26,6 +26,13 @@ export const DEF_LETTER_SECONDS = 0.4;
 /** 中文词每字符书写时间：原字母系数的 5 倍（写汉字比写字母慢得多） */
 export const CHINESE_CHAR_SECONDS = 5 * LETTER_SECONDS;
 
+/** 组句轮：看题基准时间（秒） */
+export const CLOZE_BASE_SECONDS = 3;
+/** 组句轮：每字符阅读时间（秒） */
+export const CLOZE_CHAR_SECONDS = 0.09;
+/** 组句轮：每个空的选择用时（秒） */
+export const CLOZE_BLANK_SECONDS = 3;
+
 /** 单词字母数（字母数字，至少 1） */
 export function wordLength(word: string): number {
 	const n = (word.trim().match(/[a-zA-Z0-9]/g) ?? []).length;
@@ -80,6 +87,26 @@ export function scaleTime(
 	multiplier = 1,
 ): number {
 	return Math.round(v * SPEED_RATE[level] * multiplier * 10) / 10;
+}
+
+/**
+ * 组句轮计数轨时长（秒）：看题基准 + 每字符阅读 + 每空选择，× 三档速率 × 倍率调整。
+ * 占位符 `##n` 是标记不是内容，计数时先去掉。
+ * 例：3 句共 120 字符、3 个空、中档 ×1.0 → 3 + 10.8 + 9 = 22.8s
+ */
+export function clozeDuration(opts: {
+	sentences: string[];
+	blankCount: number;
+	level: SpeedLevel;
+	multiplier?: number;
+}): number {
+	const text = opts.sentences.join(" ").replace(/##\d+/g, " ");
+	const chars = [...text].filter((char) => !/\s/u.test(char)).length;
+	const total =
+		CLOZE_BASE_SECONDS +
+		CLOZE_CHAR_SECONDS * chars +
+		CLOZE_BLANK_SECONDS * Math.max(0, Math.floor(opts.blankCount));
+	return scaleTime(total, opts.level, opts.multiplier ?? 1);
 }
 
 /**

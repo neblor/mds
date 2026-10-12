@@ -3,7 +3,7 @@
  * 纯逻辑状态机在 dictation-engine.ts（可直接单测）；本文件只做适配：
  * 事件入口 → runStep（防重入）→ 执行动作（中止音频/推进轮次）→ 同步 SolidJS 信号
  */
-import { createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, onCleanup, onMount } from "solid-js";
 import { debounce } from "es-toolkit/function";
 import {
 	loadSettings,
@@ -13,6 +13,7 @@ import {
 } from "./settings";
 import {
 	countdownDuration,
+	clozeDuration,
 	speechIntervals,
 	repeatCount,
 	scaleTime,
@@ -22,6 +23,7 @@ import {
 	requestTtsAll,
 	requestDefinitions,
 	requestChineseWords,
+	requestClozeQuestions,
 	requestAnswerGrades,
 	audioUrl,
 	playWithIntervals,
@@ -30,6 +32,10 @@ import {
 	type GradeItem,
 } from "./api";
 import { shuffle, type DictationMode, type ContentMode } from "./state";
+import {
+	CLOZE_MAX_CANDIDATES,
+	type ClozeItem,
+} from "./cloze-parse";
 import {
 	stepEngine,
 	type EngineEvent,
@@ -42,6 +48,8 @@ import {
 	type ResultRow,
 	type GradeOverride,
 } from "./results";
+import { createResultAudioPlayer } from "./result-audio";
+import { appendHistory, buildHistoryEntry } from "./history-storage";
 
 export type Phase =
 	| "idle"
@@ -51,7 +59,8 @@ export type Phase =
 	| "grading"
 	| "results";
 
-export interface DictRound {
+export interface WordRound {
+	kind: "word";
 	word: string;
 	audioName: string;
 	definition?: string;
@@ -65,6 +74,32 @@ export interface DictRound {
 	answer?: string;
 	answerDef?: string;
 }
+
+/** 组句轮里的单个空：标准答案 + 用户所选的词 */
+export interface ClozeBlankState {
+	index: number;
+	answer: string;
+	/** 赛博作答：用户选的词（未选为 undefined） */
+	chosen?: string;
+}
+
+/**
+ * 组句轮（一题 = 2–3 句短文 + 2–4 个空）
+ * - 组句轮**不播语音**（它是「选」不是「听」），所以 repeatCount = 0、gapSec = []
+ * - 音频只为答案词生成，仅用于结果页的发音按钮
+ */
+export interface ClozeRound {
+	kind: "cloze";
+	sentences: string[];
+	blanks: ClozeBlankState[];
+	/** 答案词 → 音频文件名（TTS 失败时为空表） */
+	audioNames: Record<string, string>;
+	repeatCount: number;
+	countdownSec: number;
+	gapSec: number[];
+}
+
+export type DictRound = WordRound | ClozeRound;
 
 interface PrepData {
 	words: string[];
@@ -81,7 +116,7 @@ interface BuildRoundsOptions {
 	multiplier: number;
 }
 
-function buildRounds(opts: BuildRoundsOptions): DictRound[] {
+function buildRounds(opts: BuildRoundsOptions): WordRound[] {
 	const { words, data, level, contentMode, multiplier } = opts;
 	return words.map((w) => {
 		// 只取自有属性，避免 constructor 等词键命中原型
@@ -92,6 +127,7 @@ function buildRounds(opts: BuildRoundsOptions): DictRound[] {
 		const withDef = contentMode === "definition";
 		const count = repeatCount(w, withDef);
 		return {
+			kind: "word" as const,
 			word: w,
 			audioName: data.nameMap.get(w) ?? "",
 			definition: def,
@@ -111,6 +147,32 @@ function buildRounds(opts: BuildRoundsOptions): DictRound[] {
 			),
 		};
 	});
+}
+
+/** 组句题 → 轮次（题序打乱；每轮时长 = 句长基准 + 每空选择用时） */
+function buildClozeRounds(opts: {
+	items: ClozeItem[];
+	audioNames: Record<string, string>;
+	level: SpeedLevel;
+	multiplier: number;
+}): ClozeRound[] {
+	return shuffle(opts.items).map((item) => ({
+		kind: "cloze" as const,
+		sentences: item.sentences,
+		blanks: item.blanks.map((blank) => ({
+			index: blank.index,
+			answer: blank.answer,
+		})),
+		audioNames: opts.audioNames,
+		repeatCount: 0,
+		countdownSec: clozeDuration({
+			sentences: item.sentences,
+			blankCount: item.blanks.length,
+			level: opts.level,
+			multiplier: opts.multiplier,
+		}),
+		gapSec: [],
+	}));
 }
 
 export function useDictation() {
@@ -139,6 +201,9 @@ export function useDictation() {
 	// 默写轮次
 	const [rounds, setRounds] = createSignal<DictRound[]>([]);
 	const [currentIndex, setCurrentIndex] = createSignal(0);
+	/** 每一轮的实际耗时（ms，按轮次索引；供复习日志的 elapsedMs 使用） */
+	const [roundElapsed, setRoundElapsed] = createSignal<number[]>([]);
+	let roundStartedAt = 0;
 	const [remaining, setRemaining] = createSignal(0);
 	const [, setCountdownDone] = createSignal(false);
 	const [speechDone, setSpeechDone] = createSignal(false);
@@ -165,9 +230,9 @@ export function useDictation() {
 
 	let timerId: ReturnType<typeof setInterval> | null = null;
 	let audioAbort: AbortController | null = null;
-	let resultAudioAbort: AbortController | null = null;
 	let roundSeq = 0;
-	const [resultAudioName, setResultAudioName] = createSignal<string | null>(null);
+	// 结果发音试听（结算页限定 results 阶段）
+	const resultAudio = createResultAudioPlayer(() => phase() === "results");
 
 	// —— AI 批改（中文词赛博模式）——
 	let gradeAbort: AbortController | null = null;
@@ -177,6 +242,12 @@ export function useDictation() {
 	let lastGrades: Record<string, GradeOverride> | null = null;
 	/** 批改来源说明（失败/中止降级时展示给用户） */
 	const [gradeNote, setGradeNote] = createSignal<string | null>(null);
+
+	// —— 组句（范例组句）——
+	/** 本场候选池（≤24，题序打乱后展示用；每轮相同） */
+	const [clozeCandidates, setClozeCandidates] = createSignal<string[]>([]);
+	/** 组句结算页附加提示（如语音生成失败降级），其余模式为 null */
+	const [resultNote, setResultNote] = createSignal<string | null>(null);
 
 	// —— 推进状态机（纯逻辑，见 dictation-engine.ts）——
 	/** 引擎状态（普通对象；SolidJS 信号仅用于 UI 渲染同步） */
@@ -213,14 +284,32 @@ export function useDictation() {
 			setPhase("grading");
 			void runGrading();
 		} else {
-			setPhase("results");
+			enterResults();
 		}
+	};
+
+	/**
+	 * 落地结果页的唯一收口：判定（含 AI 批改覆盖/降级）落定后烘入历史记录
+	 * （书写与赛博都记录；书写条目无批改字段，回看仅作对照），再切换阶段。
+	 */
+	const enterResults = () => {
+		appendHistory(
+			buildHistoryEntry({
+				rows: buildResultRows(rounds(), mode(), contentMode(), lastGrades ?? undefined),
+				mode: mode(),
+				contentMode: contentMode(),
+				finishedAt: Date.now(),
+				gradeNote: mode() === "cyber" ? gradeNote() : null,
+			}),
+		);
+		setPhase("results");
 	};
 
 	/* ---------- AI 批改（一次请求批改本场全部第二步作答） ---------- */
 	const runGrading = async () => {
 		const kind = contentMode() === "chinese" ? "chinese" : "definition";
 		const items: GradeItem[] = rounds()
+			.filter((r): r is WordRound => r.kind === "word")
 			.filter((r) => r.answerDef !== undefined)
 			.map((r) => ({
 				word: r.word,
@@ -230,7 +319,7 @@ export function useDictation() {
 			}));
 		// 防御：没有可批改的作答（理论不会发生）直接进结果
 		if (items.length === 0) {
-			setPhase("results");
+			enterResults();
 			return;
 		}
 		const seq = ++gradeSeq;
@@ -252,12 +341,12 @@ export function useDictation() {
 			setGradeNote(
 				res.warning ? `AI 批改完成，部分题目降级为本地判定（${res.warning}）` : null,
 			);
-		} catch (err) {
+		} catch {
 			if (!alive()) return;
 			lastGrades = null;
 			setGradeNote("AI 批改失败，已改用本地匹配判定");
 		} finally {
-			if (alive()) setPhase("results");
+			if (alive()) enterResults();
 		}
 	};
 
@@ -268,9 +357,19 @@ export function useDictation() {
 		gradeAbort = null;
 		lastGrades = null;
 		setGradeNote("已中止 AI 批改，改用本地匹配判定");
-		setPhase("results");
+		enterResults();
 	};
 	onCleanup(() => gradeAbort?.abort());
+
+	const recordRoundElapsed = (index: number) => {
+		const elapsed = roundStartedAt > 0 ? Date.now() - roundStartedAt : 0;
+		roundStartedAt = 0;
+		setRoundElapsed((previous) => {
+			const next = [...previous];
+			next[index] = Math.max(0, elapsed);
+			return next;
+		});
+	};
 
 	/**
 	 * 事件入口：状态机判定 → 执行动作（中止当前轮运行时/推进轮次）。
@@ -284,6 +383,8 @@ export function useDictation() {
 			engine = state;
 			syncEngineSignals();
 			if (action.type === "wait") return;
+			// 本轮到此结束：先记下实际耗时（结算写回复习计划时要用）
+			recordRoundElapsed(engine.currentIndex);
 			if (action.type === "finish") {
 				finishDictation();
 				return;
@@ -305,16 +406,32 @@ export function useDictation() {
 		setSounding(false);
 	};
 	onCleanup(clearRoundRuntime);
-	const stopResultAudio = () => {
-		resultAudioAbort?.abort();
-		resultAudioAbort = null;
-		setResultAudioName(null);
-	};
-	onCleanup(stopResultAudio);
+	onCleanup(() => resultAudio.stop());
 
-	const patchRound = (i: number, patch: Partial<DictRound>) =>
+	const patchRound = (i: number, patch: Partial<WordRound>) =>
 		setRounds((prev) =>
-			prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)),
+			prev.map((r, idx) =>
+				idx === i && r.kind === "word" ? { ...r, ...patch } : r,
+			),
+		);
+
+	/** 组句轮：按空编号更新所选的词（未选传 undefined 即清空） */
+	const patchClozeBlank = (
+		i: number,
+		blankIndex: number,
+		chosen: string | undefined,
+	) =>
+		setRounds((prev) =>
+			prev.map((r, idx) =>
+				idx === i && r.kind === "cloze"
+					? {
+							...r,
+							blanks: r.blanks.map((blank) =>
+								blank.index === blankIndex ? { ...blank, chosen } : blank,
+							),
+						}
+					: r,
+			),
 		);
 
 	/* ---------- 词库 ---------- */
@@ -343,6 +460,16 @@ export function useDictation() {
 			return next;
 		});
 	};
+	/** 整体替换词表（再次默写回填/恢复暂存用）：trim、丢空、去重后覆盖并持久化 */
+	const replaceWords = (incoming: string[]) => {
+		setError(null);
+		const next: string[] = [];
+		for (const word of incoming) {
+			const normalized = word.trim();
+			if (normalized && !next.includes(normalized)) next.push(normalized);
+		}
+		updateWords(() => next);
+	};
 	const removeWord = (w: string) =>
 		updateWords((prev) => prev.filter((x) => x !== w));
 	const clearWords = () => {
@@ -351,37 +478,122 @@ export function useDictation() {
 	};
 
 	/* ---------- 准备 ---------- */
-	const startDictation = (m: DictationMode) => {
-		const ws = words();
+	const startDictation = (
+		m: DictationMode,
+		wordsOverride?: string[],
+		definitions?: Record<string, string>,
+	) => {
+		// 词表模式会用「今日队列」覆盖本次词表；录入模式仍然用手敲的那张表
+		const ws = wordsOverride && wordsOverride.length > 0 ? wordsOverride : words();
 		if (ws.length === 0) {
 			setError("先添加一些单词再开始吧");
 			return;
 		}
 		setError(null);
-		// 新一场默写：清掉上一场的批改状态（防止同词命中旧判定）
+		// 新一场默写：清掉上一场的批改与提示状态（防止同词命中旧判定）
 		gradeSeq++;
 		gradeAbort?.abort();
 		gradeAbort = null;
 		lastGrades = null;
 		setGradeNote(null);
-		if (contentMode() !== "word" && !isAiConfigured(settings())) {
-			setError("释义/中文词模式需要先配置 AI 服务（右上角设置里填写）");
+		setResultNote(null);
+		setRoundElapsed([]);
+		const content = contentMode();
+		if (content !== "word" && !isAiConfigured(settings())) {
+			setError(
+				content === "cloze"
+					? "组句模式需要先配置 AI 服务（右上角设置里填写）"
+					: "释义/中文词模式需要先配置 AI 服务（右上角设置里填写）",
+			);
 			return;
 		}
-		setMode(m);
+		// 组句只能赛博作答（选词必须在屏幕上完成）
+		setMode(content === "cloze" ? "cyber" : m);
 		setPhase("preparing");
 		setPrepError(null);
 		setPrepProgress(0);
-		setPrepStatus("正在生成语音…");
+		setPrepStatus(content === "cloze" ? "正在出题…" : "正在生成语音…");
 		prepAbort = new AbortController();
 		const seq = ++prepSeq;
 		void runPreparation(
 			ws,
-			contentMode(),
+			content,
 			settings().voice,
 			prepAbort.signal,
 			seq,
+			definitions ?? {},
 		);
+	};
+
+	/**
+	 * 组句准备：一次 AI 出题（服务端已按契约校验）→ 只为答案词合成 TTS。
+	 * 候选池取本场词表前 24 个（超出部分留给下一场），题序打乱后建轮次。
+	 */
+	const prepareCloze = async (
+		ws: string[],
+		voice: string,
+		definitions: Record<string, string>,
+		signal: AbortSignal,
+		alive: () => boolean,
+	) => {
+		const pool = ws.slice(0, CLOZE_MAX_CANDIDATES);
+		setClozeCandidates(shuffle(pool));
+		setPrepProgress(0);
+		setPrepStatus("正在出题…（一次性生成整场题目）");
+		const items = await requestClozeQuestions(
+			pool.map((word) => {
+				const definition = definitions[word]?.trim();
+				return definition ? { word, definition } : { word };
+			}),
+			settings(),
+			signal,
+		);
+		if (!alive()) return;
+		const answerWords = [
+			...new Set(items.flatMap((item) => item.blanks.map((blank) => blank.answer))),
+		];
+		const audioNames = await prepareClozeAudio(answerWords, voice, signal, alive);
+		if (!alive()) return;
+		lastPrep = {
+			words: pool,
+			nameMap: new Map(),
+			defs: {},
+			chinese: {},
+		};
+		setRounds(
+			buildClozeRounds({
+				items,
+				audioNames,
+				level: speed(),
+				multiplier: settings().multiplier,
+			}),
+		);
+		setPhase("ready");
+	};
+
+	/**
+	 * 组句的音频只服务结果页发音按钮；TTS 失败不阻塞本场（降级为空表 + 提示）。
+	 * 中止则原样抛出，由调用方按旧任务丢弃。
+	 */
+	const prepareClozeAudio = async (
+		words: string[],
+		voice: string,
+		signal: AbortSignal,
+		alive: () => boolean,
+	): Promise<Record<string, string>> => {
+		if (words.length === 0) return {};
+		try {
+			const items = await requestTtsAll(words, voice, signal, (done, total) => {
+				if (!alive()) return;
+				setPrepProgress(done / total);
+				setPrepStatus(`正在生成语音 ${done}/${total}`);
+			});
+			return Object.fromEntries(items.map((item) => [item.word, item.name]));
+		} catch (err) {
+			if (signal.aborted) throw err;
+			setResultNote("语音生成失败：结果页的发音按钮不可用");
+			return {};
+		}
 	};
 
 	const runPreparation = async (
@@ -390,8 +602,8 @@ export function useDictation() {
 		voice: string,
 		signal: AbortSignal,
 		seq: number,
+		definitions: Record<string, string>,
 	) => {
-		const shuffled = shuffle(ws);
 		// 陈旧任务（被更新的准备/中止取代）不得再写任何状态
 		const alive = () => seq === prepSeq && !signal.aborted;
 		const aiStatus =
@@ -401,6 +613,11 @@ export function useDictation() {
 					? " · 正在获取中文词…"
 					: "";
 		try {
+			if (content === "cloze") {
+				await prepareCloze(ws, voice, definitions, signal, alive);
+				return;
+			}
+			const shuffled = shuffle(ws);
 			const ttsPromise = requestTtsAll(
 				shuffled,
 				voice,
@@ -442,7 +659,7 @@ export function useDictation() {
 		} catch (err) {
 			if (!alive()) return;
 			const msg = err instanceof Error ? err.message : String(err);
-			setPrepError(msg);
+			setPrepError(content === "cloze" ? `AI 当前不可用：${msg}` : msg);
 		}
 	};
 
@@ -476,7 +693,12 @@ export function useDictation() {
 	const inputDone = () => {
 		if (mode() !== "cyber") return true;
 		const r = rounds()[currentIndex()];
-		if (r?.answer === undefined) return false;
+		if (!r) return false;
+		if (r.kind === "cloze") {
+			// 组句：所有空都选完才算输入完成
+			return r.blanks.every((blank) => blank.chosen !== undefined);
+		}
+		if (r.answer === undefined) return false;
 		if (
 			(contentMode() === "definition" || contentMode() === "chinese") &&
 			r.answerDef === undefined
@@ -488,7 +710,14 @@ export function useDictation() {
 
 	const commitCurrentInputs = (i: number) => {
 		const r = rounds()[i];
-		if (mode() !== "cyber") return;
+		if (mode() !== "cyber" || !r) return;
+		if (r.kind === "cloze") {
+			// 倒计时结束：未选完的空按空字符串提交（与单词/释义轮同口径）
+			for (const blank of r.blanks) {
+				if (blank.chosen === undefined) patchClozeBlank(i, blank.index, "");
+			}
+			return;
+		}
 		const patch = timedOutInputPatch({
 			round: r,
 			contentMode: contentMode(),
@@ -508,6 +737,7 @@ export function useDictation() {
 		roundSeq++;
 		const seq = roundSeq;
 		const r = rounds()[i];
+		roundStartedAt = Date.now();
 		setCurrentIndex(i);
 		engine = {
 			...engine,
@@ -545,6 +775,11 @@ export function useDictation() {
 		}, 100);
 
 		// —— 播音轨：自然播报 + 每遍间隔（不干涉音频）——
+		// 组句轮不播语音：直接标记语音轨完成（此时 inputDone 还是 false，状态机会等作答）
+		if (r.kind === "cloze") {
+			runStep({ type: "speech-end" });
+			return;
+		}
 		audioAbort = new AbortController();
 		const signal = audioAbort.signal;
 		void playWithIntervals({
@@ -577,7 +812,8 @@ export function useDictation() {
 	const step = (): "word" | "def" | "done" | "none" => {
 		if (mode() !== "cyber") return "none";
 		const r = rounds()[currentIndex()];
-		if (r?.answer === undefined) return "word";
+		if (!r || r.kind === "cloze") return "none";
+		if (r.answer === undefined) return "word";
 		if (
 			(contentMode() === "definition" || contentMode() === "chinese") &&
 			r.answerDef === undefined
@@ -585,6 +821,30 @@ export function useDictation() {
 			return "def";
 		}
 		return "done";
+	};
+
+	/**
+	 * 组句轮选词：填入某个空；全部空填完立即自动提交（不等倒计时）。
+	 * 状态机判定由 runStep 负责，这里只改数据。
+	 */
+	const chooseClozeWord = (blankIndex: number, word: string) => {
+		if (mode() !== "cyber" || contentMode() !== "cloze") return;
+		const i = currentIndex();
+		const r = rounds()[i];
+		if (!r || r.kind !== "cloze") return;
+		patchClozeBlank(i, blankIndex, word);
+		const filled = r.blanks.every(
+			(blank) => blank.index === blankIndex || blank.chosen !== undefined,
+		);
+		refreshInputDone();
+		if (filled) runStep({ type: "submit" });
+	};
+
+	/** 组句轮清除某个空的所选词（Backspace） */
+	const clearClozeWord = (blankIndex: number) => {
+		if (mode() !== "cyber" || contentMode() !== "cloze") return;
+		patchClozeBlank(currentIndex(), blankIndex, undefined);
+		refreshInputDone();
 	};
 	const submitWord = () => {
 		if (step() !== "word") return;
@@ -606,34 +866,8 @@ export function useDictation() {
 	const resultRows = (): ResultRow[] =>
 		buildResultRows(rounds(), mode(), contentMode(), lastGrades ?? undefined);
 
-	const playResultAudio = (name: string) => {
-		if (phase() !== "results" || !name) return;
-		stopResultAudio();
-		const controller = new AbortController();
-		resultAudioAbort = controller;
-		void playWithIntervals({
-			url: audioUrl(name),
-			count: 1,
-			gapsMs: [0],
-			signal: controller.signal,
-			onPlay: () => {},
-			onAudioState: (playing) => {
-				if (resultAudioAbort !== controller) return;
-				setResultAudioName(playing ? name : null);
-			},
-			onPlaybackFailure: () => {
-				if (resultAudioAbort !== controller) return;
-				void invalidateCacheFile(name);
-			},
-		}).then(() => {
-			if (resultAudioAbort !== controller) return;
-			resultAudioAbort = null;
-			setResultAudioName(null);
-		});
-	};
-
 	const closeResults = () => {
-		stopResultAudio();
+		resultAudio.stop();
 		setPhase("idle");
 	};
 
@@ -647,7 +881,9 @@ export function useDictation() {
 		setSettingsOpen(false);
 	};
 
-	const currentRound = createMemo(() => rounds()[currentIndex()]);
+	// 当前轮直接由 rounds 派生（与 resultRows 同理：memo 在非追踪上下文里会读不到新值）
+	const currentRound = (): DictRound | undefined =>
+		rounds()[currentIndex()];
 
 	/* ---------- 键盘流 ---------- */
 	/** 键盘流：结果页回车/Escape 关闭；书写模式音频未发声时空格直接跳下一轮 */
@@ -742,14 +978,18 @@ export function useDictation() {
 		repeatIndex,
 		sounding,
 		speechDone,
+		roundElapsed,
 		wordInput,
 		defInput,
 		currentRound,
+		clozeCandidates,
+		resultNote,
 		resultRows,
-		resultAudioName,
+		resultAudioName: resultAudio.playingName,
 		gradeNote,
 		addWord,
 		addWords,
+		replaceWords,
 		removeWord,
 		clearWords,
 		setSpeed,
@@ -761,8 +1001,10 @@ export function useDictation() {
 		step,
 		submitWord,
 		submitDef,
+		chooseClozeWord,
+		clearClozeWord,
 		closeResults,
-		playResultAudio,
+		playResultAudio: resultAudio.play,
 		changeSettings,
 		closeSettings,
 		setSettingsOpen,
