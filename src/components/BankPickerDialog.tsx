@@ -212,8 +212,15 @@ interface RowProps {
 function Row(props: RowProps) {
 	return (
 		<div
-			class={`flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 ${
-				props.active ? "bg-brand/10 ring-[1.5px] ring-brand" : "bg-canvas"
+			// 选中态用 border 而不是 ring：ring 是画在盒子外的 box-shadow，
+			// 而本列表在 overflow-y-auto 的滚动容器里（`overflow-y:auto` 会让另一轴
+			// 也退化为 auto 而裁剪），行左边贴着容器左边缘、左侧没有 padding，
+			// 于是选中框的左半边会被裁掉。border 画在盒子内，任何容器都不会裁。
+			// 未选中时保留同宽透明边框，避免选中态切换时行高与文字左右位移。
+			class={`flex items-center gap-2.5 rounded-xl border-[1.5px] px-3.5 py-2.5 ${
+				props.active
+					? "border-brand bg-brand/10"
+					: "border-transparent bg-canvas"
 			}`}
 		>
 			<button
