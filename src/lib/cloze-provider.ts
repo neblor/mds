@@ -15,6 +15,11 @@ import {
 	type DefinitionProviderDiagnostics,
 } from "./definition-provider";
 import { ClozeParseError, parseClozeItems, type ClozeItem } from "./cloze-parse";
+import {
+	CONTENT_LEVEL_PROMPTS,
+	DEFAULT_CONTENT_LEVEL,
+	type ContentLevel,
+} from "./content-level";
 
 /** 候选词（可带英文释义，帮助 AI 选对义项；没有也能出题） */
 export interface ClozeCandidate {
@@ -27,6 +32,8 @@ export interface FetchClozeOptions {
 	baseUrl: string;
 	apiKey: string;
 	model: string;
+	/** 生成级别（用户设置，默认初中）；只约束句子的词汇与句法难度 */
+	contentLevel?: ContentLevel;
 	signal?: AbortSignal;
 	timeoutMs?: number;
 	fetchImpl?: typeof fetch;
@@ -38,22 +45,23 @@ export interface FetchClozeResult {
 	diagnostics: DefinitionProviderDiagnostics;
 }
 
-/** 出题口径：一次生成 3–6 道题、总共用 6–16 个不同答案词（与 cloze-parse 的硬校验一致） */
-export const CLOZE_PROMPT_ITEM_RANGE = "3 to 6";
-export const CLOZE_PROMPT_ANSWER_RANGE = "6 to 16";
-
-export const CLOZE_SYSTEM_PROMPT =
-	"You write fill-in-the-blank English exercises for children who are learning vocabulary. " +
-	"Reply with STRICT JSON only (no markdown fences, no extra text) using this shape: " +
-	'{"items":[{"id":1,"sentences":["First sentence with ##1 here.","Second sentence with ##2 here."],' +
-	'"blanks":[{"index":1,"answer":"<exact candidate word>"}],"usedWords":["<exact candidate word>"]}]}. ' +
-	"Rules: " +
-	"use ONLY the candidate words as blank answers, never invent an answer; " +
-	`each item has 2 or 3 sentences and 2 to 4 blanks, numbered ##1, ##2, ... with each number appearing exactly once and blanks[index] matching its ##number; ` +
-	"sentences must be simple, kid-friendly, grammatically correct, and every blank must have exactly one clearly correct candidate; " +
-	"candidate words that are NOT an answer of that item must NOT appear anywhere in that item's sentences; " +
-	`produce ${CLOZE_PROMPT_ITEM_RANGE} items and use ${CLOZE_PROMPT_ANSWER_RANGE} different answer words in total; ` +
-	"usedWords must list exactly the distinct answers of that item, spelled exactly like the candidate words.";
+/**
+ * 组句出题 system prompt：平铺直叙只说「要什么」，加真护栏（输出非 JSON、编号与 index 对不上、编造池外单词）。
+ * 句子的词汇与句法难度用生成级别（contentLevel）的客观描述指定，不使用任何主观定位。
+ */
+export function buildClozeSystemPrompt(contentLevel: ContentLevel): string {
+	return (
+		"You write fill-in-the-blank English exercises. " +
+		"Reply with STRICT JSON only, no markdown fences and no extra text: " +
+		'{"items":[{"id":1,"sentences":["First sentence with ##1 here.","Second sentence with ##2 here."],' +
+		'"blanks":[{"index":1,"answer":"<candidate word>"},{"index":2,"answer":"<candidate word>"}]}]} ' +
+		"Produce 3 to 6 items, each with 2 to 3 sentences and 2 to 4 blanks. " +
+		"Mark each blank in the sentences as ##1, ##2, ... and give its entry in blanks the matching index. " +
+		"Every answer is a candidate word from the user message, spelled as listed - never invent a word. " +
+		`Write grammatically correct sentences in ${CONTENT_LEVEL_PROMPTS[contentLevel]}, and make each blank have exactly one clearly correct candidate. ` +
+		"Across the items, cover 6 to 16 candidate words."
+	);
+}
 
 /** 用户消息：候选词 + 可选释义（只给 AI 必需的信息） */
 export function buildClozeUserPrompt(candidates: ClozeCandidate[]): string {
@@ -126,7 +134,12 @@ export async function fetchClozeItems(
 		temperature: 0.3,
 		max_tokens: 4096,
 		messages: [
-			{ role: "system", content: CLOZE_SYSTEM_PROMPT },
+			{
+				role: "system",
+				content: buildClozeSystemPrompt(
+					options.contentLevel ?? DEFAULT_CONTENT_LEVEL,
+				),
+			},
 			{ role: "user", content: buildClozeUserPrompt(candidates) },
 		],
 	};

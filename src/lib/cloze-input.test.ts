@@ -89,6 +89,49 @@ describe("stepClozeInput 选词", () => {
 		expect(state).toMatchObject({ active: 1, cursor: 2 });
 	});
 
+	it("鼠标点击候选（pick）：与回车同路，填入当前空并推进到下一个未填空", () => {
+		const { results, state } = run(
+			initialClozeInput(),
+			[{ type: "pick", index: 3 }],
+			ctx([undefined, undefined, undefined]),
+		);
+		expect(results[0].choose).toEqual({ blank: 0, word: "happy" });
+		expect(state).toMatchObject({ active: 1, cursor: 3 });
+	});
+
+	it("点击已填空槽改选：覆写该空后继续推进；下标越界时不动", () => {
+		const { results, state } = run(
+			initialClozeInput(),
+			[
+				{ type: "focus", index: 1 },
+				{ type: "pick", index: 4 },
+			],
+			ctx([undefined, "apple", undefined]),
+		);
+		expect(results[1].choose).toEqual({ blank: 1, word: "orange" });
+		expect(state.active).toBe(2);
+
+		// 改选的是最后一个空、前面还有空 → 绕回去继续填
+		const wrap = run(
+			initialClozeInput(),
+			[
+				{ type: "focus", index: 2 },
+				{ type: "pick", index: 1 },
+			],
+			ctx(["apple", undefined, "banana"]),
+		);
+		expect(wrap.results[1].choose).toEqual({ blank: 2, word: "banana" });
+		expect(wrap.state.active).toBe(1);
+
+		const outOfRange = run(
+			initialClozeInput(),
+			[{ type: "pick", index: 99 }],
+			ctx([undefined]),
+		);
+		expect(outOfRange.results[0]).toMatchObject({ choose: null, clear: null });
+		expect(outOfRange.state).toEqual(initialClozeInput());
+	});
+
 	it("1–9 快选：数字对应候选下标", () => {
 		const { results, state } = run(
 			initialClozeInput(),

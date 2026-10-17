@@ -29,7 +29,7 @@ export function createMainWindowOptions(appPath, version) {
 		maximizable: false,
 		fullscreen: false,
 		fullscreenable: false,
-		autoHideMenuBar: true,
+		autoHideMenuBar: true, // 只是隐藏；彻底禁用（Alt 也唤不出）在主进程 Menu.setApplicationMenu(null)
 		icon: join(appPath, ".output", "public", "icons", "app.ico"),
 		webPreferences: {
 			contextIsolation: true,

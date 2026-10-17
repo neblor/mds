@@ -1,4 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+	CONTENT_LEVEL_PROMPTS,
+	DEFAULT_CONTENT_LEVEL,
+} from "~/lib/content-level";
 import { MAX_CLOZE_CANDIDATES, POST, extractCandidates } from "./cloze";
 
 const VALID_ITEMS = {
@@ -114,6 +118,49 @@ describe("POST /api/cloze", () => {
 			{ word: "apple", definition: "a round fruit" },
 			{ word: "orange" },
 		]);
+	});
+
+	it("body.contentLevel 进入 system prompt；非法值回落初中", async () => {
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValue(chatResponse(JSON.stringify(VALID_ITEMS)));
+		vi.stubGlobal("fetch", fetchMock);
+
+		await POST(
+			eventFor({
+				candidates: [{ word: "apple" }],
+				baseUrl: "https://example.test/v1",
+				apiKey: "test-key",
+				model: "test-model",
+				contentLevel: "college",
+			}),
+		);
+		const body = JSON.parse(
+			String((fetchMock.mock.calls[0][1] as RequestInit).body),
+		) as { messages: { content: string }[] };
+		expect(body.messages[0].content).toContain(
+			CONTENT_LEVEL_PROMPTS.college,
+		);
+
+		const fallbackFetch = vi
+			.fn()
+			.mockResolvedValue(chatResponse(JSON.stringify(VALID_ITEMS)));
+		vi.stubGlobal("fetch", fallbackFetch);
+		await POST(
+			eventFor({
+				candidates: [{ word: "apple" }],
+				baseUrl: "https://example.test/v1",
+				apiKey: "test-key",
+				model: "test-model",
+				contentLevel: "高学",
+			}),
+		);
+		const fallbackBody = JSON.parse(
+			String((fallbackFetch.mock.calls[0][1] as RequestInit).body),
+		) as { messages: { content: string }[] };
+		expect(fallbackBody.messages[0].content).toContain(
+			CONTENT_LEVEL_PROMPTS[DEFAULT_CONTENT_LEVEL],
+		);
 	});
 
 	it("候选超过上限时只把前 24 个交给 AI", async () => {

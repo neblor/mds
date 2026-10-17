@@ -4,7 +4,7 @@
  * BrowserWindow 加载本地 http。安装版运行时数据统一放 userData/mds-data。
  * 启动/运行错误写入 <userData>/mds-error.log 便于排查。
  */
-import { app, BrowserWindow, dialog } from "electron";
+import { app, BrowserWindow, Menu, dialog } from "electron";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -88,6 +88,11 @@ if (!hasSingleInstanceLock) {
 
 app.whenReady().then(async () => {
 	if (!hasSingleInstanceLock) return;
+	// 彻底禁用应用菜单：autoHideMenuBar 只是隐藏，单按 Alt 仍会把菜单栏唤出来；
+	// 传 null 才是「没有菜单可唤出」（Windows/Linux 下同时会移除窗口菜单栏）。
+	// 文字输入框的 Ctrl+C/V/X/A/Z 由 Chromium 自己处理，不依赖菜单加速键；
+	// 该限制只影响 macOS（那边需要 Edit 菜单角色），本项目只出 Windows 包。
+	Menu.setApplicationMenu(null);
 	let port;
 	try {
 		port = await startServer();

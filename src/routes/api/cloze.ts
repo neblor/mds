@@ -11,6 +11,7 @@ import {
 	type DefinitionProviderErrorCode,
 } from "~/lib/definition-provider";
 import { fetchClozeItems, type ClozeCandidate } from "~/lib/cloze-provider";
+import { parseContentLevel } from "~/lib/content-level";
 import { CLOZE_MAX_CANDIDATES } from "~/lib/cloze-parse";
 import { runtimeDiagnosticLogger } from "~/lib/runtime-logger";
 import { extractWords, readJsonBody, type RouteEvent } from "~/lib/server-body";
@@ -24,6 +25,7 @@ interface ClozeRequestBody {
 	baseUrl?: string;
 	apiKey?: string;
 	model?: string;
+	contentLevel?: unknown;
 }
 
 function errorResult(code: DefinitionProviderErrorCode, message: string) {
@@ -88,6 +90,7 @@ export async function POST(event: RouteEvent) {
 			baseUrl,
 			apiKey,
 			model,
+			contentLevel: parseContentLevel(body?.contentLevel),
 			signal: event.request.signal,
 			onDiagnostic: (entry) => runtimeDiagnosticLogger.write(entry),
 		});

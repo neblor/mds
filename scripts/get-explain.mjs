@@ -1,11 +1,16 @@
 import { existsSync } from "node:fs";
+import { register } from "node:module";
 import process from "node:process";
 import { resolve } from "node:path";
-import {
-	fetchEnglishDefinitions,
-	fetchChineseWords,
-	fetchAnswerGrades,
-} from "../src/lib/definition-provider.ts";
+
+// 项目源码用无扩展名的相对导入（Vite 风格），Node 需要这个钩子才能解析；
+// 钩子必须在 import 之前注册，因此 provider 用动态 import 引入。
+register("./ts-resolve-hook.mjs", import.meta.url);
+
+const { fetchEnglishDefinitions, fetchChineseWords, fetchAnswerGrades } =
+	await import("../src/lib/definition-provider.ts");
+const { CONTENT_LEVEL_OPTIONS, DEFAULT_CONTENT_LEVEL, parseContentLevel } =
+	await import("../src/lib/content-level.ts");
 
 const projectRoot = resolve(import.meta.dirname, "..");
 const envFile = resolve(projectRoot, ".env");
@@ -25,13 +30,16 @@ const baseUrl = String(process.env.MDS_AI_BASE_URL ?? "").trim();
 const apiKey = String(process.env.MDS_AI_API_KEY ?? "").trim();
 const model = String(process.env.MDS_AI_MODEL ?? "gpt-4o-mini").trim();
 
-function printUsage() {
+const printUsage = () => {
 	console.log('用法：pnpm get:explain word1 word2 "a short phrase"');
 	console.log("      pnpm get:explain --chinese hello world   # 抓中文对应词");
 	console.log('      pnpm get:explain --grade "hello=你好"    # AI 批改中文词作答');
 	console.log('      pnpm get:explain --grade-def "apple=a fruit"  # AI 批改释义作答');
+	console.log(
+		"可选：--level primary|junior|senior|college（生成级别，只在释义时生效；默认初中）",
+	);
 	console.log("配置：.env 中填写 MDS_AI_BASE_URL、MDS_AI_API_KEY、MDS_AI_MODEL");
-}
+};
 
 /** 需要真正调用 AI 的分支才校验配置（--help / 空参数只打用法） */
 function ensureConfig() {
@@ -56,14 +64,16 @@ function reportError(error, diagnosticEvents) {
 	process.exitCode = 1;
 }
 
-async function runPairs(words, isChinese) {
+async function runPairs(words, isChinese, contentLevel) {
 	const diagnosticEvents = [];
 	try {
 		const result = isChinese
 			? await fetchChineseWords({ words, baseUrl, apiKey, model, onDiagnostic: (event) => diagnosticEvents.push(event) })
-			: await fetchEnglishDefinitions({ words, baseUrl, apiKey, model, onDiagnostic: (event) => diagnosticEvents.push(event) });
+			: await fetchEnglishDefinitions({ words, baseUrl, apiKey, model, contentLevel, onDiagnostic: (event) => diagnosticEvents.push(event) });
 		report({
-			...(isChinese ? { words: result.words } : { definitions: result.definitions }),
+			...(isChinese
+				? { words: result.words }
+				: { contentLevel, definitions: result.definitions }),
 			missing: result.missing,
 			warning: result.warning,
 			diagnostics: result.diagnostics,
@@ -108,6 +118,22 @@ function collectGradeItems(args) {
 	}).filter((item) => item.word && item.answer);
 }
 
+/** 抽离 `--level <级别>`：返回级别与剩余参数（非法值直接报错退出） */
+function splitLevel(args) {
+	const index = args.indexOf("--level");
+	if (index < 0) return { contentLevel: DEFAULT_CONTENT_LEVEL, rest: args };
+	const value = String(args[index + 1] ?? "").trim();
+	if (!CONTENT_LEVEL_OPTIONS.some((option) => option.value === value)) {
+		console.error(
+			`--level 只能是 ${CONTENT_LEVEL_OPTIONS.map((option) => option.value).join("/")}`,
+		);
+		process.exitCode = 1;
+		return null;
+	}
+	const rest = args.filter((_, i) => i !== index && i !== index + 1);
+	return { contentLevel: parseContentLevel(value), rest };
+}
+
 async function main() {
 	const args = process.argv.slice(2);
 	const grade = args.includes("--grade");
@@ -116,10 +142,14 @@ async function main() {
 	const rest = args.filter(
 		(arg) => arg !== "--grade" && arg !== "--grade-def" && arg !== "--chinese",
 	);
+	const level = splitLevel(rest);
+	if (!level) return;
+	const contentLevel = level.contentLevel;
+	const wordsOrItems = level.rest;
 
 	if (grade || gradeDef) {
 		// 用法：pnpm get:explain --grade "hello=你好"（中文词）/ --grade-def "apple=a round fruit"（释义）
-		const items = collectGradeItems(rest);
+		const items = collectGradeItems(wordsOrItems);
 		if (items.length === 0) {
 			console.log('用法：pnpm get:explain --grade "hello=你好"  # 中文词批改');
 			console.log('      pnpm get:explain --grade-def "apple=a round fruit"  # 释义批改');
@@ -132,7 +162,7 @@ async function main() {
 	}
 
 	if (chinese) {
-		const words = collectWords(rest);
+		const words = collectWords(wordsOrItems);
 		if (words.length === 0) {
 			console.log("用法：pnpm get:explain --chinese hello world");
 			process.exitCode = 1;
@@ -143,14 +173,14 @@ async function main() {
 		return;
 	}
 
-	const words = collectWords(rest);
+	const words = collectWords(wordsOrItems);
 	if (words.length === 0 || args.includes("--help")) {
 		printUsage();
 		process.exitCode = args.includes("--help") ? 0 : 1;
 		return;
 	}
 	if (!ensureConfig()) return;
-	await runPairs(words, false);
+	await runPairs(words, false, contentLevel);
 }
 
 await main();

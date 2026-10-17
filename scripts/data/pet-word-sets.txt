@@ -1,0 +1,181 @@
+# PET 词套补全（人工整理，非 PDF 逐字）
+#
+# 背景：官方词表附录 1「Word sets」里，数字 / 序数 / 星期 / 月份只写了示例（one, two, three, etc.
+# / Monday, Tuesday, etc.），国家名也只给「for example」几个；这里按 B1 常见范围补全成套，
+# 与 PDF 里印出来的条目（季节、大洲、举例国家）一起构成完整词套。
+# 来源：Cambridge《B1 Preliminary / B1 Preliminary for Schools Vocabulary List》(2025-08) 附录 1
+#       https://www.cambridgeenglish.org/Images/506887-b1-preliminary-vocabulary-list.pdf
+# 版权：© Cambridge University Press & Assessment，仅供个人学习使用
+# 维护：改这个文件即可，不用重跑 PDF 解析；构建时与 pet-b1-words.txt 合并去重
+
+# --- 基数词 ---
+zero
+one
+two
+three
+four
+five
+six
+seven
+eight
+nine
+ten
+eleven
+twelve
+thirteen
+fourteen
+fifteen
+sixteen
+seventeen
+eighteen
+nineteen
+twenty
+thirty
+forty
+fifty
+sixty
+seventy
+eighty
+ninety
+hundred
+thousand
+million
+
+# --- 序数词 ---
+first
+second
+third
+fourth
+fifth
+sixth
+seventh
+eighth
+ninth
+tenth
+eleventh
+twelfth
+thirteenth
+fourteenth
+fifteenth
+sixteenth
+seventeenth
+eighteenth
+nineteenth
+twentieth
+thirtieth
+fortieth
+fiftieth
+sixtieth
+seventieth
+eightieth
+ninetieth
+hundredth
+thousandth
+
+# --- 星期 ---
+Monday
+Tuesday
+Wednesday
+Thursday
+Friday
+Saturday
+Sunday
+
+# --- 月份 ---
+January
+February
+March
+April
+May
+June
+July
+August
+September
+October
+November
+December
+
+# --- 国家 / 国籍 / 语言（B1 常见范围） ---
+Australia
+Australian
+Austria
+Austrian
+Belgium
+Belgian
+Brazil
+Brazilian
+Britain
+British
+Canada
+Canadian
+China
+Chinese
+Denmark
+Danish
+Egypt
+Egyptian
+England
+English
+Finland
+Finnish
+France
+French
+Germany
+German
+Greece
+Greek
+Hungary
+Hungarian
+India
+Indian
+Ireland
+Irish
+Italy
+Italian
+Japan
+Japanese
+Korea
+Korean
+Malaysia
+Malaysian
+Mexico
+Mexican
+Netherlands
+Dutch
+New Zealand
+New Zealander
+Norway
+Norwegian
+Poland
+Polish
+Portugal
+Portuguese
+Russia
+Russian
+Scotland
+Scottish
+Singapore
+Singaporean
+South Africa
+South African
+Spain
+Spanish
+Sweden
+Swedish
+Switzerland
+Swiss
+Thailand
+Thai
+Turkey
+Turkish
+United States
+American
+USA
+Vietnam
+Vietnamese
+Wales
+Welsh
+
+# --- 其它 B1 常见语言 ---
+Arabic
+Hindi

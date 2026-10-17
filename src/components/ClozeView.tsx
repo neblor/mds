@@ -3,10 +3,12 @@
  *
  * 布局（对应 .design/mds.pen 27 屏，自上而下位置固定）：
  *   `第 n / N 题` + `选词作答` → 倒计时条（可选数字）→ 候选词卡（≤24）
- *   → 短文卡（2–3 句，句中内联空槽）→ 底部键盘提示行
+ *   → 短文卡（句数由出题方给，多了可滚动，句中内联空槽）→ 底部键盘提示行
  *
  * 键盘流（铁律，逻辑在 lib/cloze-input.ts 里可单测）：
  *   ←→ 选词 · 1–9 快选 · 回车填入 · Tab/↑↓ 换空 · Backspace 撤回 · 选完自动进下一题
+ * 鼠标流：点候选词 = 填入当前空并自动跳到下一个未填空（与回车同路）；
+ *   点空槽（含已填）= 切到该空，可再点候选词覆写；不禁用来回点击。
  * 组句轮不播语音，所以这里没有播音区；输入区位置固定，提示不顶动空槽。
  */
 import { For, Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
@@ -59,12 +61,14 @@ function chipClass(state: "used" | "cursor" | "idle"): string {
 	return `${base} bg-[#EDF3F2] text-ink hover:bg-brand/10 hover:text-brand`;
 }
 
-/** 空槽样式：已填（白底描边）/ 当前空（下划线 + 浅底）/ 未激活（浅灰下划线） */
-function slotClass(state: "filled" | "active" | "idle"): string {
+/** 空槽样式：已填（白底描边，当前空加一圈光）/ 当前空（下划线 + 浅底）/ 未激活（浅灰下划线） */
+function slotClass(state: "filled" | "active" | "idle", isActive = false): string {
 	const base =
-		"inline-flex min-w-[72px] items-center justify-center rounded-lg px-3 py-0.5 text-[21px] align-middle";
+		"inline-flex min-w-[72px] items-center justify-center rounded-lg px-3 py-0.5 text-[21px] align-middle transition";
 	if (state === "filled") {
-		return `${base} border-[1.5px] border-brand bg-surface text-brand`;
+		return `${base} border-[1.5px] border-brand bg-surface text-brand ${
+			isActive ? "ring-[3px] ring-brand/30" : ""
+		}`;
 	}
 	if (state === "active") {
 		return `${base} border-0 border-b-[3px] border-brand bg-brand/10 px-4 text-brand`;
@@ -117,10 +121,18 @@ export default function ClozeView(props: Props) {
 	const activeBlankIndex = () =>
 		props.blanks[input().active]?.index ?? props.blanks[0]?.index ?? 0;
 
-	const chooseFromChip = (word: string, chipIndex: number) => {
-		setInput({ ...input(), cursor: chipIndex });
-		props.onChoose(activeBlankIndex(), word);
+	/** 点击空槽：把当前空移到它上面（已填的空也能点回来改选） */
+	const focusBlank = (blankIndex: number) => {
+		const position = props.blanks.findIndex((entry) => entry.index === blankIndex);
+		if (position >= 0) setInput({ ...input(), active: position });
 	};
+
+	/** 正文里实际的空槽数（同一个编号写两次就有两个槽） */
+	const slotCount = () =>
+		props.sentences.reduce(
+			(sum, sentence) => sum + (sentence.match(/##\d+/g)?.length ?? 0),
+			0,
+		);
 
 	onMount(() => {
 		const handler = (event: KeyboardEvent) => {
@@ -206,8 +218,8 @@ export default function ClozeView(props: Props) {
 								onMouseEnter={() =>
 									setInput({ ...input(), cursor: chipIndex() })
 								}
-								onClick={() => chooseFromChip(word, chipIndex())}
-								title={`填入「${word}」`}
+								onClick={() => apply({ type: "pick", index: chipIndex() })}
+								title={`填入「${word}」（自动跳到下一个空）`}
 							>
 								<Show when={usedWords().has(word)}>
 									<Check class="h-3.5 w-3.5 text-ok" />
@@ -219,61 +231,61 @@ export default function ClozeView(props: Props) {
 				</div>
 			</div>
 
-			{/* 短文（2–3 句；空槽内联在句子里） */}
+			{/* 短文（句数不定，内联空槽；多了可滚动） */}
 			<div class="flex min-h-0 flex-1 flex-col gap-5 rounded-2xl bg-surface px-8 py-6 shadow-sm">
 				<span class="text-[13px] text-ink-faint">
-					短文 · 本组 {props.blanks.length} 个空 · 选完自动进入下一题
+					短文 · 本组 {slotCount()} 个空 · 选完自动进入下一题
 				</span>
-				<div class="flex min-h-0 flex-1 flex-col justify-center gap-6">
-					<For each={props.sentences}>
-						{(sentence) => (
-							<p class="text-[21px] leading-[1.9] text-ink">
-								<For each={splitClozeSentence(sentence)}>
-									{(part) => (
-										<Show
-											when={part.kind === "blank"}
-											fallback={
-												<span>{part.kind === "text" ? part.text : ""}</span>
-											}
-										>
-											<Show when={part.kind === "blank" ? part.index : 0}>
-												{(blankIndex) => {
-													const blank = () => blankByIndex(blankIndex());
-													const isActive = () =>
-														activeBlankIndex() === blankIndex();
-													return (
-														<Show
-															when={blank()?.chosen !== undefined}
-															fallback={
+				<div class="min-h-0 flex-1 overflow-y-auto">
+					<div class="flex min-h-full flex-col justify-center gap-6">
+						<For each={props.sentences}>
+							{(sentence) => (
+								<p class="text-[21px] leading-[1.9] text-ink">
+									<For each={splitClozeSentence(sentence)}>
+										{(part) => (
+											<Show
+												when={part.kind === "blank"}
+												fallback={
+													<span>{part.kind === "text" ? part.text : ""}</span>
+												}
+											>
+												<Show when={part.kind === "blank" ? part.index : 0}>
+													{(blankIndex) => {
+														const blank = () => blankByIndex(blankIndex());
+														const isActive = () =>
+															activeBlankIndex() === blankIndex();
+														return (
+															<Show
+																when={blank()?.chosen !== undefined}
+																fallback={
+																	<button
+																		type="button"
+																		class={slotClass(isActive() ? "active" : "idle")}
+																		onClick={() => focusBlank(blankIndex())}
+																	>
+																		{isActive() ? "选词" : "＿＿"}
+																	</button>
+																}
+															>
 																<button
 																	type="button"
-																	class={slotClass(isActive() ? "active" : "idle")}
-																	onClick={() =>
-																		setInput({
-																			...input(),
-																			active: props.blanks.findIndex(
-																				(entry) => entry.index === blankIndex(),
-																			),
-																		})
-																	}
+																	class={slotClass("filled", isActive())}
+																	onClick={() => focusBlank(blankIndex())}
+																	title="点这里改选这个空"
 																>
-																	{isActive() ? "选词" : "＿＿"}
+																	{blank()?.chosen}
 																</button>
-															}
-														>
-															<span class={slotClass("filled")}>
-																{blank()?.chosen}
-															</span>
-														</Show>
-													);
-												}}
+															</Show>
+														);
+													}}
+												</Show>
 											</Show>
-										</Show>
-									)}
-								</For>
-							</p>
-						)}
-					</For>
+										)}
+									</For>
+								</p>
+							)}
+						</For>
+					</div>
 				</div>
 			</div>
 

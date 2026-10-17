@@ -111,6 +111,22 @@ describe("loadSettings", () => {
 		);
 		expect(loadSettings().voice).toBe("en-US-ChristopherNeural");
 	});
+
+	it("生成级别：缺省/非法回落初中，合法值保留", () => {
+		mockStorage().getItem.mockReturnValue(JSON.stringify({ aiModel: "my-model" }));
+		expect(DEFAULT_SETTINGS.contentLevel).toBe("junior");
+		expect(loadSettings().contentLevel).toBe("junior");
+
+		mockStorage().getItem.mockReturnValue(
+			JSON.stringify({ contentLevel: "college" }),
+		);
+		expect(loadSettings().contentLevel).toBe("college");
+
+		mockStorage().getItem.mockReturnValue(
+			JSON.stringify({ contentLevel: "大学" }),
+		);
+		expect(loadSettings().contentLevel).toBe("junior");
+	});
 });
 
 describe("saveSettings", () => {

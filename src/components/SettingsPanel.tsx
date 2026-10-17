@@ -6,6 +6,7 @@ import {
 	clampRequestRetentionSetting,
 	VOICES,
 } from "~/lib/settings";
+import { CONTENT_LEVEL_OPTIONS, parseContentLevel } from "~/lib/content-level";
 import { isSettingsBackdropClick } from "~/lib/settings-panel";
 
 interface Props {
@@ -17,7 +18,7 @@ interface Props {
 /**
  * 设置面板
  *
- * 三张卡：AI 服务 / 语音音色 / 参数卡（倍率调整、倒计时数字、复习期望保持率三行并存）。
+ * 三张卡：AI 服务（含生成级别）/ 语音音色 / 参数卡（倍率调整、倒计时数字、复习期望保持率三行并存）。
  * 参数卡是合并来的：三个设置各占一张卡时面板总高会超过 820 窗口高度（实测 919），
  * 合并并收紧内边距后为 779，刚好装下且不用滚动。
  * 无确认按钮：改动即生效，由外层防抖 1.5s 落盘。
@@ -82,6 +83,25 @@ export default function SettingsPanel(props: Props) {
 						</label>
 						<p class="text-xs text-ink-faint">
 							不配置则无法使用「默写释义」和「中文词」功能
+						</p>
+						<label class="flex flex-col gap-1.5">
+							<span class="text-[13px] text-ink-soft">生成级别</span>
+							<select
+								class="w-full rounded-lg border border-soft bg-surface px-3.5 py-3 text-sm text-ink outline-none focus:border-brand"
+								value={props.settings.contentLevel}
+								onChange={(e) =>
+									set({ contentLevel: parseContentLevel(e.currentTarget.value) })
+								}
+							>
+								<For each={CONTENT_LEVEL_OPTIONS}>
+									{(option) => (
+										<option value={option.value}>{option.label}</option>
+									)}
+								</For>
+							</select>
+						</label>
+						<p class="text-xs text-ink-faint">
+							约束 AI 出题与释义的词汇、句法难度；默认初中
 						</p>
 					</div>
 

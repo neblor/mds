@@ -5,6 +5,7 @@
  */
 import { asAiPairCacheFile, getAiPairs } from "./ai-pair-service";
 import type { RuntimeCacheStorage } from "./cache-storage";
+import type { ContentLevel } from "./content-level";
 import type { RuntimeDiagnosticLogger } from "./runtime-logger";
 import type { DefinitionProviderDiagnostics } from "./definition-provider";
 
@@ -13,6 +14,8 @@ export interface GetDefinitionsOptions {
 	baseUrl: string;
 	apiKey: string;
 	model: string;
+	/** 生成级别：约束释义句的词汇与句法难度（默认初中） */
+	contentLevel?: ContentLevel;
 	storage: Pick<
 		RuntimeCacheStorage,
 		"readDefinitions" | "writeDefinitions"
@@ -39,6 +42,7 @@ export async function getEnglishDefinitions(
 		baseUrl: options.baseUrl,
 		apiKey: options.apiKey,
 		model: options.model,
+		contentLevel: options.contentLevel,
 		storage: {
 			read: () => asAiPairCacheFile(options.storage.readDefinitions()),
 			write: (value) => options.storage.writeDefinitions(value),

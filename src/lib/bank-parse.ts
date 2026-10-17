@@ -265,6 +265,9 @@ export function parseBankFile(
 		updatedAt,
 	};
 	if (note) bank.note = note;
+	if (typeof holder.license === "string" && holder.license.trim()) {
+		bank.license = holder.license.trim().slice(0, 60);
+	}
 	return bank;
 }
 

@@ -52,6 +52,8 @@ export interface WordBank {
 	updatedAt: number;
 	/** 备注（来源说明等） */
 	note?: string;
+	/** 数据许可（如 ECDICT (MIT)；随包词库各自不同，清单里会展示） */
+	license?: string;
 }
 
 /** 列表视图用的轻量摘要（不含 entries，避免整库读进前端） */

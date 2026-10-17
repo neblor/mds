@@ -46,7 +46,7 @@ export interface WordRoundLike {
 	answerDef?: string;
 }
 
-/** 组句轮（一题 2–3 句、2–4 空）的结果行所需数据 */
+/** 组句轮（一题一段短文 + 若干个空）的结果行所需数据 */
 export interface ClozeRoundLike {
 	kind: "cloze";
 	sentences: string[];

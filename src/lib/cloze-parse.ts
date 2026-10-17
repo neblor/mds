@@ -1,32 +1,28 @@
 /**
  * 组句（范例组句 / cloze）AI 出题结果的解析与校验（纯逻辑，可单测）
  *
- * 与 SYSTEM_PROMPT 一致的契约：
- *   { "items": [ { "id": 1, "sentences": ["…##1…", "…##2…"],
- *                  "blanks": [{ "index": 1, "answer": "apple" }],
- *                  "usedWords": ["apple"] } ] }
+ * 校验口径：**只拦格式，不拦质量**。本地没有模型，判不出题目好不好，所以这里只保证
+ * 「能被解析、能跑起来」，题面是否合理一律交给提示词去要求（见 cloze-provider）：
+ *   1. 形状：items 是非空数组（≤ 防护上限）；每题 sentences 非空、blanks 是对象数组
+ *   2. 占位符 ##n 与 blanks 一一对应：正文里出现过的编号集合 == blanks 的编号集合
+ *      （编号不必从 1 连续、同一个编号可以在正文里出现多次——重复词本就该共用一个答案）
+ *   3. 答案必须来自候选池（大小写不敏感，归一为候选词原始写法）：池外答案学生选不出来，
+ *      属于「跑不了」，这条必须拦
  *
- * 校验口径（任一不满足即抛 ClozeParseError；准备阶段按「AI 当前不可用」结束，不降级）：
- *   1. 是 1–6 道题，每题 2–3 句非空句子
- *   2. 每题 2–4 个空；占位符 `##1..##n` 恰好各出现一次，与 blanks 一一对应
- *   3. 答案必须来自候选池（大小写不敏感，归一为候选词原始写法），usedWords 与答案一致
- *   4. 全场答案词去重后 ≤ 16（R6：一屏最多考到 16 个词）
- *   5. 短文里出现的候选词必须就是**本题的空答案**——未挖空的候选词出现在句子里等于送答案
+ * 明确放行（不再当错误）的偏差：题数/句数/空数「多了少了」、同一个词填多个空、
+ * 一句里出现两三个同词、未挖空的候选词出现在句子里（如候选池里有 I / the 时根本躲不开）、
+ * usedWords 缺失或不一致（该字段已不参与校验，只按答案现算）。
  */
-export const CLOZE_MAX_ITEMS = 6;
-export const CLOZE_SENTENCE_MIN = 2;
-export const CLOZE_SENTENCE_MAX = 3;
-export const CLOZE_BLANK_MIN = 2;
-export const CLOZE_BLANK_MAX = 4;
-/** 全场答案词去重上限（R6：候选 ≤24、实际考到 ≤16） */
-export const CLOZE_MAX_ANSWERS = 16;
+export const CLOZE_MAX_ITEMS = 12;
+export const CLOZE_MAX_SENTENCES = 8;
+export const CLOZE_MAX_BLANKS = 8;
 /** 候选池上限（R6：一屏最多 24 个候选词；超出只取前 N 个） */
 export const CLOZE_MAX_CANDIDATES = 24;
 /** 单句长度上限（防止 AI 返回超长文本撑爆界面） */
-export const CLOZE_MAX_SENTENCE_CHARS = 300;
+export const CLOZE_MAX_SENTENCE_CHARS = 400;
 
 export interface ClozeBlank {
-	/** 空编号（1 起，与句子里的 ##n 对应） */
+	/** 空编号（与句子里的 ##n 对应） */
 	index: number;
 	/** 标准答案（已归一为候选词原始写法） */
 	answer: string;
@@ -35,14 +31,15 @@ export interface ClozeBlank {
 export interface ClozeItem {
 	/** 题目序号（沿用 AI 返回的 id，缺省按顺序补） */
 	id: number;
-	/** 2–3 句短文，内含 ##n 占位符 */
+	/** 短文句子（内含 ##n 占位符），正文顺序即作答顺序 */
 	sentences: string[];
+	/** 本题的空，按正文出现顺序排列 */
 	blanks: ClozeBlank[];
-	/** 本题答案词（与 blanks 去重后一致） */
+	/** 本题答案词（按答案现算去重，兼容旧字段，不参与校验） */
 	usedWords: string[];
 }
 
-/** 出题结果不符合契约（原因直接对用户可见） */
+/** 出题结果不符合可识别的格式（原因直接对用户可见） */
 export class ClozeParseError extends Error {
 	readonly reason: string;
 
@@ -78,17 +75,6 @@ function candidateIndex(candidates: string[]): Map<string, string> {
 		if (!map.has(key)) map.set(key, word);
 	}
 	return map;
-}
-
-function escapeRegExp(text: string): string {
-	return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/** 文本里是否出现该词（词边界匹配，大小写不敏感；词组按整体匹配，apples 不算 apple） */
-export function textContainsWord(text: string, word: string): boolean {
-	if (!word.trim()) return false;
-	const pattern = new RegExp(`(^|[^A-Za-z])${escapeRegExp(word.trim())}([^A-Za-z]|$)`, "i");
-	return pattern.test(text);
 }
 
 /** 把句子里的 ##n 换成对应答案（结果页展示上下文用；未知编号原样保留） */
@@ -141,6 +127,7 @@ export function sentenceOfBlank(
 	return fillClozeSentence(sentence ?? sentences[0] ?? "", blanks);
 }
 
+/** 一题里的句子：非空即可（句数多少不是错误，只防「一句都没有」和超长文本） */
 function parseSentences(raw: unknown, where: string): string[] {
 	if (!Array.isArray(raw)) {
 		throw new ClozeParseError(`${where}缺少 sentences 数组`);
@@ -148,12 +135,12 @@ function parseSentences(raw: unknown, where: string): string[] {
 	const sentences = raw
 		.map((value) => (typeof value === "string" ? value.trim() : ""))
 		.filter((value) => value.length > 0);
-	if (
-		sentences.length < CLOZE_SENTENCE_MIN ||
-		sentences.length > CLOZE_SENTENCE_MAX
-	) {
+	if (sentences.length === 0) {
+		throw new ClozeParseError(`${where}没有非空句子`);
+	}
+	if (sentences.length > CLOZE_MAX_SENTENCES) {
 		throw new ClozeParseError(
-			`${where}的句子数为 ${sentences.length}，要求 ${CLOZE_SENTENCE_MIN}–${CLOZE_SENTENCE_MAX} 句`,
+			`${where}有 ${sentences.length} 句，超过防护上限 ${CLOZE_MAX_SENTENCES} 句`,
 		);
 	}
 	for (const sentence of sentences) {
@@ -166,31 +153,24 @@ function parseSentences(raw: unknown, where: string): string[] {
 	return sentences;
 }
 
-/** 占位符 ##n 必须恰好覆盖 1..n 且各一次；返回空个数 */
-function parsePlaceholders(sentences: string[], where: string): number {
-	const indices = [...sentences.join("\n").matchAll(/##(\d+)/g)].map((match) =>
-		Number(match[1]),
-	);
-	const count = indices.length;
-	if (count < CLOZE_BLANK_MIN || count > CLOZE_BLANK_MAX) {
-		throw new ClozeParseError(
-			`${where}有 ${count} 个空，要求 ${CLOZE_BLANK_MIN}–${CLOZE_BLANK_MAX} 个`,
-		);
+/** 正文里出现过的空编号（按首次出现顺序去重；同一个编号重复出现按一个算） */
+function markerIndexes(sentences: string[]): number[] {
+	const indexes: number[] = [];
+	for (const match of sentences.join("\n").matchAll(/##(\d+)/g)) {
+		const index = Number(match[1]);
+		if (!indexes.includes(index)) indexes.push(index);
 	}
-	const seen = new Set<number>();
-	for (const index of indices) {
-		if (!Number.isInteger(index) || index < 1 || index > count || seen.has(index)) {
-			throw new ClozeParseError(`${where}的空占位符不是 ##1..##${count} 各一次`);
-		}
-		seen.add(index);
-	}
-	return count;
+	return indexes;
 }
 
+/**
+ * 解析本题的空：编号与答案都要合法，且与正文里的 ##n 恰好一一对应。
+ * 顺序按正文首次出现排列（决定「自动跳到下一个空」的方向）。
+ */
 function parseBlanks(
 	raw: unknown,
 	where: string,
-	blankCount: number,
+	markers: number[],
 	pool: Map<string, string>,
 ): ClozeBlank[] {
 	if (!Array.isArray(raw)) {
@@ -203,9 +183,9 @@ function parseBlanks(
 		const holder = entry as { index?: unknown; answer?: unknown };
 		const index =
 			typeof holder.index === "number" ? holder.index : Number(holder.index);
-		if (!Number.isInteger(index) || index < 1 || index > blankCount) {
+		if (!Number.isInteger(index) || index < 1) {
 			throw new ClozeParseError(
-				`${where}的空编号「${String(holder.index)}」超出 1..${blankCount}`,
+				`${where}的空编号「${String(holder.index)}」不是正整数`,
 			);
 		}
 		const answerRaw = typeof holder.answer === "string" ? holder.answer.trim() : "";
@@ -214,59 +194,37 @@ function parseBlanks(
 		}
 		const canonical = pool.get(fold(answerRaw));
 		if (!canonical) {
-			throw new ClozeParseError(
-				`${where}的答案「${answerRaw}」不在候选词里`,
-			);
+			throw new ClozeParseError(`${where}的答案「${answerRaw}」不在候选词里`);
 		}
 		return { index, answer: canonical };
 	});
-	if (blanks.length !== blankCount) {
-		throw new ClozeParseError(
-			`${where}的空数量（${blanks.length}）与占位符（${blankCount}）不一致`,
-		);
-	}
-	if (new Set(blanks.map((blank) => blank.index)).size !== blankCount) {
-		throw new ClozeParseError(`${where}的空编号有重复`);
-	}
-	return blanks;
-}
 
-function parseUsedWords(raw: unknown, where: string, blanks: ClozeBlank[]): string[] {
-	const answers = new Set(blanks.map((blank) => fold(blank.answer)));
-	const used = (Array.isArray(raw) ? raw : []).map((value) =>
-		typeof value === "string" ? fold(value) : "",
-	);
-	if (
-		used.length !== answers.size ||
-		new Set(used).size !== used.length ||
-		used.some((word) => !answers.has(word))
-	) {
-		throw new ClozeParseError(`${where}的 usedWords 与实际答案不一致`);
+	const seen = new Set<number>();
+	for (const blank of blanks) {
+		if (seen.has(blank.index)) {
+			throw new ClozeParseError(`${where}的同一个空编号给了多个答案`);
+		}
+		seen.add(blank.index);
 	}
-	return blanks.map((blank) => blank.answer).filter((word, i, all) => all.indexOf(word) === i);
-}
-
-/** 未挖空的候选词不得出现在本题短文里（出现即等于送答案） */
-function assertNoLeakedCandidates(
-	sentences: string[],
-	blanks: ClozeBlank[],
-	pool: Map<string, string>,
-	where: string,
-): void {
-	const text = sentences.join("\n").replace(/##\d+/g, " ");
-	const answers = new Set(blanks.map((blank) => fold(blank.answer)));
-	for (const [key, word] of pool) {
-		if (answers.has(key)) continue;
-		if (textContainsWord(text, word)) {
+	for (const index of markers) {
+		if (!seen.has(index)) {
+			throw new ClozeParseError(`${where}的 ##${index} 没有对应答案`);
+		}
+	}
+	for (const blank of blanks) {
+		if (!markers.includes(blank.index)) {
 			throw new ClozeParseError(
-				`${where}的短文里出现了没被挖空的候选词「${word}」`,
+				`${where}的答案编号 ${blank.index} 在短文里没有对应空`,
 			);
 		}
 	}
+	return [...blanks].sort(
+		(a, b) => markers.indexOf(a.index) - markers.indexOf(b.index),
+	);
 }
 
 /**
- * 解析并校验 AI 出题结果。
+ * 解析并校验 AI 出题结果（只校验可跑性，不评价题面质量）。
  * @param raw 已 JSON.parse 的响应内容（也兼容裸数组）
  * @param candidates 本场候选词（≤24，出题只用它们）
  */
@@ -281,12 +239,11 @@ export function parseClozeItems(raw: unknown, candidates: string[]): ClozeItem[]
 	}
 	if (rawItems.length > CLOZE_MAX_ITEMS) {
 		throw new ClozeParseError(
-			`AI 返回了 ${rawItems.length} 道题，超过上限 ${CLOZE_MAX_ITEMS} 道`,
+			`AI 返回了 ${rawItems.length} 道题，超过防护上限 ${CLOZE_MAX_ITEMS} 道`,
 		);
 	}
 
 	const items: ClozeItem[] = [];
-	const answerForms = new Map<string, string>();
 	for (const [position, rawItem] of rawItems.entries()) {
 		const where = `第 ${position + 1} 题`;
 		if (!rawItem || typeof rawItem !== "object") {
@@ -296,23 +253,21 @@ export function parseClozeItems(raw: unknown, candidates: string[]): ClozeItem[]
 			id?: unknown;
 			sentences?: unknown;
 			blanks?: unknown;
-			usedWords?: unknown;
 		};
 		const sentences = parseSentences(holder.sentences, where);
-		const blankCount = parsePlaceholders(sentences, where);
-		const blanks = parseBlanks(holder.blanks, where, blankCount, pool).sort(
-			(a, b) => a.index - b.index,
-		);
-		const usedWords = parseUsedWords(holder.usedWords, where, blanks);
-		assertNoLeakedCandidates(sentences, blanks, pool, where);
-		for (const blank of blanks) {
-			answerForms.set(fold(blank.answer), blank.answer);
+		const markers = markerIndexes(sentences);
+		if (markers.length === 0) {
+			throw new ClozeParseError(`${where}没有 ##n 空占位符`);
 		}
-		if (answerForms.size > CLOZE_MAX_ANSWERS) {
+		if (markers.length > CLOZE_MAX_BLANKS) {
 			throw new ClozeParseError(
-				`全场答案词去重后有 ${answerForms.size} 个，超过上限 ${CLOZE_MAX_ANSWERS} 个`,
+				`${where}有 ${markers.length} 个空，超过防护上限 ${CLOZE_MAX_BLANKS} 个`,
 			);
 		}
+		const blanks = parseBlanks(holder.blanks, where, markers, pool);
+		const usedWords = blanks
+			.map((blank) => blank.answer)
+			.filter((word, i, all) => all.indexOf(word) === i);
 		const id =
 			typeof holder.id === "number" && Number.isFinite(holder.id)
 				? holder.id

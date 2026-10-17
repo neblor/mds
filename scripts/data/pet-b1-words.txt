@@ -1,0 +1,3313 @@
+# 剑桥 B1 Preliminary / B1 Preliminary for Schools Vocabulary List（2025-08 版）
+# 来源：https://www.cambridgeenglish.org/Images/506887-b1-preliminary-vocabulary-list.pdf
+# 版权：© Cambridge University Press & Assessment，仅供个人学习使用
+# 生成：pnpm build:pet-words（scripts/fetch-pet-words.mjs）→ src/lib/pet-wordlist.ts 解析
+# 页范围：字母表 4–40 页 · 词套 41 页 · 主题表 42–53 页
+# 共 3306 条（字母表 3179 · 词套印出 27 · 主题表 1579，合并去重后）
+# 注：词套里数字/星期/月份原文只写 etc.，其补全见同目录 pet-word-sets.txt
+a
+a lot
+a.m.
+ability
+able
+about
+above
+abroad
+absent
+absolutely
+accent
+accept
+acceptable
+access
+accident
+accommodation
+accompany
+according to
+account
+accountant
+accurate
+ache
+achieve
+achievement
+across
+act
+action
+active
+activity
+actor
+actress
+actually
+ad
+add
+addition
+address
+admire
+admission
+admit
+adult
+advance
+advanced
+advantage
+adventure
+advert
+advertise
+advertisement
+advice
+advise
+aeroplane
+affect
+afford
+afraid
+Africa
+after
+afternoon
+afterwards
+again
+against
+age
+aged
+agency
+ages
+ago
+agree
+ahead
+aim
+air
+air conditioning
+air force
+airline
+airplane
+airport
+alarm
+alarm clock
+album
+alike
+alive
+all
+all right
+allow
+almost
+alone
+along
+aloud
+alphabet
+already
+alright
+also
+although
+altogether
+always
+amazed
+amazing
+ambition
+ambulance
+among
+amount
+amusing
+an
+ancient
+and
+angry
+animal
+ankle
+anniversary
+announce
+announcement
+annoy
+annoyed
+annual
+another
+answer
+answerphone
+ant
+Antarctica
+antique
+anxious
+any
+anybody
+anymore
+anyone
+anything
+anyway
+anywhere
+apart
+apart from
+apartment
+apartment block
+apartment building
+apologise
+apology
+app
+appear
+appearance
+apple
+application
+apply
+appointment
+approach
+approve
+approximately
+architect
+architecture
+area
+argue
+argument
+Arithmetic
+arm
+armchair
+army
+around
+arrange
+arrangement
+arrest
+arrival
+arrive
+arriving
+art
+article
+artist
+as
+as long as
+as well
+as well as
+ashamed
+Asia
+ask
+asleep
+aspirin
+assist
+assistant
+astronaut
+at
+at all
+at first
+at last
+at least
+at once
+at present
+at sea
+at the same time
+athlete
+athletics
+atmosphere
+attach
+attack
+attempt
+attend
+attention
+attitude
+attract
+attraction
+attractive
+audience
+aunt
+Australia
+author
+autumn
+available
+average
+avoid
+awake
+away
+awesome
+awful
+baby
+babysit
+babysitter
+back
+background
+backpack
+backpacker
+backpacking
+backwards
+bad
+badly
+badminton
+bag
+baggage
+bake
+baker
+balcony
+bald
+ball
+ballet
+balloon
+banana
+band
+bandage
+bank
+bank account
+banker
+banking
+bar
+barbecue
+barber
+bargain
+base on
+baseball
+basic
+basin
+basket
+basketball
+bat
+bath
+bathing suit
+bathroom
+bathtub
+battery
+battle
+bay
+be
+be over
+beach
+bean
+bear
+beard
+beat
+beautiful
+because
+because of
+become
+bed
+bedroom
+bee
+beef
+been
+before
+begin
+beginner
+beginning
+behave
+behaviour
+behind
+believe
+bell
+belong
+below
+belt
+beneath
+benefit
+beside
+besides
+best
+bestseller
+better
+between
+beyond
+bicycle
+big
+bike
+bill
+bin
+biography
+biology
+bird
+birth
+birthday
+biscuit
+bit
+bite
+bitter
+black
+blackboard
+blame
+blank
+blanket
+bleed
+blind
+block
+blog
+blogger
+blond
+blonde
+blood
+blouse
+blow
+blue
+board
+board game
+boarding pass
+boat
+body
+boil
+boiled
+bold
+bomb
+bone
+book
+bookcase
+booking
+booking office
+bookshelf
+bookshop
+bookstore
+boot
+border
+bored
+boring
+born
+borrow
+boss
+bossy
+both
+bother
+bottle
+bottle bank
+bottom
+bowl
+box
+boxing
+boy
+boyfriend
+bracelet
+brain
+brake
+branch
+brand new
+brave
+Brazil
+Brazilian
+bread
+break
+break down
+break in
+break up
+breakfast
+breaktime
+breath
+breathe
+breeze
+bride
+bridge
+brief
+bright
+brilliant
+bring
+bring up
+broad
+broccoli
+brochure
+broken
+brother
+brown
+brush
+bucket
+bug
+build
+building
+bulb
+bull
+bunch
+burger
+burn
+burning
+bury
+bus
+bus station
+bus stop
+bush
+business
+businessman
+businesswoman
+busy
+but
+butcher
+butter
+butterfly
+button
+buy
+buyer
+by
+by accident
+by air
+by hand
+by land
+by mistake
+by name
+by post
+by rail
+by road
+by sea
+bye
+cab
+cabbage
+cabin
+cabinet
+cable
+caf
+cafe
+café
+cafeteria
+cake
+calculator
+calendar
+calf
+call
+call back
+call for
+call in
+calm
+camel
+camera
+cameraman
+camp
+camping
+campsite
+can
+Canada
+Canadian
+canal
+cancel
+candidate
+candle
+candy
+canteen
+cap
+capital
+capital city
+captain
+car
+car alarm
+car park
+card
+cardboard
+care
+career
+careful
+carefully
+careless
+carpet
+carrot
+carry
+carry on
+carry out
+cartoon
+case
+cash
+cash machine
+cashpoint
+castle
+casual
+cat
+catch
+cathedral
+cattle
+cave
+CD
+CD player
+ceiling
+celebrate
+celebration
+celebrity
+cell phone
+cellar
+cent
+center
+centigrade
+centimeter
+centimetre
+centimetre cm
+central
+central heating
+centre
+century
+cereal
+ceremony
+certain
+certainly
+certainly not
+certificate
+chain
+chair
+challenge
+challenging
+champion
+championship
+chance
+change
+changing room
+channel
+chapter
+character
+charge
+charity
+charming
+charter
+chat
+chat room
+chat show
+chatroom
+cheap
+cheat
+check
+check in
+check out
+check-in
+checkout
+cheek
+cheerful
+cheers
+cheese
+chef
+chemist
+chemistry
+cheque
+chess
+chest of drawers
+chicken
+child
+childhood
+chill out
+chilli
+chin
+China
+Chinese
+chip
+chips
+chocolate
+choice
+choose
+cinema
+circle
+circus
+city
+city centre
+clap
+class
+classical
+classmate
+classroom
+clean
+cleaner
+clear
+clearly
+clever
+click
+cliff
+climate
+climate change
+climb
+climbing
+clinic
+clock
+close
+closed
+clothes
+clothing
+cloud
+cloudy
+clown
+club
+coach
+coast
+coat
+coconut
+cod
+coffee
+coin
+cola
+cold
+collar
+colleague
+collect
+collection
+collector
+college
+colour
+colourful
+comb
+come
+come on
+come to the party
+comedy
+comfort
+comfortable
+comic
+comma
+comment
+communicate
+communication
+company
+compare
+compete
+competition
+competitor
+complain
+complaint
+complete
+completely
+complicated
+composition
+computer
+concentrate
+concert
+conclusion
+condition
+conference
+confident
+confirm
+confused
+confusing
+congratulations
+connect
+connection
+consider
+consist
+consonant
+contact
+contain
+contents
+contest
+continent
+continue
+contract
+control
+convenient
+conversation
+convince
+cook
+cooker
+cookery
+cookie
+cooking
+cool
+copy
+corn
+corner
+correct
+correction
+cost
+costume
+cosy
+cottage
+cotton
+cough
+could
+couldn’t
+count
+country
+countryside
+couple
+courage
+course
+court
+cousin
+cover
+cow
+crash
+crazy
+cream
+create
+creative
+creature
+credit
+credit card
+crew
+cricket
+crime
+criminal
+crop
+cross
+cross out
+crossing
+crossroads
+crowd
+crowded
+cruel
+cruise
+cry
+cucumber
+cultural
+culture
+cup
+cupboard
+cure
+curious
+curiously
+curly
+currency
+curriculum
+curry
+curtain
+cushion
+custom
+customer
+customs
+customs officer
+cut
+cut up
+cute
+CV
+cycle
+cycling
+cyclist
+dad
+daily
+damage
+damaged
+dance
+dancer
+dancing
+danger
+dangerous
+dark
+data
+date
+daughter
+day
+dead
+deaf
+deal
+deal with
+dear
+death
+December
+decide
+decision
+declare
+decorate
+decrease
+deep
+defeat
+defence
+defend
+definitely
+degree
+degrees
+delay
+delayed
+delete
+delicious
+delighted
+deliver
+delivery
+demand
+dentist
+depart
+department
+department store
+departure
+depend
+deposit
+depressed
+depth
+describe
+description
+desert
+deserve
+design
+designer
+desk
+despite
+dessert
+destination
+destroy
+detail
+detective
+develop
+development
+diagram
+dial
+dial up
+diary
+dictionary
+didn’t
+die
+diet
+difference
+different
+difficult
+difficulty
+dig
+digital
+digital camera
+dining room
+dinner
+dinosaur
+diploma
+direct
+direction
+directly
+director
+dirt
+dirty
+disabled
+disadvantage
+disagree
+disappear
+disappoint
+disappointed
+disappointing
+disappointment
+disc
+disc jockey
+disco
+discount
+discover
+discovery
+discuss
+discussion
+disease
+disgusting
+dish
+dishwasher
+disk
+dislike
+display
+distance
+district
+disturb
+dive
+diver
+divide
+diving
+DJ
+do
+do it
+doctor
+document
+documentary
+documents
+doesn’t
+dog
+doll
+dollar
+dolphin
+donkey
+door
+dot
+double
+double room
+doubt
+down
+download
+downstairs
+dozen
+Dr
+drag
+drama
+draw
+drawer
+drawing
+dream
+dress
+dressed
+drink
+drive
+driver
+driver’s
+driver’s licence
+driving
+driving licence
+drop
+drugstore
+drum
+dry
+duck
+due
+due to
+dull
+during
+dust
+dustbin
+dusty
+duty
+duty-free
+duvet
+DVD
+DVD player
+each
+ear
+earache
+early
+earn
+earring
+earth
+easily
+east
+eastern
+easy
+easygoing
+eat
+economics
+edge
+education
+effect
+efficient
+effort
+egg
+either
+elbow
+elderly
+election
+electric
+electrical
+electricity
+electronic
+electronics
+elementary
+elephant
+elevator
+else
+email
+embarrassed
+embarrassing
+embassy
+emergency
+employ
+employee
+employer
+employment
+empty
+encourage
+end
+end up
+ending
+enemy
+energy
+engaged
+engine
+engineer
+engineering
+enjoy
+enjoyable
+enormous
+enough
+enquire
+enquiry
+enter
+entertain
+entertainment
+entrance
+entry
+envelope
+environment
+environmental
+episode
+equal
+equipment
+eraser
+escape
+especially
+essay
+essential
+euro
+Europe
+even
+even though
+evening
+event
+ever
+every
+everybody
+everyone
+everything
+everywhere
+exact
+exactly
+exam
+examination
+examiner
+example
+excellent
+except
+exchange
+exchange rate
+excited
+excitement
+exciting
+excuse
+exercise
+exhausted
+exhibition
+exist
+exit
+expect
+expedition
+expensive
+experience
+experienced
+experiment
+expert
+explain
+explanation
+explode
+explore
+explorer
+extra
+extraordinary
+extreme sport
+extreme sports
+extremely
+eye
+face
+face to face
+face-to-face
+facilities
+fact
+factory
+fail
+fair
+fairly
+fall
+false
+familiar
+familiar with
+family
+famous
+fan
+fancy
+fantastic
+far
+fare
+farm
+farmer
+farming
+farmland
+fashion
+fashionable
+fast
+fast food
+fasten
+fat
+father
+fault
+favour
+favourite
+fax
+fear
+fee
+feed
+feel
+feel like
+feeling
+female
+ferry
+festival
+fetch
+fever
+few
+fiction
+field
+fight
+figure
+file
+fill
+fill in
+fill up
+film
+film maker
+film star
+final
+finally
+financial
+find
+find out
+fine
+finger
+finish
+finished
+fire
+firefighter
+firework
+fireworks
+firm
+first
+first name
+fish
+fishing
+fit
+fitness
+fix
+flag
+flat
+flatmate
+flavour
+flight
+float
+flood
+floor
+flour
+flow
+flower
+flu
+flute
+fly
+focus on
+fog
+foggy
+fold
+folder
+folk
+folk music
+follow
+following
+fond
+food
+fool
+foot
+football
+football player
+footballer
+for
+for sale
+forbidden
+forecast
+foreign
+foreigner
+forest
+forever
+forget
+forgive
+fork
+form
+former
+fortnight
+fortunately
+forward
+forwards
+fountain
+frame
+France
+free
+freeze
+freezer
+freezing
+French
+French fries
+frequent
+frequently
+fresh
+fridge
+fried
+friend
+friendly
+friendship
+frighten
+frightened
+frightening
+frog
+from
+front
+frozen
+fruit
+fry
+frying pan
+fuel
+full
+full stop
+full time
+full-time
+fully
+fun
+funny
+fur
+furniture
+further
+furthest
+future
+gain
+gale
+gallery
+game
+gap
+garage
+garden
+garlic
+gas
+gas station
+gate
+general
+generally
+generation
+generous
+gentle
+geography
+get
+get along
+get along with
+get back
+get better
+get down
+Get down at once
+get dressed
+get fit
+get in
+get off
+get on
+get on with
+get rid of
+get the job
+get up
+get wet
+giant
+gift
+giraffe
+girl
+girlfriend
+give
+give back
+give in
+give out
+give up
+give way
+glad
+glance
+glass
+glasses
+global warming
+glove
+go
+go for
+go jogging
+go off
+go on
+go out
+go shopping
+go together
+goal
+goalkeeper
+goat
+gold
+golden
+golf
+good
+good afternoon
+good evening
+good morning
+good night
+good-looking
+goodbye
+goods
+gorgeous
+government
+graduate
+graduation
+gram
+grammar
+gramme
+grandad
+grandchild
+granddad
+granddaughter
+grandfather
+grandma
+grandmother
+grandpa
+grandparent
+grandson
+granny
+grant
+grape
+graphics
+grass
+grateful
+gray
+great
+green
+greet
+greeting
+grey
+grill
+grilled
+grocery
+grocery store
+groom
+ground
+group
+grow
+grow up
+guard
+guess
+guest
+guest-house
+guide
+guidebook
+guided
+guilty
+guitar
+guitarist
+gum
+gun
+guy
+gym
+gymnastics
+habit
+hair
+haircut
+hairdresser
+hairdryer
+half
+half past
+half-price
+hall
+hand
+hand in
+hand out
+hand-held
+handbag
+handkerchief
+handle
+handlebars
+handsome
+handwriting
+hang
+hang out
+hang up
+happen
+happily
+happiness
+happy
+harbour
+hard
+hardly
+hardware
+hat
+hate
+have
+have got to
+have to
+he
+he’s
+head
+headache
+headline
+headphones
+headteacher
+health
+healthy
+hear
+heart
+heat
+heater
+heating
+heavy
+heel
+height
+helicopter
+hello
+helmet
+help
+her
+herb
+herbs
+here
+hero
+heroine
+hers
+herself
+hey
+hi
+hi-fi
+hidden
+hide
+high
+high jump
+hike
+hill
+him
+himself
+hip hop
+hire
+his
+his stay
+historic
+historical
+history
+hit
+hit song
+hitchhike
+hobby
+hockey
+hold
+hold up
+hole
+holiday
+holidays
+home
+homepage
+homework
+honest
+honestly
+honey
+honeymoon
+hoodie
+hope
+hopeful
+hopefully
+hopeless
+horrible
+horror
+horse
+horse-riding
+hospital
+hostel
+hot
+hotel
+hour
+house
+housewife
+housework
+how
+how much
+however
+hug
+huge
+human
+humid
+humor
+humour
+hunger
+hungry
+hunt
+hurry
+hurt
+husband
+hut
+I’d
+ice
+ice cream
+ice hockey
+ice skates
+ice skating
+icy
+ID
+ID card
+idea
+identification
+identify
+identity card
+if
+ignore
+ill
+illness
+imagination
+imagine
+immediately
+immigration
+importance
+important
+impossible
+impressed
+improve
+improvement
+in
+in advance
+in case
+in fact
+in front of
+in half
+in ink
+in love
+in order
+in order to
+in pencil
+in the end
+in time
+in two
+inch
+include
+including
+incorrect
+increase
+incredible
+incredibly
+indeed
+independent
+India
+Indian
+individual
+indoor
+indoors
+industry
+inexpensive
+influence
+inform
+information
+ingredient
+ingredients
+initial
+injure
+ink
+inquiry
+insect
+inside
+insist
+inspire
+install
+instance
+instead
+instead of
+instructions
+instructor
+instrument
+intelligent
+intend
+interest
+interested
+interesting
+intermediate
+international
+internet
+interrupt
+interval
+interview
+interviewer
+into
+introduce
+introduction
+invent
+invention
+inventor
+invitation
+invite
+involve
+Ireland
+Irish
+iron
+ironing
+island
+issue
+IT
+Italian
+Italy
+item
+its
+itself
+jacket
+jail
+jam
+January
+jar
+jazz
+jazz music
+jealous
+jeans
+jet
+jewellery
+jewelry
+job
+jog
+jogging
+join
+join in
+joke
+journalist
+journey
+judge
+jug
+juice
+jump
+jumper
+jungle
+just
+kangaroo
+keen
+keen on
+keep
+keep fit
+keep in
+keep on
+keep up
+keeper
+kettle
+key
+keyboard
+kick
+kid
+kill
+kilogram
+kilogramme
+kilogramme kg
+kilometer
+kilometre
+kilometre km
+kind
+king
+kiss
+kit
+kitchen
+kite
+kitten
+knee
+knife
+knit
+knock
+knock down
+know
+know where she is
+knowledge
+label
+laboratory
+laboratory lab
+lack
+ladder
+lady
+lake
+lamb
+lamp
+land
+landscape
+language
+laptop
+large
+last
+late
+lately
+later
+latest
+laugh
+laundry
+law
+lawyer
+lay
+lazy
+lead
+lead to
+leader
+leaf
+league
+learn
+least
+leather
+leave
+lecture
+lecturer
+left
+left-hand
+leg
+leisure
+lemon
+lemonade
+lend
+length
+less
+lesson
+let
+letter
+lettuce
+level
+librarian
+library
+licence
+license
+lie
+lie down
+life
+lift
+light
+light bus service
+light service
+lighter
+lightning
+like
+likely
+limit
+limited
+line
+link
+lion
+lip
+liquid
+listen
+listen to
+liter
+literature
+litre
+litter
+little
+live
+lively
+living room
+living-room
+load
+loan
+local
+locate
+location
+lock
+locker
+locker room
+logo
+lonely
+long
+long jump
+look
+look after
+look at
+look for
+look forward to
+look like
+look out
+look up
+loose
+lorry
+lose
+lost
+lots
+lottery
+loud
+loudly
+love
+lovely
+low
+luck
+luckily
+lucky
+luggage
+lunch
+lunchtime
+luxury
+machine
+mad
+Madam
+made of
+magazine
+magic
+magnificent
+mail
+main
+main course
+mainly
+make
+make sure
+make-up
+male
+mall
+man
+manage
+manager
+mango
+many
+map
+mark
+market
+marriage
+married
+marry
+marvellous
+match
+mate
+material
+math
+mathematics
+maths
+matter
+maximum
+may
+maybe
+me
+meal
+mean
+meaning
+meanwhile
+measure
+meat
+mechanic
+medicine
+medium
+meet
+meeting
+melon
+member
+membership
+memory
+mend
+mention
+menu
+mess
+message
+messy
+metal
+meter
+method
+metre
+mice
+microphone
+microwave
+midday
+middle
+middle-aged
+midnight
+might
+mild
+mile
+milk
+millimeter
+millimetre
+millimetre mm
+million
+mind
+mine
+mineral water
+minimum
+minus
+minute
+mirror
+miserable
+miss
+missing
+mistake
+mix
+mobile
+mobile phone
+model
+modern
+moment
+Monday
+money
+monkey
+monster
+month
+monthly
+monument
+mood
+moon
+more
+morning
+mosquito
+most
+mostly
+mother
+motor-racing
+motorbike
+motorcycle
+motorway
+mountain
+mouse
+mouse mat
+moustache
+mouth
+move
+movie
+movie star
+movie theater
+Mr
+Mrs
+Ms
+much
+mug
+multiply
+mum
+museum
+mushroom
+music
+musical
+musician
+must
+my
+myself
+mystery
+name
+narrow
+nasty
+national
+nationality
+natural
+nature
+nature studies
+navy blue
+near
+nearby
+nearly
+neat
+necessary
+neck
+necklace
+need
+negative
+neighbour
+neighbourhood
+neither
+nephew
+nervous
+nest
+net
+network
+never
+new
+news
+newspaper
+next
+next to
+nice
+niece
+night
+nightclub
+nightlife
+nightmare
+no
+no one
+nobody
+noise
+noisy
+none
+noon
+normal
+normally
+north
+North America
+northeast
+northern
+northwest
+nose
+not
+note
+notebook
+notepaper
+nothing
+notice
+notice board
+noticeboard
+novel
+novelist
+now
+now.’
+nowadays
+nowhere
+number
+nurse
+o’clock
+object
+obvious
+obviously
+occasion
+occasionally
+occupation
+ocean
+of
+of course
+off
+offer
+office
+officer
+often
+oh
+oh dear
+oil
+OK
+old
+old-fashioned
+olive
+omelette
+on
+on board
+on business
+on fire
+on foot
+on holiday
+on purpose
+on request
+on sale
+on time
+on vacation
+once
+one
+onion
+online
+only
+onto
+open
+opening hours
+opera
+operate
+operation
+operator
+opinion
+opportunity
+opposite
+option
+or
+orange
+oranges instead
+orchestra
+order
+ordinary
+organisation
+organise
+original
+other
+otherwise
+ought
+our
+ours
+ourselves
+out
+out of
+out of date
+out of order
+out of work
+outdoor
+outdoors
+outside
+oven
+over
+overnight
+owe
+own
+owner
+p.m.
+pack
+packet
+page
+pain
+painful
+paint
+painter
+painting
+pair
+palace
+pale
+pan
+pants
+paper
+paragraph
+parcel
+pardon
+parent
+park
+parking
+parking lot
+parking space
+parrot
+part
+part time
+part-time
+particular
+particularly
+partly
+partner
+party
+pass
+passenger
+passport
+password
+past
+pasta
+path
+patient
+pattern
+pause
+pavement
+pay
+pay for
+PC
+pea
+peace
+peaceful
+peach
+peak
+peanut
+pear
+pedestrian
+peel
+pen
+pence
+pencil
+pencil case
+penfriend
+penguin
+penny
+people
+pepper
+per
+percent
+perfect
+perfectly
+perform
+performance
+performer
+perfume
+perhaps
+period
+permanent
+permission
+permit
+permitted
+person
+personal
+personally
+persuade
+pet
+petrol
+petrol station
+pharmacy
+phone
+photo
+photocopy
+photograph
+photographer
+photography
+phrase
+physics
+piano
+pick
+pick up
+picnic
+picture
+pie
+piece
+piece of cake
+pig
+pile
+pill
+pillow
+pilot
+pin
+pineapple
+pink
+pipe
+pirate
+pitch
+pity
+pizza
+place
+plain
+plan
+plane
+planet
+plant
+plastic
+plate
+platform
+play
+player
+playground
+pleasant
+please
+pleased
+pleasure
+plenty
+plot
+plug
+plug in
+plus
+pocket
+pocket money
+podcast
+poem
+poet
+poetry
+point
+points
+police
+police officer
+police station
+policeman
+policewoman
+polite
+political
+politician
+politics
+pollution
+pool
+poor
+pop
+pop music
+popular
+population
+port
+porter
+position
+positive
+possibility
+possible
+possibly
+post
+post office
+postcard
+poster
+postman
+postpone
+pot
+potato
+pottery
+pound
+pour
+powder
+power
+powerful
+practice
+practise
+pray
+prayer
+predict
+prefer
+pregnant
+preparation
+prepare
+prepared
+prescription
+present
+presentation
+presenter
+president
+press
+pretty
+prevent
+previous
+previously
+price
+primary school
+prince
+princess
+principal
+print
+printer
+prison
+prisoner
+private
+prize
+probably
+problem
+produce
+product
+production
+profession
+professional
+professor
+program
+programme
+programmer
+progress
+prohibited
+project
+promise
+promote
+pronounce
+pronunciation
+proper
+properly
+property
+protect
+proud
+prove
+provide
+public
+public transport
+publish
+publisher
+pull
+pullover
+pump
+punish
+pupil
+puppy
+pure
+purple
+purpose
+purse
+push
+put
+put away
+put down
+put off
+put on
+put out
+put through
+put up
+puzzle
+pyjamas
+qualification
+qualified
+quality
+quantity
+quarter
+queen
+question
+questionnaire
+queue
+quick
+quickly
+quiet
+quietly
+quit
+quite
+quiz
+rabbit
+race
+race track
+racing
+racket
+radio
+rail
+railroad
+railway
+railway station
+rain
+raincoat
+rainforest
+raise
+range
+rap
+rare
+rarely
+rather
+raw
+reach
+react
+read
+reader
+reading
+ready
+real
+realise
+realistic
+reality
+really
+reason
+reasonable
+reasonably
+rebuild
+receipt
+receive
+recent
+recently
+reception
+receptionist
+recipe
+recognise
+recommend
+record
+recording
+recover
+recycle
+recycled
+recycling
+red
+reduce
+reduced
+refreshments
+refrigerator
+refund
+refuse
+regarding
+regards
+region
+register
+registration
+regret
+regular
+regularly
+relation
+relationship
+relative
+relax
+relaxation
+relaxed
+reliable
+relieved
+religion
+rely
+rely on
+remain
+remember
+remind
+remote control
+remove
+rent
+repair
+repeat
+replace
+reply
+report
+reporter
+request
+require
+rescue
+research
+reservation
+reserve
+resort
+respect
+responsible
+rest
+restaurant
+result
+retire
+retirement
+return
+review
+revise
+revision
+reward
+rice
+rich
+ride
+rider
+riding
+right
+right-hand
+ring
+ring back
+ring up
+rise
+river
+road
+road sign
+road sign aero
+roast
+rob
+robot
+rock
+rock music
+rocket
+role
+roll
+romance
+romantic
+roof
+room
+roommate
+rope
+rose
+rough
+round
+roundabout
+route
+routine
+row
+rubber
+rubbish
+rubbish bin
+rude
+rug
+rugby
+ruin
+rule
+ruler
+run
+run out
+runner
+running
+sad
+safe
+safely
+sail
+sailing
+sailor
+salad
+salary
+sale
+sales assistant
+salesman
+saleswoman
+salmon
+salt
+same
+sand
+sandal
+sandwich
+satisfactory
+satisfied
+sauce
+saucepan
+saucer
+sausage
+save
+say
+scared
+scarf
+scary
+scene
+scenery
+school
+schoolchild
+science
+science fiction
+scientific
+scientist
+scissors
+scooter
+score
+scream
+screen
+sculpture
+sea
+search
+seaside
+season
+seat
+seat belt
+second
+second-hand
+secondary
+secret
+secretary
+section
+security
+security guard
+see
+seem
+select
+self-service
+selfie
+selfish
+sell
+send
+sense
+sensible
+sentence
+separate
+series
+serious
+seriously
+serve
+server
+service
+session
+set
+set off
+set out
+set up
+several
+sew
+sex
+shade
+shadow
+shake
+shall
+shame
+shampoo
+shape
+share
+shark
+sharp
+shave
+she
+she’s
+sheep
+sheet
+shelf
+shine
+shiny
+ship
+shirt
+shirt don’t
+shock
+shocked
+shocking
+shoe
+shoot
+shooting
+shop
+shop assistant
+shopper
+shopping
+shopping centre
+shore
+short
+shortly
+shorts
+should
+shoulder
+shout
+show
+show up
+shower
+shut
+shy
+sick
+side
+sight
+sightseeing
+sign
+sign up
+signal
+signature
+signpost
+silence
+silent
+silk
+silly
+silver
+similar
+simple
+since
+sincerely
+sing
+singer
+singing
+single
+single room
+sink
+sir
+sister
+sister’s
+sit
+sit down
+site
+sitting room
+situated
+situation
+size
+skate
+skateboard
+skateboarding
+skating
+ski
+skiing
+skill
+skin
+skirt
+sky
+sleep
+sleepy
+sleeve
+sleeveless
+slice
+slide
+slightly
+slim
+slip
+slow
+slowly
+small
+smart
+smartphone
+smell
+smile
+smoke
+smoking
+smooth
+snack
+snake
+snow
+snowboard
+snowboarding
+snowfall
+so
+so-so
+soap
+soap opera
+soccer
+sociable
+social
+social media
+society
+sock
+socks
+sofa
+soft
+soft drink
+software
+soldier
+solution
+solve
+some
+somebody
+somehow
+someone
+something
+sometimes
+somewhere
+son
+song
+soon
+sore
+sore throat
+sorry
+sort
+soul
+sound
+soundtrack
+soup
+sour
+south
+South America
+southeast
+southern
+southwest
+souvenir
+space
+spaceship
+Spain
+Spanish
+spare
+sparkling
+speak
+speaker
+special
+specially
+species
+spectacular
+speech
+speed
+spell
+spelling
+spend
+spice
+spicy
+spill
+spinach
+spite
+split up
+spoil
+spoon
+sport
+sports
+sports centre
+spot
+spring
+spy
+square
+squash
+stadium
+staff
+stage
+stairs
+stall
+stamp
+stand
+star
+start
+station
+statue
+stay
+stay behind
+steak
+steal
+steep
+step
+step forward
+step over
+stick
+sticky
+still
+stir
+stomach
+stomach ache
+stone
+stop
+store
+storm
+story
+straight
+strange
+stranger
+strawberry
+stream
+street
+stress
+stressed
+stressful
+strict
+strike
+stripe
+strong
+student
+studies
+studio
+study
+stuff
+stupid
+style
+stylish
+subject
+subtract
+subway
+succeed
+success
+successful
+such
+sudden
+suddenly
+suffer
+sugar
+suggest
+suggestion
+suit
+suitable
+suitcase
+sum
+summer
+sun
+sunbathe
+Sunday
+sunglasses
+sunny
+sunrise
+sunset
+sunshine
+superhero
+supermarket
+supper
+supply
+support
+supporter
+suppose
+suprising
+sure
+surf
+surfboard
+surfboarding
+surfing
+surname
+surprise
+surprised
+surround
+sweater
+sweatshirt
+sweet
+swim
+swimmer
+swimming
+swimming costume
+swimming pool
+swimsuit
+switch
+switch off
+switch on
+system
+T-shirt
+table
+table tennis
+table-cloth
+tablet
+take
+take away
+take care of
+take exercise
+take long
+take off
+take part
+take part in
+take place
+take up
+takeaway
+talent
+talented
+talk
+talk show
+tall
+tap
+taste
+tasty
+tax
+taxi
+taxi driver
+tea
+teach
+teacher
+teaching
+team
+tear
+technique
+technology
+teenager
+teeth
+telephone
+television
+tell
+temperature
+temporary
+tennis
+tennis player
+tense
+tent
+term
+terrible
+terribly
+terrific
+terrified
+test
+text
+text message
+textbook
+than
+thank
+thank you
+thanks
+that
+the
+the instructions
+theater
+theatre
+their
+theirs
+them
+themselves
+then
+there
+therefore
+these
+they
+thick
+thief
+thin
+thing
+think
+thirsty
+this
+those
+though
+thought
+thriller
+throat
+through
+throw
+throw away
+thumb
+thunder
+thunderstorm
+tick
+ticket
+tidy
+tidy up
+tie
+tiger
+tight
+tights
+till
+time
+timetable
+tin
+tiny
+tip
+tire
+tired
+tiring
+tissue
+title
+to
+to drive fast
+toast
+today
+toe
+together
+toilet
+tomato
+tomorrow
+tongue
+tonight
+too
+too late
+tooth
+toothache
+toothbrush
+toothpaste
+top
+topic
+torch
+total
+totally
+touch
+tour
+tour guide
+tourism
+tourist
+tourist information
+tourist information centre
+tournament
+toward
+towards
+towel
+tower
+town
+toy
+track
+tracksuit
+trade
+traditional
+traffic
+traffic jam
+traffic light
+traffic lights
+train
+trainer
+trainers
+training
+tram
+transfer
+translate
+translation
+transport
+trash can
+travel
+travel agent
+tree
+trend
+trick
+trip
+trouble
+trousers
+truck
+true
+trumpet
+trunk
+trust
+truth
+try
+try on
+tube
+Tuesday
+tuna
+tune
+tunnel
+turkey
+turn
+turn down
+turn into
+turn off
+turn on
+turn up
+turning
+TV
+twice
+twin
+type
+typical
+typically
+tyre
+ugly
+umbrella
+unable
+unbelievable
+uncle
+uncomfortable
+under
+underground
+underground train
+underline
+underneath
+underpants
+understand
+underwater
+underwear
+undress
+unemployed
+unemployment
+unexpected
+unfair
+unfit
+unforgettable
+unfortunately
+unfriendly
+unhappy
+unhealthy
+uniform
+unimportant
+uninterested
+uninteresting
+union
+unit
+universe
+university
+unkind
+unknown
+unless
+unlikely
+unlucky
+unnecessary
+unpack
+unpleasant
+unsure
+untidy
+until
+unusual
+unwell
+up
+up to
+up to date
+update
+upload
+upon
+upper
+upset
+upstairs
+urgent
+urgently
+us
+use
+used to
+useful
+user
+usual
+usually
+v
+valley
+valuable
+value
+van
+vanilla
+variety
+various
+vase
+vegetable
+vegetarian
+vehicle
+version
+versus
+very
+vet
+via
+video
+video clip
+video game
+view
+village
+violin
+virus
+visa
+visit
+visitor
+voice
+volleyball
+volume
+volunteer
+vote
+vowel
+wage
+wages
+wait
+waiter
+waiting room
+waitress
+wake
+wake up
+walk
+walking
+wall
+wallet
+want
+war
+wardrobe
+warm
+warn
+warning
+wash
+wash up
+washing
+washing machine
+washing-up
+waste
+watch
+water
+water skiing
+waterfall
+wave
+waves
+way
+we
+weak
+wear
+wear out
+weather
+weather forecast
+web
+web page
+webcam
+website
+wedding
+week
+weekday
+weekend
+weekly
+weigh
+weight
+welcome
+well
+well done
+well made
+well-dressed
+well-known
+well-made
+west
+western
+wet
+wet suit
+wetsuit
+whale
+what
+whatever
+wheel
+wheelchair
+when
+whenever
+where
+wherever
+whether
+which
+while
+whilst
+white
+who
+whole
+whose
+why
+wide
+wife
+wild
+wildlife
+will
+willing
+win
+wind
+window
+windscreen
+windsurfing
+windy
+wing
+winner
+winter
+wise
+wish
+with
+within
+without
+woman
+won’t
+wonder
+wonderful
+wood
+wooden
+wool
+woollen
+word
+work
+work out
+worker
+working
+working hours
+workout
+world
+worried
+worry
+worse
+worst
+worth
+would
+wow
+wrap
+wrap up
+write
+write down
+writer
+writing
+written
+wrong
+yard
+yeah
+year
+yellow
+yes
+yesterday
+yet
+yoga
+yoghurt
+yogurt
+York
+you
+you know
+you’re
+you’ve
+young
+your
+your dictionary
+yours
+yourself
+youth
+zebra
+zero
+zone
+zoo

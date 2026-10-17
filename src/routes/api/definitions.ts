@@ -6,6 +6,7 @@ import {
 	type DefinitionProviderErrorCode,
 } from "~/lib/definition-provider";
 import { getEnglishDefinitions } from "~/lib/definition-service";
+import { parseContentLevel } from "~/lib/content-level";
 import { runtimeDiagnosticLogger } from "~/lib/runtime-logger";
 import { extractWords, readJsonBody, type RouteEvent } from "~/lib/server-body";
 
@@ -14,6 +15,7 @@ interface DefinitionsRequestBody {
 	baseUrl?: string;
 	apiKey?: string;
 	model?: string;
+	contentLevel?: unknown;
 }
 
 function errorResult(code: DefinitionProviderErrorCode, message: string) {
@@ -26,6 +28,7 @@ export async function POST(event: RouteEvent) {
 	const baseUrl = String(body?.baseUrl ?? "").trim();
 	const apiKey = String(body?.apiKey ?? "").trim();
 	const model = String(body?.model ?? "").trim() || "gpt-4o-mini";
+	const contentLevel = parseContentLevel(body?.contentLevel);
 	if (words.length === 0) {
 		throw new HTTPError({
 			status: 400,
@@ -47,6 +50,7 @@ export async function POST(event: RouteEvent) {
 			baseUrl,
 			apiKey,
 			model,
+			contentLevel,
 			storage: runtimeCache,
 			logger: runtimeDiagnosticLogger,
 			signal: event.request.signal,

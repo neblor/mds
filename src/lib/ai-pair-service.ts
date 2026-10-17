@@ -7,6 +7,10 @@
  * - chinese：英文单词 → 常用简体中文词（words 键）
  */
 import type { RuntimeCacheStorage } from "./cache-storage";
+import {
+	DEFAULT_CONTENT_LEVEL,
+	type ContentLevel,
+} from "./content-level";
 import type { RuntimeDiagnosticLogger } from "./runtime-logger";
 import {
 	DefinitionProviderError,
@@ -26,6 +30,8 @@ export interface GetAiPairsOptions {
 	baseUrl: string;
 	apiKey: string;
 	model: string;
+	/** 生成级别（只影响 definition：释义句的词汇与句法难度；中文词与级别无关） */
+	contentLevel?: ContentLevel;
 	/** 该类数据的缓存读写对（按 kind 由调用方注入，互不串文件） */
 	storage: { read(): AiPairCacheFile | undefined; write(value: unknown): void };
 	logger?: RuntimeDiagnosticLogger;
@@ -44,6 +50,8 @@ export interface GetAiPairsResult {
 /** 缓存文件读入形态：字段逐个校验，坏文件当未命中 */
 export interface AiPairCacheFile {
 	model?: unknown;
+	/** 生成释义时的级别（只用于 definition 缓存的失效判断） */
+	contentLevel?: unknown;
 	defs?: unknown;
 	words?: unknown;
 }
@@ -64,10 +72,16 @@ function readCache(
 	read: () => AiPairCacheFile | undefined,
 	model: string,
 	key: "defs" | "words",
+	/** 释义的生成级别；中文词不传（与级别无关，不参与失效判断） */
+	contentLevel?: ContentLevel,
 ): Record<string, string> {
 	try {
 		const raw = read();
 		if (!raw || raw.model !== model || !raw[key] || typeof raw[key] !== "object") {
+			return {};
+		}
+		// 级别变了就视为未命中：同一词在不同级别下的释义不可混用
+		if (contentLevel !== undefined && raw.contentLevel !== contentLevel) {
 			return {};
 		}
 		const entries: Record<string, string> = {};
@@ -99,11 +113,16 @@ function joinWarnings(...warnings: (string | undefined)[]) {
 }
 
 export async function getAiPairs(
-	options: GetAiPairsOptions,
+options: GetAiPairsOptions,
 ): Promise<GetAiPairsResult> {
-	const key = cacheKey(options.kind);
-	const storage = options.storage;
-	const cached = readCache(storage.read, options.model, key);
+const key = cacheKey(options.kind);
+const storage = options.storage;
+// 只有释义的提示词受级别影响，因此只有它把级别算进缓存身份
+const levelKey =
+options.kind === "definition"
+? (options.contentLevel ?? DEFAULT_CONTENT_LEVEL)
+: undefined;
+const cached = readCache(storage.read, options.model, key, levelKey);
 	const cachedPairs = requestedPairs(options.words, cached);
 	const cachedCount = Object.keys(cachedPairs).length;
 	const toFetch = options.words.filter(
@@ -118,6 +137,7 @@ export async function getAiPairs(
 		baseUrl: options.baseUrl,
 		apiKey: options.apiKey,
 		model: options.model,
+		contentLevel: levelKey,
 		signal: options.signal,
 		fetchImpl: options.fetchImpl,
 		onDiagnostic: (entry: DefinitionProviderDiagnosticEvent) =>
@@ -152,8 +172,13 @@ export async function getAiPairs(
 	let cacheWarning: string | undefined;
 	if (!options.signal?.aborted && Object.keys(provided).length > 0) {
 		try {
-			storage.write({ model: options.model, [key]: merged });
-			const verified = readCache(storage.read, options.model, key);
+			storage.write({
+				model: options.model,
+				// 中文词与级别无关：levelKey 为 undefined，JSON 序列化时会省略该字段
+				contentLevel: levelKey,
+				[key]: merged,
+			});
+			const verified = readCache(storage.read, options.model, key, levelKey);
 			for (const [word, value] of Object.entries(provided)) {
 				if (ownDefinition(verified, word) !== value) {
 					throw new Error(`复读校验缺少 ${word}`);

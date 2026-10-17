@@ -46,6 +46,7 @@ describe("getEnglishDefinitions", () => {
 		expect(result.warning).toBeUndefined();
 		expect(cache).toEqual({
 			model: "flash-model",
+			contentLevel: "junior",
 			defs: result.definitions,
 		});
 	});

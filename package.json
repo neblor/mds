@@ -26,7 +26,8 @@
     "client:verify": "node scripts/verify-electron-package.mjs",
     "electron:start": "pnpm client:start",
     "electron:build": "pnpm client:package",
-    "build:banks": "node scripts/build-banks.mjs"
+    "build:banks": "node scripts/build-banks.mjs",
+    "build:pet-words": "node scripts/fetch-pet-words.mjs"
   },
   "dependencies": {
     "@solidjs/router": "^1.0.0",
@@ -101,7 +102,7 @@
       "mirror": "https://npmmirror.com/mirrors/electron/"
     }
   },
-  "version": "0.6.0",
+  "version": "0.8.1",
   "description": "默点啥 — 记单词 · 听写 · 默写小帮手",
   "author": "neblor"
 }

@@ -1,9 +1,12 @@
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { BankEntry } from "./bank-types";
 import {
 	BUILTIN_BANK_SPECS,
 	buildBank,
 	buildManifest,
+	parseWordListFile,
 	selectSpecEntries,
 	specMatchesEntry,
 } from "./bank-build";
@@ -27,6 +30,18 @@ describe("specMatchesEntry", () => {
 		const spec = { id: "core", name: "core", note: "", topByFrq: 100 };
 		expect(specMatchesEntry(spec, entry("apple", 50))).toBe(true);
 		expect(specMatchesEntry(spec, entry("apple"))).toBe(false);
+	});
+
+	it("词表类词库只看是否在词表里（大小写与空白无关）", () => {
+		const spec = {
+			id: "pet",
+			name: "PET",
+			note: "",
+			words: new Set(["apple", "swimming costume"]),
+		};
+		expect(specMatchesEntry(spec, entry("Apple", 100, ["cet4"]))).toBe(true);
+		expect(specMatchesEntry(spec, entry("  swimming   costume "))).toBe(true);
+		expect(specMatchesEntry(spec, entry("orange", 1, ["cet4"]))).toBe(false);
 	});
 });
 
@@ -94,6 +109,57 @@ describe("buildBank / buildManifest", () => {
 		expect(manifest.banks[0].license).toBe("ECDICT (MIT)");
 		expect(manifest.banks[1].count).toBe(1);
 	});
+
+	it("来源不同的词库各自带自己的许可（PET 不被标成 ECDICT）", () => {
+		const bank = buildBank(
+			{
+				id: "pet",
+				name: "剑桥 PET 核心词",
+				note: "剑桥 B1 Preliminary 官方词表",
+				words: new Set(["apple"]),
+				license: "Cambridge University Press & Assessment（个人学习用）",
+				sourceUrl: "https://example.test/pet.pdf",
+			},
+			[entry("apple", 10)],
+			1700,
+		);
+		expect(bank.license).toContain("Cambridge");
+		expect(bank.note).toContain("Cambridge University Press & Assessment");
+		expect(bank.note).toContain("https://example.test/pet.pdf");
+		const manifest = buildManifest([bank]);
+		expect(manifest.banks[0].license).toContain("Cambridge");
+	});
+
+	it("重建时内容没变就沿用旧时间戳（避免九个词库全刷成新 diff）", () => {
+		const entries = [entry("apple", 10), entry("banana", 20)];
+		const first = buildBank({ id: "cet4", name: "CET-4", note: "", tags: ["cet4"] }, entries, 1000);
+		const rebuilt = buildBank(
+			{ id: "cet4", name: "CET-4", note: "", tags: ["cet4"] },
+			entries,
+			2000,
+			first,
+		);
+		expect(rebuilt.createdAt).toBe(1000);
+		expect(rebuilt.updatedAt).toBe(1000);
+
+		const changed = buildBank(
+			{ id: "cet4", name: "CET-4", note: "", tags: ["cet4"] },
+			[entry("apple", 10)],
+			2000,
+			first,
+		);
+		expect(changed.createdAt).toBe(1000);
+		expect(changed.updatedAt).toBe(2000);
+	});
+});
+
+describe("parseWordListFile", () => {
+	it("每行一个词，忽略空行与 # 注释，大小写/空白折叠", () => {
+		const words = parseWordListFile(
+			"# 来源：某官方词表\n\na\nApple\n  swimming   costume \n\n# 尾注\n",
+		);
+		expect([...words].sort()).toEqual(["a", "apple", "swimming costume"]);
+	});
 });
 
 describe("内置词库规格", () => {
@@ -105,9 +171,32 @@ describe("内置词库规格", () => {
 		}
 	});
 
-	it("每个规格要么按 tag、要么按词频，不会两个都空", () => {
+	it("每个规格要么按 tag、要么按词频、要么按词表，不会三个都空", () => {
 		for (const spec of BUILTIN_BANK_SPECS) {
-			expect(Boolean(spec.tags?.length) || Boolean(spec.topByFrq)).toBe(true);
+			expect(
+				Boolean(spec.tags?.length) ||
+					Boolean(spec.topByFrq) ||
+					Boolean(spec.wordsFiles?.length),
+			).toBe(true);
 		}
+	});
+
+	it("词表型词库的源文件存在且能解析出足够词条（PET 回归）", () => {
+		const spec = BUILTIN_BANK_SPECS.find((item) => item.id === "pet");
+		expect(spec).toBeDefined();
+		const wordsFiles = spec?.wordsFiles ?? [];
+		expect(wordsFiles.length).toBeGreaterThan(0);
+		const words = new Set();
+		for (const file of wordsFiles) {
+			const path = resolve(process.cwd(), file);
+			expect(existsSync(path)).toBe(true);
+			for (const key of parseWordListFile(readFileSync(path, "utf8"))) words.add(key);
+		}
+		expect(words.size).toBeGreaterThan(1000);
+		// 字母表、主题表、词套补全各自要有代表性条目
+		expect(words.has("swimming pool")).toBe(true);
+		expect(words.has("dinner")).toBe(true);
+		expect(words.has("monday")).toBe(true);
+		expect(words.has("brazilian")).toBe(true);
 	});
 });

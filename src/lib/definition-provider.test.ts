@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	CHINESE_SYSTEM_PROMPT,
+	buildDefinitionSystemPrompt,
 	fetchEnglishDefinitions,
 	fetchChineseWords,
 	fetchAnswerGrades,
 	parseDefinitionAiResponse,
 } from "./definition-provider";
+import { CONTENT_LEVEL_PROMPTS } from "./content-level";
 
 const words20 = [
 	"apple",
@@ -50,6 +53,34 @@ function completion(
 		{ status: 200, headers: { "content-type": "application/json" } },
 	);
 }
+
+describe("buildDefinitionSystemPrompt", () => {
+	it("释义句按生成级别描述词汇与句法难度", () => {
+		expect(buildDefinitionSystemPrompt("primary")).toContain(
+			CONTENT_LEVEL_PROMPTS.primary,
+		);
+		expect(buildDefinitionSystemPrompt("college")).toContain(
+			CONTENT_LEVEL_PROMPTS.college,
+		);
+	});
+
+	it("释义与中文词提示词都不使用「儿童」这类主观定位", () => {
+		for (const prompt of [
+			buildDefinitionSystemPrompt("primary"),
+			buildDefinitionSystemPrompt("college"),
+			CHINESE_SYSTEM_PROMPT,
+		]) {
+			expect(prompt.toLowerCase()).not.toContain("kid");
+			expect(prompt.toLowerCase()).not.toContain("child");
+		}
+	});
+
+	it("中文词提示词只保留客观要求与护栏", () => {
+		expect(CHINESE_SYSTEM_PROMPT).toContain("STRICT JSON");
+		expect(CHINESE_SYSTEM_PROMPT).toContain("no pinyin");
+		expect(CHINESE_SYSTEM_PROMPT).toContain("exactly once");
+	});
+});
 
 describe("fetchEnglishDefinitions", () => {
 	it("单次请求并完整处理、对齐 20 个单词", async () => {

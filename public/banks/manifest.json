@@ -32,6 +32,16 @@
       "license": "ECDICT (MIT)"
     },
     {
+      "id": "pet",
+      "name": "剑桥 PET 核心词",
+      "description": "剑桥 B1 Preliminary 官方词表（2025-08 版：字母表 + 词套 + 主题表） · 3380 词 · Cambridge University Press & Assessment（个人学习用） · https://www.cambridgeenglish.org/Images/506887-b1-preliminary-vocabulary-list.pdf",
+      "count": 3380,
+      "version": 1,
+      "url": "./pet.json",
+      "bundled": true,
+      "license": "Cambridge University Press & Assessment（个人学习用）"
+    },
+    {
       "id": "cet4",
       "name": "CET-4 核心词",
       "description": "大学英语四级考纲 · 3849 词 · ECDICT (MIT) · https://github.com/skywind3000/ECDICT",

@@ -1,13 +1,22 @@
+/**
+ * 组句出题解析的口径测试：**只拦格式，不拦质量**。
+ * 「多写少写几句」「同词重复」「候选词没被挖空就出现在句子里」都必须放行 ——
+ * 这些不是跑不了，只是题面质量，交给提示词去要求。
+ */
 import { describe, expect, it } from "vitest";
 import {
-	CLOZE_MAX_ANSWERS,
+	CLOZE_MAX_BLANKS,
+	CLOZE_MAX_ITEMS,
+	CLOZE_MAX_SENTENCE_CHARS,
+	CLOZE_MAX_SENTENCES,
 	ClozeParseError,
 	parseClozeItems,
-	textContainsWord,
 	type ClozeItem,
 } from "./cloze-parse";
 
 const CANDIDATES = [
+	"the",
+	"I",
 	"apple",
 	"banana",
 	"give up",
@@ -50,10 +59,14 @@ describe("parseClozeItems 正常解析", () => {
 	it("解析多道题并把答案归一为候选词原始写法", () => {
 		const items = parse({
 			items: [
-				item({ id: 7, blanks: [
-					{ index: 1, answer: "Apple" },
-					{ index: 2, answer: "umbrella" },
-				], usedWords: ["apple", "umbrella"] }),
+				item({
+					id: 7,
+					blanks: [
+						{ index: 1, answer: "Apple" },
+						{ index: 2, answer: "umbrella" },
+					],
+					usedWords: ["apple", "umbrella"],
+				}),
 				{
 					id: 2,
 					sentences: [
@@ -94,7 +107,7 @@ describe("parseClozeItems 正常解析", () => {
 		expect(items.map((entry) => entry.id)).toEqual([1, 2]);
 	});
 
-	it("允许词组答案与 4 个空", () => {
+	it("允许词组答案与任意多个空", () => {
 		const items = parse({
 			items: [
 				{
@@ -110,7 +123,6 @@ describe("parseClozeItems 正常解析", () => {
 						{ index: 3, answer: "give up" },
 						{ index: 4, answer: "practice" },
 					],
-					usedWords: ["give up", "happy", "practice"],
 				},
 			],
 		});
@@ -120,237 +132,169 @@ describe("parseClozeItems 正常解析", () => {
 			"give up",
 			"practice",
 		]);
+		// usedWords 由答案现算（去重），模型给不给、给得对不对都不影响解析
 		expect(items[0].usedWords).toEqual(["give up", "happy", "practice"]);
 	});
 
-	it("blanks 乱序返回时按空编号归一（渲染与选词都靠下标）", () => {
+	it("blanks 顺序按正文首次出现排列（不是按编号大小）", () => {
 		const items = parse({
 			items: [
 				item({
+					sentences: ["First comes ##2.", "Then comes ##1."],
 					blanks: [
-						{ index: 2, answer: "orange" },
 						{ index: 1, answer: "apple" },
+						{ index: 2, answer: "orange" },
 					],
-					usedWords: ["orange", "apple"],
 				}),
 			],
 		});
 		expect(items[0].blanks).toEqual([
-			{ index: 1, answer: "apple" },
 			{ index: 2, answer: "orange" },
+			{ index: 1, answer: "apple" },
 		]);
 	});
 
-	it("同一个词在两个空里都用不算错（答案去重后仍合规）", () => {
+	it("同一个词填多个空、一句里出现两三个 the：正常放行", () => {
 		const items = parse({
 			items: [
 				{
-					sentences: ["Use ##1 now.", "Use ##2 again."],
-					blanks: [
-						{ index: 1, answer: "apple" },
-						{ index: 2, answer: "apple" },
+					sentences: [
+						"##1 put ##2 apple on ##3 table.",
+						"##4 likes ##5 banana.",
 					],
-					usedWords: ["apple"],
+					blanks: [
+						{ index: 1, answer: "I" },
+						{ index: 2, answer: "the" },
+						{ index: 3, answer: "the" },
+						{ index: 4, answer: "the" },
+						{ index: 5, answer: "the" },
+					],
+					usedWords: ["I", "the", "the"],
 				},
 			],
 		});
-		expect(items[0].usedWords).toEqual(["apple"]);
-	});
-});
-
-describe("parseClozeItems 拒绝非法出题", () => {
-	it("没有题目", () => {
-		expect(failure({ items: [] })).toContain("没有返回任何题目");
-		expect(failure({ foo: 1 })).toContain("没有返回任何题目");
-		expect(failure(null)).toContain("没有返回任何题目");
-	});
-
-	it("候选池为空", () => {
-		expect(failure({ items: [item()] }, [])).toContain("候选词为空");
-		expect(failure({ items: [item()] }, ["  "])).toContain("候选词为空");
+		expect(items[0].blanks.map((blank) => blank.answer)).toEqual([
+			"I",
+			"the",
+			"the",
+			"the",
+			"the",
+		]);
+		expect(items[0].usedWords).toEqual(["I", "the"]);
 	});
 
-	it("题目数超上限", () => {
-		const many = Array.from({ length: 7 }, () => item());
-		expect(failure({ items: many })).toContain("超过上限");
-	});
-
-	it("句子数不在 2–3 之间", () => {
-		expect(
-			failure({ items: [item({ sentences: ["Only ##1 sentence."] })] }),
-		).toContain("句子数为 1");
-		expect(
-			failure({
-				items: [
-					item({
-						sentences: ["A ##1.", "B ##2.", "C.", "D."],
-					}),
-				],
-			}),
-		).toContain("句子数为 4");
-	});
-
-	it("空数不在 2–4 之间", () => {
-		expect(
-			failure({
-				items: [
-					item({
-						sentences: ["Only one ##1 here.", "Second sentence."],
-						blanks: [{ index: 1, answer: "apple" }],
-						usedWords: ["apple"],
-					}),
-				],
-			}),
-		).toContain("有 1 个空");
-		expect(
-			failure({
-				items: [
-					item({
-						sentences: ["a ##1 b ##2 c ##3 d ##4 e ##5", "second"],
-						blanks: [1, 2, 3, 4, 5].map((index) => ({
-							index,
-							answer: "apple",
-						})),
-						usedWords: ["apple"],
-					}),
-				],
-			}),
-		).toContain("有 5 个空");
-	});
-
-	it("占位符编号重复或越界", () => {
-		expect(
-			failure({
-				items: [
-					item({
-						sentences: ["Repeat ##1 and ##1.", "Second ##2."],
-						blanks: [
-							{ index: 1, answer: "apple" },
-							{ index: 2, answer: "orange" },
-						],
-					}),
-				],
-			}),
-		).toContain("各一次");
-		expect(
-			failure({
-				items: [
-					item({
-						sentences: ["Out of range ##1 and ##9.", "Second ##2."],
-					}),
-				],
-			}),
-		).toContain("各一次");
-	});
-
-	it("blanks 数量与占位符不一致 / 空编号重复", () => {
-		expect(
-			failure({
-				items: [
-					item({
-						blanks: [{ index: 1, answer: "apple" }],
-						usedWords: ["apple"],
-					}),
-				],
-			}),
-		).toContain("与占位符（2）不一致");
-		expect(
-			failure({
-				items: [
-					item({
-						blanks: [
-							{ index: 1, answer: "apple" },
-							{ index: 1, answer: "orange" },
-						],
-					}),
-				],
-			}),
-		).toContain("空编号有重复");
-	});
-
-	it("答案不在候选池里", () => {
-		expect(
-			failure({
-				items: [
-					item({
-						blanks: [
-							{ index: 1, answer: "made-up-word" },
-							{ index: 2, answer: "orange" },
-						],
-						usedWords: ["made-up-word", "orange"],
-					}),
-				],
-			}),
-		).toContain("不在候选词里");
-	});
-
-	it("usedWords 与实际答案不一致", () => {
-		expect(
-			failure({ items: [item({ usedWords: ["apple"] })] }),
-		).toContain("usedWords 与实际答案不一致");
-		expect(
-			failure({ items: [item({ usedWords: ["apple", "apple"] })] }),
-		).toContain("usedWords 与实际答案不一致");
-		expect(failure({ items: [item({ usedWords: undefined })] })).toContain(
-			"usedWords 与实际答案不一致",
-		);
-	});
-
-	it("全场答案词去重后超过 16 个", () => {
-		const candidates = Array.from({ length: 20 }, (_, i) => `word${i}`);
-		const sentences = ["Fill ##1 and ##2 here.", "Fill ##3 and ##4 here."];
-		const items = Array.from({ length: 4 }, (_, group) => ({
-			sentences,
-			blanks: [0, 1, 2, 3].map((offset) => ({
-				index: offset + 1,
-				answer: candidates[group * 4 + offset],
-			})),
-			usedWords: [0, 1, 2, 3].map(
-				(offset) => candidates[group * 4 + offset],
-			),
-		}));
-		expect(parse({ items }, candidates)[0].blanks).toHaveLength(4);
-		items.push({
-			sentences,
-			blanks: [0, 1, 2, 3].map((offset) => ({
-				index: offset + 1,
-				answer: candidates[16 + offset],
-			})),
-			usedWords: [0, 1, 2, 3].map((offset) => candidates[16 + offset]),
+	it("同一个编号在正文里出现多次：多个槽共用一个答案，放行", () => {
+		const items = parse({
+			items: [
+				{
+					sentences: ["I eat ##1 and ##1 every day."],
+					blanks: [{ index: 1, answer: "apple" }],
+				},
+			],
 		});
-		expect(failure({ items }, candidates)).toContain(
-			`超过上限 ${CLOZE_MAX_ANSWERS} 个`,
-		);
+		expect(items[0].blanks).toEqual([{ index: 1, answer: "apple" }]);
 	});
 
-	it("短文里出现未挖空的候选词（含大小写与词边界）", () => {
+	it("编号不从 1 连续（##2 / ##5）也能跑，放行", () => {
+		const items = parse({
+			items: [
+				{
+					sentences: ["She ##2 the ##5.", "Done."],
+					blanks: [
+						{ index: 2, answer: "apple" },
+						{ index: 5, answer: "orange" },
+					],
+				},
+			],
+		});
+		expect(items[0].blanks.map((blank) => blank.index)).toEqual([2, 5]);
+	});
+
+	it("句数、空数、题数「多了少了」都放行（防护上限内）", () => {
+		const oneSentence = parse({
+			items: [
+				{
+					sentences: ["Only one sentence with ##1."],
+					blanks: [{ index: 1, answer: "apple" }],
+				},
+			],
+		});
+		expect(oneSentence[0].sentences).toHaveLength(1);
+
+		const fourSentences = parse({
+			items: [
+				{
+					sentences: ["A ##1.", "B ##2.", "C.", "D. ##3"],
+					blanks: [
+						{ index: 1, answer: "apple" },
+						{ index: 2, answer: "orange" },
+						{ index: 3, answer: "banana" },
+					],
+				},
+			],
+		});
+		expect(fourSentences[0].sentences).toHaveLength(4);
+
+		const manySentences = parse({
+			items: [
+				{
+					sentences: ["A ##1.", "B.", "C.", "D.", "E.", "F.", "G."],
+					blanks: [{ index: 1, answer: "apple" }],
+				},
+			],
+		});
+		expect(manySentences[0].sentences).toHaveLength(7);
+
+		const manyItems = parse({
+			items: Array.from({ length: CLOZE_MAX_ITEMS }, () => item()),
+		});
+		expect(manyItems).toHaveLength(CLOZE_MAX_ITEMS);
+
+		const sevenBlanks = parse({
+			items: [
+				{
+					sentences: ["##1 ##2 ##3 ##4 ##5 ##6 ##7"],
+					blanks: [1, 2, 3, 4, 5, 6, 7].map((index) => ({
+						index,
+						answer: "apple",
+					})),
+				},
+			],
+		});
+		expect(sevenBlanks[0].blanks).toHaveLength(7);
+	});
+
+	it("usedWords 缺失 / 多写 / 重复 / 写错都只忽略，不影响解析", () => {
 		expect(
-			failure({
+			parse({ items: [item({ usedWords: undefined })] })[0].usedWords,
+		).toEqual(["apple", "orange"]);
+		expect(
+			parse({ items: [item({ usedWords: ["apple", "apple", "orange"] })] })[0]
+				.usedWords,
+		).toEqual(["apple", "orange"]);
+		expect(
+			parse({ items: [item({ usedWords: ["banana"] })] })[0].usedWords,
+		).toEqual(["apple", "orange"]);
+	});
+
+	it("候选池里的词没被挖空、直接出现在句子中：放行（I / the 这类词躲不开）", () => {
+		const items = parse(
+			{
 				items: [
 					item({
-						sentences: ["I am happy today and eat ##1.", "She bought an ##2."],
+						sentences: [
+							"I am happy today and eat ##1.",
+							"She bought an ##2.",
+						],
 					}),
 				],
-			}),
-		).toContain("没被挖空的候选词「happy」");
-		expect(
-			failure({
-				items: [
-					item({
-						sentences: ["I am HAPPY today and eat ##1.", "She bought an ##2."],
-					}),
-				],
-			}),
-		).toContain("「happy」");
-		expect(
-			failure({
-				items: [
-					item({
-						sentences: ["Never give up and eat ##1.", "She bought an ##2."],
-					}),
-				],
-			}),
-		).toContain("「give up」");
+			},
+			CANDIDATES,
+		);
+		expect(items[0].blanks.map((blank) => blank.answer)).toEqual([
+			"apple",
+			"orange",
+		]);
 	});
 
 	it("允许答案词本身在句子里出现（它就是被挖的那个空）", () => {
@@ -363,8 +307,145 @@ describe("parseClozeItems 拒绝非法出题", () => {
 		});
 		expect(items[0].blanks[0].answer).toBe("apple");
 	});
+});
 
-	it("非对象题目 / 缺 sentences / 缺 blanks", () => {
+describe("parseClozeItems 拒绝跑不起来的格式", () => {
+	it("没有题目", () => {
+		expect(failure({ items: [] })).toContain("没有返回任何题目");
+		expect(failure({ foo: 1 })).toContain("没有返回任何题目");
+		expect(failure(null)).toContain("没有返回任何题目");
+	});
+
+	it("候选池为空", () => {
+		expect(failure({ items: [item()] }, [])).toContain("候选词为空");
+		expect(failure({ items: [item()] }, ["  "])).toContain("候选词为空");
+	});
+
+	it("题数、句数、空数超过防护上限", () => {
+		const manyItems = Array.from({ length: CLOZE_MAX_ITEMS + 1 }, () => item());
+		expect(failure({ items: manyItems })).toContain(
+			`超过防护上限 ${CLOZE_MAX_ITEMS} 道`,
+		);
+
+		const manySentences = Array.from(
+			{ length: CLOZE_MAX_SENTENCES + 1 },
+			() => "Sentence with ##1.",
+		);
+		expect(failure({ items: [item({ sentences: manySentences })] })).toContain(
+			`超过防护上限 ${CLOZE_MAX_SENTENCES} 句`,
+		);
+
+		const manyBlanks = Array.from(
+			{ length: CLOZE_MAX_BLANKS + 1 },
+			(_, i) => `##${i + 1}`,
+		).join(" ");
+		expect(
+			failure({
+				items: [
+					item({
+						sentences: [manyBlanks],
+						blanks: Array.from({ length: CLOZE_MAX_BLANKS + 1 }, (_, i) => ({
+							index: i + 1,
+							answer: "apple",
+						})),
+					}),
+				],
+			}),
+		).toContain(`超过防护上限 ${CLOZE_MAX_BLANKS} 个`);
+	});
+
+	it("没有非空句子 / 没有 ##n 占位符", () => {
+		expect(failure({ items: [item({ sentences: ["  ", ""] })] })).toContain(
+			"没有非空句子",
+		);
+		expect(
+			failure({ items: [item({ sentences: ["No blank here.", "Nor here."] })] }),
+		).toContain("没有 ##n 空占位符");
+	});
+
+	it("有句子超过字符上限", () => {
+		const long = `${"a".repeat(CLOZE_MAX_SENTENCE_CHARS + 1)} ##1`;
+		expect(failure({ items: [item({ sentences: [long] })] })).toContain(
+			`超过 ${CLOZE_MAX_SENTENCE_CHARS} 字符`,
+		);
+	});
+
+	it("正文里的 ##n 没有答案，或答案编号在正文里没有空", () => {
+		expect(
+			failure({
+				items: [
+					item({
+						blanks: [{ index: 1, answer: "apple" }],
+					}),
+				],
+			}),
+		).toContain("的 ##2 没有对应答案");
+		expect(
+			failure({
+				items: [
+					item({
+						blanks: [
+							{ index: 1, answer: "apple" },
+							{ index: 2, answer: "orange" },
+							{ index: 3, answer: "banana" },
+						],
+					}),
+				],
+			}),
+		).toContain("的答案编号 3 在短文里没有对应空");
+	});
+
+	it("同一个空编号给了多个答案", () => {
+		expect(
+			failure({
+				items: [
+					item({
+						blanks: [
+							{ index: 1, answer: "apple" },
+							{ index: 1, answer: "orange" },
+						],
+					}),
+				],
+			}),
+		).toContain("同一个空编号给了多个答案");
+	});
+
+	it("空编号不是正整数 / 没有答案", () => {
+		expect(
+			failure({
+				items: [item({ blanks: [{ index: 0, answer: "apple" }] })],
+			}),
+		).toContain("不是正整数");
+		expect(
+			failure({
+				items: [
+					item({
+						blanks: [
+							{ index: 1, answer: "" },
+							{ index: 2, answer: "orange" },
+						],
+					}),
+				],
+			}),
+		).toContain("第 1 个空没有答案");
+	});
+
+	it("答案不在候选池里（学生选不出来，必须拦）", () => {
+		expect(
+			failure({
+				items: [
+					item({
+						blanks: [
+							{ index: 1, answer: "made-up-word" },
+							{ index: 2, answer: "orange" },
+						],
+					}),
+				],
+			}),
+		).toContain("不在候选词里");
+	});
+
+	it("非对象题目 / 缺 sentences / 缺 blanks / 空元素不是对象", () => {
 		expect(failure({ items: [42] })).toContain("不是对象");
 		expect(failure({ items: [item({ sentences: undefined })] })).toContain(
 			"缺少 sentences 数组",
@@ -372,16 +453,14 @@ describe("parseClozeItems 拒绝非法出题", () => {
 		expect(failure({ items: [item({ blanks: undefined })] })).toContain(
 			"缺少 blanks 数组",
 		);
-	});
-});
-
-describe("textContainsWord", () => {
-	it("按词边界匹配，不做子串误判", () => {
-		expect(textContainsWord("I like apples.", "apple")).toBe(false);
-		expect(textContainsWord("I like an apple.", "apple")).toBe(true);
-		expect(textContainsWord("Apple pie.", "apple")).toBe(true);
-		expect(textContainsWord("give up now", "give up")).toBe(true);
-		expect(textContainsWord("giveup now", "give up")).toBe(false);
-		expect(textContainsWord("", "apple")).toBe(false);
+		expect(
+			failure({
+				items: [
+					item({
+						blanks: [null, { index: 2, answer: "orange" }],
+					}),
+				],
+			}),
+		).toContain("第 1 个空不是对象");
 	});
 });

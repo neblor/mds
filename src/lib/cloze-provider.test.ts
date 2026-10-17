@@ -1,12 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import { DefinitionProviderError } from "./definition-provider";
 import {
-	CLOZE_SYSTEM_PROMPT,
+	buildClozeSystemPrompt,
 	buildClozeUserPrompt,
 	fetchClozeItems,
 	parseClozeResponse,
 	type ClozeCandidate,
 } from "./cloze-provider";
+import {
+	CONTENT_LEVEL_PROMPTS,
+	DEFAULT_CONTENT_LEVEL,
+} from "./content-level";
 
 const CANDIDATES: ClozeCandidate[] = [
 	{ word: "apple", definition: "a round fruit" },
@@ -78,13 +82,42 @@ describe("buildClozeUserPrompt", () => {
 	});
 });
 
-describe("CLOZE_SYSTEM_PROMPT", () => {
-	it("写清 JSON 形状、空编号、答案来自候选池与不泄露未挖空词", () => {
-		expect(CLOZE_SYSTEM_PROMPT).toContain("STRICT JSON");
-		expect(CLOZE_SYSTEM_PROMPT).toContain("##1");
-		expect(CLOZE_SYSTEM_PROMPT).toContain("use ONLY the candidate words");
-		expect(CLOZE_SYSTEM_PROMPT).toContain("must NOT appear anywhere");
-		expect(CLOZE_SYSTEM_PROMPT).toContain("3 to 6");
+describe("buildClozeSystemPrompt", () => {
+	it("平铺写清要什么：JSON 形状、题量、空与 index 对应、答案来自候选池、覆盖面", () => {
+		const prompt = buildClozeSystemPrompt(DEFAULT_CONTENT_LEVEL);
+		expect(prompt).toContain("STRICT JSON");
+		expect(prompt).toContain("##1");
+		expect(prompt).toContain("3 to 6 items");
+		expect(prompt).toContain("cover 6 to 16 candidate words");
+		expect(prompt).toContain("never invent a word");
+	});
+
+	it("用生成级别的客观描述指定句子的词汇与句法难度", () => {
+		expect(buildClozeSystemPrompt("primary")).toContain(
+			CONTENT_LEVEL_PROMPTS.primary,
+		);
+		expect(buildClozeSystemPrompt("college")).toContain(
+			CONTENT_LEVEL_PROMPTS.college,
+		);
+	});
+
+	it("不使用「儿童」这类主观定位，也不写假设性纠偏与免责话", () => {
+		const prompt = buildClozeSystemPrompt(DEFAULT_CONTENT_LEVEL);
+		for (const phrase of [
+			"kid",
+			"child",
+			"may be used in several",
+			"do not avoid",
+			"is fine",
+			"it is ok",
+			"are allowed",
+			"large enough",
+			"different candidate words",
+			"appears exactly once",
+			"used once",
+		]) {
+			expect(prompt.toLowerCase()).not.toContain(phrase);
+		}
 	});
 });
 
@@ -184,7 +217,9 @@ describe("fetchClozeItems", () => {
 			response_format?: { type: string };
 		};
 		expect(body.model).toBe("test-model");
-		expect(body.messages[0].content).toBe(CLOZE_SYSTEM_PROMPT);
+		expect(body.messages[0].content).toBe(
+			buildClozeSystemPrompt(DEFAULT_CONTENT_LEVEL),
+		);
 		expect(JSON.parse(body.messages[1].content)).toEqual([
 			{ word: "apple", definition: "a round fruit" },
 			{ word: "orange" },
@@ -192,6 +227,36 @@ describe("fetchClozeItems", () => {
 			{ word: "practice", definition: "doing something often" },
 		]);
 		expect(body.response_format).toEqual({ type: "json_object" });
+	});
+
+	it("contentLevel 进入 system prompt（默认初中，可指定其他级别）", async () => {
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValue(chatResponse(JSON.stringify(itemsPayload())));
+		await fetchClozeItems(
+			fetchOptions({
+				fetchImpl: fetchMock as unknown as typeof fetch,
+				contentLevel: "college",
+			}),
+		);
+		const body = JSON.parse(
+			String((fetchMock.mock.calls[0][1] as RequestInit).body),
+		) as { messages: { content: string }[] };
+		expect(body.messages[0].content).toContain(CONTENT_LEVEL_PROMPTS.college);
+		expect(body.messages[0].content).not.toContain(CONTENT_LEVEL_PROMPTS.primary);
+
+		const defaultFetch = vi
+			.fn()
+			.mockResolvedValue(chatResponse(JSON.stringify(itemsPayload())));
+		await fetchClozeItems(
+			fetchOptions({ fetchImpl: defaultFetch as unknown as typeof fetch }),
+		);
+		const defaultBody = JSON.parse(
+			String((defaultFetch.mock.calls[0][1] as RequestInit).body),
+		) as { messages: { content: string }[] };
+		expect(defaultBody.messages[0].content).toContain(
+			CONTENT_LEVEL_PROMPTS[DEFAULT_CONTENT_LEVEL],
+		);
 	});
 
 	it("扩展参数被拒时降级重试（只发生一次降级 + 记录诊断）", async () => {
@@ -292,9 +357,8 @@ describe("fetchClozeItems", () => {
 							sentences: ["I like ##1.", "Second ##2."],
 							blanks: [
 								{ index: 1, answer: "apple" },
-								{ index: 2, answer: "apple" },
+								{ index: 2, answer: "made-up-word" },
 							],
-							usedWords: ["orange"],
 						},
 					],
 				}),

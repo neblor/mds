@@ -134,7 +134,11 @@ describe("scripts/get-explain.mjs", () => {
 			expect(run.status).toBe(1);
 			expect(run.stderr).not.toContain("before initialization");
 
-			const payload = JSON.parse(run.stderr) as {
+			// 子进程 stderr 可能带 Node 警告行（如 TS 解析钩子的 Deprecation 提醒），
+			// 从第一个 `{` 起解析 JSON。
+			const jsonStart = run.stderr.indexOf("{");
+			expect(jsonStart).toBeGreaterThanOrEqual(0);
+			const payload = JSON.parse(run.stderr.slice(jsonStart)) as {
 				error: string;
 				code?: string;
 			};

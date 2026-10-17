@@ -1,8 +1,13 @@
 /**
  * 设置存储（localStorage）
  * AI 配置：标准 OpenAI 兼容 baseUrl + key（+ model 以便兼容各服务商）
- * 倍率调整默认 1；倒计时数字显示开关默认开
+ * 倍率调整默认 1；倒计时数字显示开关默认开；生成级别默认初中
  */
+import {
+	DEFAULT_CONTENT_LEVEL,
+	parseContentLevel,
+	type ContentLevel,
+} from "./content-level";
 
 export interface AppSettings {
 	aiBaseUrl: string;
@@ -16,6 +21,8 @@ export interface AppSettings {
 	requestRetention: number;
 	/** 自定义词库清单地址（留空只用随包内置清单）；在「选择词表 → 检查清单更新」里编辑 */
 	bankManifestUrl: string;
+	/** AI 生成内容的难度级别（小学/初中/高中/大学；默认初中） */
+	contentLevel: ContentLevel;
 }
 
 /** 可选音色（edge-tts 标准 voice 参数，如命令行 `--voice en-US-AvaNeural`） */
@@ -40,6 +47,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	voice: "en-US-AvaNeural",
 	requestRetention: 0.9,
 	bankManifestUrl: "",
+	contentLevel: DEFAULT_CONTENT_LEVEL,
 };
 
 const KEY = "mds.settings.v1";
@@ -67,6 +75,8 @@ export function loadSettings(): AppSettings {
 				VOICES.some((v) => v.id === parsed.voice)
 					? parsed.voice
 					: DEFAULT_SETTINGS.voice,
+			// 旧版本存下的设置没有 contentLevel；未知/非法值一律回落初中
+			contentLevel: parseContentLevel(parsed.contentLevel),
 		};
 	} catch {
 		return { ...DEFAULT_SETTINGS };

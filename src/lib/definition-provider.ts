@@ -5,6 +5,12 @@
  * 因而可以被 API、单元测试和命令行诊断脚本共同调用。
  */
 
+import {
+	CONTENT_LEVEL_PROMPTS,
+	DEFAULT_CONTENT_LEVEL,
+	type ContentLevel,
+} from "./content-level";
+
 export type DefinitionProviderErrorCode =
 	| "http"
 	| "network"
@@ -56,6 +62,8 @@ export interface FetchEnglishDefinitionsOptions {
 	baseUrl: string;
 	apiKey: string;
 	model: string;
+	/** 生成级别（用户设置，默认初中）；只影响释义句的词汇与句法难度 */
+	contentLevel?: ContentLevel;
 	signal?: AbortSignal;
 	timeoutMs?: number;
 	fetchImpl?: typeof fetch;
@@ -80,17 +88,35 @@ interface ParsedAiResponse {
 
 export type AiPairKind = "definition" | "chinese";
 
-const SYSTEM_PROMPTS: Record<AiPairKind, string> = {
-	definition:
-		"You are an English dictionary for kids. Reply with STRICT JSON only " +
-		'(no markdown fences, no extra text) using this shape: {"definitions":{"<exact original word>":"<one clear English sentence>"}}. ' +
-		"Definitions must be English only, simple, kid-friendly, and include every requested word exactly once.",
-	chinese:
-		"You are an English-Chinese dictionary for kids. Reply with STRICT JSON only " +
-		'(no markdown fences, no extra text) using this shape: {"words":{"<exact original word>":"<one Simplified Chinese word>"}}. ' +
-		"Give the most common everyday Chinese translation (a word or short phrase) for each requested word, " +
-		"Simplified Chinese characters only, no pinyin, no English explanation, and include every requested word exactly once.",
-};
+/**
+ * 释义 system prompt：按生成级别约束释义句的词汇与句法难度（级别描述见 content-level.ts）。
+ * 客观陈述，只写要求与真护栏（输出非 JSON、漏词、中英混写）。
+ */
+export function buildDefinitionSystemPrompt(contentLevel: ContentLevel): string {
+	return (
+		"You write one-sentence English definitions. " +
+		'Reply with STRICT JSON only, no markdown fences and no extra text: {"definitions":{"<exact original word>":"<one clear English sentence>"}}. ' +
+		`Write each definition in ${CONTENT_LEVEL_PROMPTS[contentLevel]}. Definitions are in English only. ` +
+		"Include every requested word exactly once, spelled as requested."
+	);
+}
+
+/** 中文对应词 system prompt：一个词对一两个中文词，与难度级别无关 */
+export const CHINESE_SYSTEM_PROMPT =
+	"You translate English words into Simplified Chinese. " +
+	'Reply with STRICT JSON only, no markdown fences and no extra text: {"words":{"<exact original word>":"<one Simplified Chinese word>"}}. ' +
+	"Give the most common everyday Chinese translation (a word or short phrase) for each requested word. " +
+	"Use Simplified Chinese characters only - no pinyin, no English explanation. " +
+	"Include every requested word exactly once, spelled as requested.";
+
+export function buildPairSystemPrompt(
+	kind: AiPairKind,
+	contentLevel: ContentLevel,
+): string {
+	return kind === "chinese"
+		? CHINESE_SYSTEM_PROMPT
+		: buildDefinitionSystemPrompt(contentLevel);
+}
 
 /** 安全读取非空自有字符串属性，避免 constructor/__proto__ 原型键误命中。 */
 export function ownDefinition(
@@ -418,6 +444,8 @@ export interface FetchAiPairsOptions {
 	baseUrl: string;
 	apiKey: string;
 	model: string;
+	/** 生成级别（用户设置，默认初中） */
+	contentLevel?: ContentLevel;
 	signal?: AbortSignal;
 	timeoutMs?: number;
 	fetchImpl?: typeof fetch;
@@ -561,7 +589,13 @@ export async function fetchAiPairs(
 		temperature: 0,
 		max_tokens: 4096,
 		messages: [
-			{ role: "system", content: SYSTEM_PROMPTS[options.kind] },
+			{
+				role: "system",
+				content: buildPairSystemPrompt(
+					options.kind,
+					options.contentLevel ?? DEFAULT_CONTENT_LEVEL,
+				),
+			},
 			{ role: "user", content: JSON.stringify(options.words) },
 		],
 	};
@@ -712,14 +746,14 @@ export interface FetchGradesOptions {
 
 const GRADE_SYSTEM_PROMPTS: Record<GradeKind, string> = {
 	chinese:
-		"You are a strict but fair grader for an English-to-Chinese dictation exercise for kids. " +
+		"You are a strict but fair grader for an English-to-Chinese dictation exercise. " +
 		'Reply with STRICT JSON only (no markdown fences, no extra text) using this shape: ' +
 		'{"results":[{"word":"<exact original word>","correct":true,"note":"<optional short reason>"}]}. ' +
 		"For each item judge whether the student's Chinese answer is an acceptable translation of the English word: " +
 		"common synonyms and reasonable word choices are acceptable; ignore leading/trailing whitespace and Chinese punctuation differences; " +
 		"a blank answer is incorrect; include every requested word exactly once, keyed by the exact original word.",
 	definition:
-		"You are a strict but fair grader for an English vocabulary dictation exercise for kids. " +
+		"You are a strict but fair grader for an English vocabulary dictation exercise. " +
 		'Reply with STRICT JSON only (no markdown fences, no extra text) using this shape: ' +
 		'{"results":[{"word":"<exact original word>","correct":true,"note":"<optional short reason>"}]}. ' +
 		"For each item judge whether the student's English definition expresses the same core meaning as the expected definition: " +

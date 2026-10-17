@@ -12,7 +12,7 @@
  * - 只保留有单词的词条；**不做英文释义过滤**（缺释义的词在「单词」模式下仍然可用），
  *   脚本会打印各库的英文释义覆盖率供参考
  */
-import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { register } from "node:module";
 import { join, resolve } from "node:path";
@@ -23,8 +23,13 @@ register("./ts-resolve-hook.mjs", import.meta.url);
 const { csvRecords, ecdictRowToEntry, parseCsv } = await import(
 	"../src/lib/bank-parse.ts"
 );
-const { BUILTIN_BANK_SPECS, buildBank, buildManifest, selectSpecEntries } =
-	await import("../src/lib/bank-build.ts");
+const {
+	BUILTIN_BANK_SPECS,
+	buildBank,
+	buildManifest,
+	parseWordListFile,
+	selectSpecEntries,
+} = await import("../src/lib/bank-build.ts");
 
 const ECDICT_URL =
 	"https://raw.githubusercontent.com/skywind3000/ECDICT/master/ecdict.csv";
@@ -62,6 +67,36 @@ async function ensureCsv(path) {
 	console.log(`下载完成：${kb(buffer.length)}`);
 }
 
+/** 词表型词库（如 PET）：读 wordsFiles 合并成折叠集合；文件缺失直接报错，不静默跳过 */
+function loadWordList(spec) {
+	if (!spec.wordsFiles?.length) return spec;
+	const words = new Set();
+	for (const file of spec.wordsFiles) {
+		const path = resolve(projectRoot, file);
+		if (!existsSync(path)) {
+			throw new Error(`${spec.id} 的词表文件不存在：${path}（先跑 pnpm build:pet-words）`);
+		}
+		for (const key of parseWordListFile(readFileSync(path, "utf8"))) words.add(key);
+	}
+	return { ...spec, words };
+}
+
+/**
+ * 上次构建的同一词库（存在则用于「内容没变就沿用时间戳」）。
+ * 文件损坏时不静默重建（那会让所有词库都变成新时间戳），直接报错让人看一眼。
+ */
+function readPreviousBank(outDir, id) {
+	const path = join(outDir, `${id}.json`);
+	if (!existsSync(path)) return undefined;
+	try {
+		return JSON.parse(readFileSync(path, "utf8"));
+	} catch (error) {
+		throw new Error(
+			`旧词库文件无法解析：${path}（${error instanceof Error ? error.message : String(error)}）`,
+		);
+	}
+}
+
 async function main() {
 	await ensureCsv(csvPath);
 	const started = Date.now();
@@ -82,20 +117,23 @@ async function main() {
 
 	mkdirSync(outDir, { recursive: true });
 	const built = [];
-	for (const spec of BUILTIN_BANK_SPECS) {
+	for (const rawSpec of BUILTIN_BANK_SPECS) {
+		const spec = loadWordList(rawSpec);
 		const picked = selectSpecEntries(spec, entries);
 		if (picked.length === 0) {
 			console.warn(`跳过 ${spec.id}：没有命中的词条`);
 			continue;
 		}
-		const bank = buildBank(spec, picked, Date.now());
+		const bank = buildBank(spec, picked, Date.now(), readPreviousBank(outDir, spec.id));
 		const json = JSON.stringify(bank);
 		writeFileSync(join(outDir, `${spec.id}.json`), json);
 		const withDefinition = picked.filter((item) => item.definition).length;
+		const withPhonetic = picked.filter((item) => item.phonetic).length;
 		console.log(
 			`${spec.id.padEnd(9)} ${String(picked.length).padStart(6)} 词  ` +
 				`${kb(Buffer.byteLength(json)).padStart(10)}  英文释义覆盖 ` +
-				`${((withDefinition / picked.length) * 100).toFixed(1)}%`,
+				`${((withDefinition / picked.length) * 100).toFixed(1)}%  音标 ` +
+				`${((withPhonetic / picked.length) * 100).toFixed(1)}%`,
 		);
 		built.push(bank);
 	}

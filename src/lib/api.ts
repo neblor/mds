@@ -76,6 +76,7 @@ export async function requestDefinitions(
 				baseUrl: settings.aiBaseUrl,
 				apiKey: settings.aiApiKey,
 				model: settings.aiModel,
+				contentLevel: settings.contentLevel,
 			}),
 			signal,
 		});
@@ -160,6 +161,7 @@ export async function requestClozeQuestions(
 				baseUrl: settings.aiBaseUrl,
 				apiKey: settings.aiApiKey,
 				model: settings.aiModel,
+				contentLevel: settings.contentLevel,
 			}),
 			signal,
 		});
