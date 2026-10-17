@@ -155,6 +155,8 @@ export interface CommittedWord {
 /** 结果行的最小形状（避免与 results.ts 耦合，同时便于单测） */
 export interface ResultRowLike {
 	word: string;
+	/** 短句/组句轮带标准句子；短句场次里缺它是「降级为单词轮」的信号 */
+	context?: string;
 	fields: { kind: string; graded: boolean; correct?: boolean }[];
 }
 
@@ -164,6 +166,8 @@ export interface ResultRowLike {
  * - 只取「参与判定的单词字段」作为对错：书写模式没有判定字段 → 整行跳过（不进调度）
  * - elapsedMs 按行索引取（每轮实际耗时），缺省算 0
  * - 缺失/空单词行直接忽略，不因一行坏数据丢整场写回
+ * - 短句场次里被降级的词（没有标准句子）按 `word` 记账：否则复习统计会把
+ *   「只默了单词」的轮次算成短句轮，长期看会污染模式维度的统计
  */
 export function buildCommitItems(options: {
 	rows: ResultRowLike[];
@@ -180,10 +184,13 @@ export function buildCommitItems(options: {
 		);
 		if (!judged) return;
 		const elapsed = options.elapsedMs?.[index] ?? 0;
+		// 短句场次的降级轮：没有 context 即「本词没有合格短句」
+		const rowMode: ReviewMode =
+			options.mode === "sentence" && !row.context ? "word" : options.mode;
 		items.push({
 			word,
 			correct: judged.correct === true,
-			mode: options.mode,
+			mode: rowMode,
 			genMode: options.genMode,
 			elapsedMs: Number.isFinite(elapsed) ? Math.max(0, Math.round(elapsed)) : 0,
 		});

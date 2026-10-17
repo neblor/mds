@@ -43,3 +43,4 @@ export { default as Info } from "lucide-solid/icons/info";
 export { default as Pencil } from "lucide-solid/icons/pencil";
 export { default as Upload } from "lucide-solid/icons/upload";
 export { default as TextCursorInput } from "lucide-solid/icons/text-cursor-input";
+export { default as MessageSquareQuote } from "lucide-solid/icons/message-square-quote";

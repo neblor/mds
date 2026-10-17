@@ -135,6 +135,59 @@ describe("buildQueueForBank", () => {
 	});
 });
 
+describe("短句写回", () => {
+	it("有标准整句的轮次记 sentence，降级轮（无句子）记 word", () => {
+		const items = buildCommitItems({
+			rows: [
+				{
+					word: "apple",
+					context: "a red apple",
+					fields: [{ kind: "word", graded: true, correct: true }],
+				},
+				{
+					// 降级轮：没有 context（本词没拿到合格短句）
+					word: "banana",
+					fields: [{ kind: "word", graded: true, correct: false }],
+				},
+			],
+			mode: "sentence",
+			genMode: "cyber",
+			elapsedMs: [4000, 2000],
+		});
+		expect(items).toEqual([
+			{
+				word: "apple",
+				correct: true,
+				mode: "sentence",
+				genMode: "cyber",
+				elapsedMs: 4000,
+			},
+			{
+				word: "banana",
+				correct: false,
+				// 降级轮按单词轮记账，避免污染短句模式的统计
+				mode: "word",
+				genMode: "cyber",
+				elapsedMs: 2000,
+			},
+		]);
+	});
+
+	it("其余模式不受影响：mode 原样保留", () => {
+		const items = buildCommitItems({
+			rows: [
+				{
+					word: "apple",
+					fields: [{ kind: "word", graded: true, correct: true }],
+				},
+			],
+			mode: "cloze",
+			genMode: "cyber",
+		});
+		expect(items[0]?.mode).toBe("cloze");
+	});
+});
+
 describe("组句写回", () => {
 	it("buildCommitItems：组句轮每空一行，取「单词判定字段」并按行取耗时", () => {
 		const items = buildCommitItems({

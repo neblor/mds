@@ -16,6 +16,9 @@ import {
 	clozeDuration,
 	speechIntervals,
 	repeatCount,
+	sentenceCountdownDuration,
+	sentenceSpeechIntervals,
+	SENTENCE_REPEATS,
 	scaleTime,
 	type SpeedLevel,
 } from "./timing";
@@ -24,13 +27,16 @@ import {
 	requestDefinitions,
 	requestChineseWords,
 	requestClozeQuestions,
+	requestSentences,
 	requestAnswerGrades,
 	audioUrl,
 	playWithIntervals,
 	invalidateCacheFile,
 	type TtsItem,
 	type GradeItem,
+	type PlayItem,
 } from "./api";
+import { isSentenceMatch } from "./match";
 import {
 	shuffle,
 	resolveStoredContentMode,
@@ -71,6 +77,20 @@ export interface WordRound {
 	definition?: string;
 	/** 中文词模式：AI 抓取的常用中文对应词 */
 	chineseWord?: string;
+	/**
+	 * 短句模式的作答形态：
+	 * - "sentence"：播报「词 1 遍 + 整句 2 遍」，作答整句
+	 * - "word"：普通单词轮（短句场次里 AI 没给出合格短句的词会降级成这个）
+	 */
+	variant: "word" | "sentence";
+	/** 短句模式的标准整句（variant=sentence 时必有） */
+	sentence?: string;
+	/** 短句模式的整句音频名（variant=sentence 时必有） */
+	sentenceAudioName?: string;
+	/** 目标词自己的音频（短句轮不再播它；保留给诊断与降级场景） */
+	availableWordAudioName?: string;
+	/** 播报序列的标签（如 ["单词","整句 1","整句 2"]），供状态行显示 */
+	playLabels?: string[];
 	repeatCount: number;
 	/** 计数轨时长（进度条），已含档位×倍率 */
 	countdownSec: number;
@@ -111,6 +131,10 @@ interface PrepData {
 	nameMap: Map<string, string>;
 	defs: Record<string, string>;
 	chinese: Record<string, string>;
+	/** 短句模式：目标词 → 短句 */
+	sentences: Record<string, string>;
+	/** 短句模式：短句文本 → 音频文件名（与单词语音分开，均按文本哈希缓存） */
+	sentenceAudio: Map<string, string>;
 }
 
 interface BuildRoundsOptions {
@@ -129,12 +153,41 @@ function buildRounds(opts: BuildRoundsOptions): WordRound[] {
 		const chineseWord = Object.hasOwn(data.chinese, w)
 			? data.chinese[w]
 			: undefined;
+		const sentence = Object.hasOwn(data.sentences, w)
+			? data.sentences[w]
+			: undefined;
+		const sentenceAudioName = sentence
+			? data.sentenceAudio.get(sentence)
+			: undefined;
+		const audioName = data.nameMap.get(w) ?? "";
+
+		// 短句轮：先念目标词 1 遍，再念整句 2 遍（崔总 2026-10-17 定）。
+		// 没有合格短句/没有整句语音的词降级为普通单词轮，绝不整场报废。
+		if (contentMode === "sentence" && sentence && sentenceAudioName) {
+			// 只念整句 3 遍：用户听到第一个音就开始写，先念单词没有意义（崔总 2026-10-17）
+			return {
+				kind: "word" as const,
+				word: w,
+				// 结果页的发音按钮播整句（这一轮默的就是整句）
+				audioName: sentenceAudioName,
+				availableWordAudioName: audioName,
+				variant: "sentence" as const,
+				sentence,
+				sentenceAudioName,
+				playLabels: ["整句 1", "整句 2", "整句 3"],
+				repeatCount: SENTENCE_REPEATS,
+				countdownSec: sentenceCountdownDuration({ sentence, level, multiplier }),
+				gapSec: sentenceSpeechIntervals({ sentence, level, multiplier }),
+			};
+		}
+
 		const withDef = contentMode === "definition";
 		const count = repeatCount(w, withDef);
 		return {
 			kind: "word" as const,
 			word: w,
-			audioName: data.nameMap.get(w) ?? "",
+			audioName,
+			variant: "word" as const,
 			definition: def,
 			chineseWord,
 			repeatCount: count,
@@ -152,6 +205,34 @@ function buildRounds(opts: BuildRoundsOptions): WordRound[] {
 			),
 		};
 	});
+}
+
+/**
+ * 一轮的播放序列：
+ * - 单词轮 = 同一音频重复 repeatCount 遍
+ * - 短句轮 = 目标词 1 遍 + 整句 2 遍（各自标签，失败可按项淘汰缓存）
+ */
+export function playItemsOf(r: WordRound): PlayItem[] {
+	if (r.variant === "sentence" && r.sentenceAudioName) {
+		// 只播整句，共 3 遍（不先念单词）
+		return Array.from({ length: SENTENCE_REPEATS }, (_, index) => ({
+			url: audioUrl(r.sentenceAudioName as string),
+			label: `整句 ${index + 1}`,
+		}));
+	}
+	return Array.from({ length: Math.max(1, r.repeatCount) }, () => ({
+		url: audioUrl(r.audioName),
+	}));
+}
+
+/** 从 /api/audio?name=… 里取回缓存文件名（播放失败时按项淘汰缓存） */
+function cacheNameFromUrl(url: string): string | null {
+	try {
+		const name = new URL(url, "http://localhost").searchParams.get("name");
+		return name && name.trim() ? name : null;
+	} catch {
+		return null;
+	}
 }
 
 /** 组句题 → 轮次（题序打乱；每轮时长 = 句长基准 + 每空选择用时） */
@@ -284,9 +365,20 @@ export function useDictation() {
 	const finishDictation = () => {
 		roundSeq++;
 		clearRoundRuntime();
+		// 短句模式：整句全部对上了就不必再请 AI 批改（AI 备注只是「差在哪」的参考）
+		const sentenceNeedsGrade =
+			contentMode() === "sentence" &&
+			rounds().some(
+				(r) =>
+					r.kind === "word" &&
+					r.variant === "sentence" &&
+					!isSentenceMatch(r.answer ?? "", r.sentence ?? ""),
+			);
 		if (
 			mode() === "cyber" &&
-			(contentMode() === "chinese" || contentMode() === "definition")
+			(contentMode() === "chinese" ||
+				contentMode() === "definition" ||
+				sentenceNeedsGrade)
 		) {
 			setPhase("grading");
 			void runGrading();
@@ -314,16 +406,34 @@ export function useDictation() {
 
 	/* ---------- AI 批改（一次请求批改本场全部第二步作答） ---------- */
 	const runGrading = async () => {
-		const kind = contentMode() === "chinese" ? "chinese" : "definition";
-		const items: GradeItem[] = rounds()
-			.filter((r): r is WordRound => r.kind === "word")
-			.filter((r) => r.answerDef !== undefined)
-			.map((r) => ({
-				word: r.word,
-				expected:
-					kind === "chinese" ? (r.chineseWord ?? "") : (r.definition ?? ""),
-				answer: r.answerDef ?? "",
-			}));
+		const kind =
+			contentMode() === "chinese"
+				? "chinese"
+				: contentMode() === "sentence"
+					? "sentence"
+					: "definition";
+		// 短句模式批改「整句」，其余模式批改第二步作答
+		const items: GradeItem[] =
+			kind === "sentence"
+				? rounds()
+						.filter((r): r is WordRound => r.kind === "word")
+						.filter(
+							(r) => r.variant === "sentence" && (r.sentence ?? "").trim().length > 0,
+						)
+						.map((r) => ({
+							word: r.word,
+							expected: r.sentence ?? "",
+							answer: r.answer ?? "",
+						}))
+				: rounds()
+						.filter((r): r is WordRound => r.kind === "word")
+						.filter((r) => r.answerDef !== undefined)
+						.map((r) => ({
+							word: r.word,
+							expected:
+								kind === "chinese" ? (r.chineseWord ?? "") : (r.definition ?? ""),
+							answer: r.answerDef ?? "",
+						}));
 		// 防御：没有可批改的作答（理论不会发生）直接进结果
 		if (items.length === 0) {
 			enterResults();
@@ -510,7 +620,9 @@ export function useDictation() {
 			setError(
 				content === "cloze"
 					? "组句模式需要先配置 AI 服务（右上角设置里填写）"
-					: "释义/中文词模式需要先配置 AI 服务（右上角设置里填写）",
+					: content === "sentence"
+						? "短句模式需要先配置 AI 服务（右上角设置里填写）"
+						: "释义/中文词模式需要先配置 AI 服务（右上角设置里填写）",
 			);
 			return;
 		}
@@ -520,7 +632,13 @@ export function useDictation() {
 		setPrepError(null);
 		setPrepProgress(0);
 		setPrepIndeterminate(false);
-		setPrepStatus(content === "cloze" ? "正在出题…" : "正在生成语音…");
+		setPrepStatus(
+			content === "cloze"
+				? "正在出题…"
+				: content === "sentence"
+					? "正在生成短句…"
+					: "正在生成语音…",
+		);
 		prepAbort = new AbortController();
 		const seq = ++prepSeq;
 		void runPreparation(
@@ -570,6 +688,8 @@ export function useDictation() {
 			nameMap: new Map(),
 			defs: {},
 			chinese: {},
+			sentences: {},
+			sentenceAudio: new Map(),
 		};
 		setRounds(
 			buildClozeRounds({
@@ -607,6 +727,108 @@ export function useDictation() {
 		}
 	};
 
+	/**
+	 * 短句准备：一次 AI 生句 → 目标词与整句的语音（两轨并行，合并成一条进度）。
+	 *
+	 * 与组句的分工：句子是「每词一句」，所以必须先拿到句子才知道要合成什么文本，
+	 * 不能像释义那样与 TTS 并行。整段做成两阶段进度：
+	 *   阶段 1「生成短句」单次请求 → 不确定态动画（实测慢模型可达 10–30s）
+	 *   阶段 2「生成语音」多批请求 → 真实 x/y 进度（目标词 + 整句都算在内）
+	 *
+	 * AI 整体不可用或个别词没拿到合格短句，都**不中止本场**：
+	 * 这些词降级为普通单词轮（崔总 2026-10-17 决策 3）。
+	 */
+	const prepareSentence = async (
+		ws: string[],
+		voice: string,
+		signal: AbortSignal,
+		alive: () => boolean,
+	) => {
+		const shuffled = shuffle(ws);
+		setPrepProgress(0);
+		setPrepIndeterminate(true);
+		setPrepStatus("正在生成短句…（每个词一句，短句优先）");
+		let sentences: Record<string, string> = {};
+		let degraded = 0;
+		try {
+			const result = await requestSentences(shuffled, settings(), signal);
+			sentences = result.sentences;
+			degraded = result.missing.length;
+		} catch (err) {
+			if (signal.aborted) throw err;
+			// 网络/配置/额度级失败：整场降级为单词默写，而不是让用户白等一场
+			degraded = shuffled.length;
+			sentences = {};
+			setResultNote("短句生成失败：本场降级为单词默写");
+		}
+		if (!alive()) return;
+
+		const sentenceTexts = [
+			...new Set(
+				shuffled
+					.map((word) => (Object.hasOwn(sentences, word) ? sentences[word] : ""))
+					.filter((text) => text.trim().length > 0),
+			),
+		];
+		// 只合成「要念的东西」：整句轮只需要整句音频（不再播目标词），
+		// 降级轮才需要目标词音频 —— 比全量合成少一半请求。
+		const degradedWords = shuffled.filter(
+			(word) => !Object.hasOwn(sentences, word),
+		);
+		const total = sentenceTexts.length + degradedWords.length;
+		let sentenceDone = 0;
+		let wordDone = 0;
+		const reportProgress = () => {
+			const done = sentenceDone + wordDone;
+			setPrepProgress(total > 0 ? done / total : 1);
+			setPrepStatus(`正在生成语音 ${Math.min(done, total)}/${total}`);
+		};
+		setPrepIndeterminate(false);
+		setPrepProgress(0);
+		reportProgress();
+
+		// 整句与降级词两轨并行（各自按 4 条一批），进度按合并计数上报
+		const [sentenceItems, wordItems] = await Promise.all([
+			requestTtsAll(sentenceTexts, voice, signal, (done) => {
+				if (!alive()) return;
+				sentenceDone = done;
+				reportProgress();
+			}),
+			requestTtsAll(degradedWords, voice, signal, (done) => {
+				if (!alive()) return;
+				wordDone = done;
+				reportProgress();
+			}),
+		]);
+		if (!alive()) return;
+
+		lastPrep = {
+			words: shuffled,
+			nameMap: new Map(wordItems.map((item) => [item.word, item.name])),
+			defs: {},
+			chinese: {},
+			sentences,
+			sentenceAudio: new Map(
+				sentenceItems.map((item) => [item.word, item.name]),
+			),
+		};
+		if (degraded > 0) {
+			setResultNote(
+				`${degraded} 个词没有合格短句（超过 8 词或缺词），已降级为单词默写`,
+			);
+		}
+		setRounds(
+			buildRounds({
+				words: shuffled,
+				data: lastPrep,
+				level: speed(),
+				contentMode: "sentence",
+				multiplier: settings().multiplier,
+			}),
+		);
+		setPhase("ready");
+	};
+
 	const runPreparation = async (
 		ws: string[],
 		content: ContentMode,
@@ -626,6 +848,10 @@ export function useDictation() {
 		try {
 			if (content === "cloze") {
 				await prepareCloze(ws, voice, definitions, signal, alive);
+				return;
+			}
+			if (content === "sentence") {
+				await prepareSentence(ws, voice, signal, alive);
 				return;
 			}
 			const shuffled = shuffle(ws);
@@ -674,6 +900,8 @@ export function useDictation() {
 				nameMap,
 				defs: content === "definition" ? aiPairs : {},
 				chinese: content === "chinese" ? aiPairs : {},
+				sentences: {},
+				sentenceAudio: new Map(),
 			};
 			setRounds(
 				buildRounds({
@@ -813,8 +1041,7 @@ export function useDictation() {
 		audioAbort = new AbortController();
 		const signal = audioAbort.signal;
 		void playWithIntervals({
-			url: audioUrl(r.audioName),
-			count: r.repeatCount,
+			items: playItemsOf(r),
 			gapsMs: r.gapSec.map((g) => g * 1000),
 			signal,
 			onPlay: (i2) => {
@@ -827,9 +1054,13 @@ export function useDictation() {
 			},
 			// 错误必须在 onAudioState(false) 触发快速推进前启动缓存淘汰；
 			// 否则 finish/advance 会使 seq 失效，迟到的 outcome 无法再处理坏缓存。
-			onPlaybackFailure: () => {
+			onPlaybackFailure: (_failure, failedUrl) => {
 				if (seq !== roundSeq) return;
-				void invalidateCacheFile(r.audioName);
+				// 按出错的那一条淘汰缓存：短句轮里单词与整句是两个不同的文件
+				const name = failedUrl
+					? cacheNameFromUrl(failedUrl)
+					: r.audioName;
+				if (name) void invalidateCacheFile(name);
 			},
 		}).then((outcome) => {
 			if (seq !== roundSeq) return;

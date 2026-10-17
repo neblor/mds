@@ -183,6 +183,7 @@ export default function Home() {
 								showNumber={d.settings().showCountdownNumber}
 								repeatIndex={d.repeatIndex()}
 								repeatCount={d.currentRound()?.repeatCount ?? 1}
+								playLabels={wordRound()?.playLabels}
 								speechDone={d.speechDone()}
 								sounding={d.sounding()}
 								mode={d.mode()}

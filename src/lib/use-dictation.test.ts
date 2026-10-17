@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 	requestDefinitions: vi.fn(),
 	requestChineseWords: vi.fn(),
 	requestClozeQuestions: vi.fn(),
+	requestSentences: vi.fn(),
 	requestAnswerGrades: vi.fn(),
 	playWithIntervals: vi.fn(),
 	invalidateCacheFile: vi.fn(),
@@ -23,6 +24,7 @@ vi.mock("./api", () => ({
 	requestDefinitions: mocks.requestDefinitions,
 	requestChineseWords: mocks.requestChineseWords,
 	requestClozeQuestions: mocks.requestClozeQuestions,
+	requestSentences: mocks.requestSentences,
 	requestAnswerGrades: mocks.requestAnswerGrades,
 	playWithIntervals: mocks.playWithIntervals,
 	invalidateCacheFile: mocks.invalidateCacheFile,
@@ -36,7 +38,8 @@ vi.mock("./state", async (importOriginal) => {
 	};
 });
 
-import { useDictation } from "./use-dictation";
+import { playItemsOf, useDictation } from "./use-dictation";
+import { rowJudgement } from "./results";
 import { HISTORY_STORAGE_KEY, type HistoryEntry } from "./history-storage";
 
 type Dictation = ReturnType<typeof useDictation>;
@@ -103,6 +106,7 @@ describe("useDictation 生产流程编排", () => {
 		});
 		mocks.requestChineseWords.mockResolvedValue({});
 		mocks.requestAnswerGrades.mockResolvedValue({ grades: [] });
+		mocks.requestSentences.mockResolvedValue({ sentences: {}, missing: [] });
 		mocks.playWithIntervals.mockImplementation((opts: PlayOptions) => {
 			const deferred = createDeferred<PlayOutcome>();
 			playDeferreds.push(deferred);
@@ -566,6 +570,7 @@ describe("useDictation 准备任务竞态（token 隔离）", () => {
 		mocks.requestDefinitions.mockResolvedValue({});
 		mocks.requestChineseWords.mockResolvedValue({});
 		mocks.requestAnswerGrades.mockResolvedValue({ grades: [] });
+		mocks.requestSentences.mockResolvedValue({ sentences: {}, missing: [] });
 		mocks.playWithIntervals.mockImplementation((opts: PlayOptions) => {
 			opts.onPlay(0);
 			return Promise.resolve("completed" as const);
@@ -673,6 +678,7 @@ describe("useDictation 完整流程衔接（结果页）", () => {
 		mocks.requestDefinitions.mockResolvedValue({});
 		mocks.requestChineseWords.mockResolvedValue({});
 		mocks.requestAnswerGrades.mockResolvedValue({ grades: [] });
+		mocks.requestSentences.mockResolvedValue({ sentences: {}, missing: [] });
 		mocks.playWithIntervals.mockImplementation((opts: PlayOptions) => {
 			const deferred = createDeferred<PlayOutcome>();
 			playDeferreds.push(deferred);
@@ -779,8 +785,7 @@ describe("useDictation 完整流程衔接（结果页）", () => {
 		d.playResultAudio("apple.mp3");
 		const preview = mocks.playWithIntervals.mock.calls[1][0] as PlayOptions;
 		expect(preview).toMatchObject({
-			url: "/api/audio?name=apple.mp3",
-			count: 1,
+			items: [{ url: "/api/audio?name=apple.mp3" }],
 			gapsMs: [0],
 		});
 		preview.onAudioState(true);
@@ -890,6 +895,7 @@ describe("useDictation 中文词模式", () => {
 			hello: "你好",
 		});
 		mocks.requestAnswerGrades.mockResolvedValue({ grades: [] });
+		mocks.requestSentences.mockResolvedValue({ sentences: {}, missing: [] });
 		playDeferreds = [];
 		audioStateCbs = [];
 		mocks.playWithIntervals.mockImplementation((opts: PlayOptions) => {
@@ -1234,6 +1240,7 @@ describe("useDictation 组句（cloze）", () => {
 		mocks.requestChineseWords.mockResolvedValue({});
 		mocks.requestClozeQuestions.mockResolvedValue(CLOZE_ITEMS);
 		mocks.requestAnswerGrades.mockResolvedValue({ grades: [] });
+		mocks.requestSentences.mockResolvedValue({ sentences: {}, missing: [] });
 		mocks.playWithIntervals.mockImplementation((opts: PlayOptions) => {
 			opts.onPlay(0);
 			return Promise.resolve("completed" as const);
@@ -1419,5 +1426,230 @@ describe("useDictation 组句（cloze）", () => {
 		const entries = JSON.parse(String(writes.at(-1)?.[1])) as HistoryEntry[];
 		expect(entries[0].contentMode).toBe("cloze");
 		expect(entries[0].rows[0].context).toContain("after lunch");
+	});
+});
+
+describe("useDictation 短句模式（sentence）", () => {
+	let playDeferreds: ReturnType<typeof createDeferred<PlayOutcome>>[];
+	let audioStateCbs: ((playing: boolean) => void)[];
+	let mounted: { dictation: Dictation; dispose: () => void } | undefined;
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.stubGlobal("window", {
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
+		});
+		vi.stubGlobal("localStorage", {
+			getItem: vi.fn().mockReturnValue(null),
+			setItem: vi.fn(),
+		});
+		mocks.requestTtsAll.mockImplementation(
+			async (
+				words: string[],
+				_voice: string,
+				_signal: AbortSignal,
+				onProgress: (done: number, total: number) => void,
+			): Promise<TtsItem[]> => {
+				onProgress(words.length, words.length);
+				return words.map((word) => ({
+					word,
+					name: `${word.replace(/\s+/g, "_")}.mp3`,
+					cached: false,
+				}));
+			},
+		);
+		mocks.requestSentences.mockResolvedValue({
+			sentences: { apple: "a red apple" },
+			missing: [],
+		});
+		mocks.requestAnswerGrades.mockResolvedValue({ grades: [] });
+		playDeferreds = [];
+		audioStateCbs = [];
+		mocks.playWithIntervals.mockImplementation((opts: PlayOptions) => {
+			const deferred = createDeferred<PlayOutcome>();
+			playDeferreds.push(deferred);
+			opts.onPlay(0);
+			audioStateCbs.push(opts.onAudioState);
+			return deferred.promise;
+		});
+	});
+
+	afterEach(() => {
+		mounted?.dispose();
+		mounted = undefined;
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+		vi.clearAllMocks();
+	});
+
+	/** 起一场短句默写（默认赛博） */
+	const startSentence = async (
+		words: string[],
+		mode: "writing" | "cyber" = "cyber",
+	) => {
+		mounted = mountDictation();
+		const d = mounted.dictation;
+		d.changeSettings({
+			...d.settings(),
+			aiBaseUrl: "https://example.test/v1",
+			aiApiKey: "test-key",
+		});
+		d.changeContentMode("sentence");
+		for (const word of words) d.addWord(word);
+		d.startDictation(mode);
+		await flushAsyncWork();
+		return d;
+	};
+
+	it("准备阶段只合成整句语音（整句轮不再播单词）", async () => {
+		const d = await startSentence(["apple"]);
+		expect(mocks.requestSentences).toHaveBeenCalledWith(
+			["apple"],
+			expect.objectContaining({ aiBaseUrl: "https://example.test/v1" }),
+			expect.any(AbortSignal),
+		);
+		// 两个并行的 requestTtsAll：一个拿整句、一个拿降级词（这里没有降级词 → 空列表）
+		const requested = mocks.requestTtsAll.mock.calls.map((call) => call[0]);
+		expect(requested).toContainEqual(["a red apple"]);
+		expect(requested).toContainEqual([]);
+		expect(d.phase()).toBe("ready");
+	});
+
+	it("轮次为整句形态：整句念 3 遍（不先念单词），音频指向整句", async () => {
+		const d = await startSentence(["apple"]);
+		const round = d.rounds()[0];
+		expect(round.kind).toBe("word");
+		if (round.kind !== "word") return;
+		expect(round.variant).toBe("sentence");
+		expect(round.sentence).toBe("a red apple");
+		expect(round.repeatCount).toBe(3);
+		expect(round.playLabels).toEqual(["整句 1", "整句 2", "整句 3"]);
+		// "a red apple" 11 个字符（含 2 个空格）：(4 + 0.45×11) × 3 = 26.85 → 26.9
+		expect(round.countdownSec).toBe(26.9);
+		expect(round.gapSec).toHaveLength(3);
+		// 结果页发音按钮播整句；播放序列是 3 遍整句
+		expect(round.audioName).toBe("a_red_apple.mp3");
+		const items = playItemsOf(round);
+		expect(items).toHaveLength(3);
+		expect(items.every((item) => item.url.includes(encodeURIComponent("a_red_apple.mp3")))).toBe(true);
+		expect(items.map((item) => item.label)).toEqual(["整句 1", "整句 2", "整句 3"]);
+	});
+
+	it("没有合格短句的词降级为普通单词轮，并留下结果备注", async () => {
+		mocks.requestSentences.mockResolvedValue({
+			sentences: { apple: "a red apple" },
+			missing: ["banana"],
+		});
+		const d = await startSentence(["apple", "banana"]);
+		const byWord = new Map(
+			d.rounds().map((r) => [r.kind === "word" ? r.word : "", r]),
+		);
+		const apple = byWord.get("apple");
+		const banana = byWord.get("banana");
+		expect(apple?.kind === "word" ? apple.variant : null).toBe("sentence");
+		expect(banana?.kind === "word" ? banana.variant : null).toBe("word");
+		// 只为降级词合成单词音频（整句轮不播单词）
+		expect(mocks.requestTtsAll.mock.calls.map((call) => call[0])).toContainEqual([
+			"banana",
+		]);
+		// 降级轮按普通单词规则：banana 6 字母 → 播 3 遍
+		expect(banana?.repeatCount).toBe(3);
+		expect(d.resultNote()).toContain("降级为单词默写");
+		expect(d.phase()).toBe("ready");
+	});
+
+	it("生句整体失败不中止本场：全部降级为单词轮", async () => {
+		mocks.requestSentences.mockRejectedValue(new Error("AI 挂了"));
+		const d = await startSentence(["apple", "banana"]);
+		expect(d.phase()).toBe("ready");
+		expect(d.prepError()).toBeNull();
+		expect(
+			d.rounds().every((r) => r.kind === "word" && r.variant === "word"),
+		).toBe(true);
+		expect(d.resultNote()).toContain("降级为单词默写");
+	});
+
+	it("结果行按整句匹配判定：忽略大小写，空格与标点要全对", async () => {
+		const d = await startSentence(["apple"]);
+		d.go();
+		// 播报结束 + 提交整句
+		audioStateCbs[0]?.(false);
+		playDeferreds[0]?.resolve("completed");
+		await flushAsyncWork();
+		d.setWordInput("A RED APPLE");
+		d.submitWord();
+		await flushAsyncWork();
+		expect(d.phase()).toBe("results");
+		const row = d.resultRows()[0];
+		expect(row.word).toBe("apple");
+		expect(row.context).toBe("a red apple");
+		expect(row.fields.map((f) => f.kind)).toEqual(["sentence"]);
+		expect(row.fields[0]).toMatchObject({
+			graded: true,
+			expected: "a red apple",
+			userValue: "A RED APPLE",
+			// 大小写不同不算错
+			correct: true,
+		});
+		expect(rowJudgement(row)).toBe(true);
+		// 整句全对 → 不必再请 AI 批改
+		expect(mocks.requestAnswerGrades).not.toHaveBeenCalled();
+	});
+
+	it("整句有出入时才请 AI 批改，备注只作参考不改判定", async () => {
+		mocks.requestAnswerGrades.mockResolvedValue({
+			grades: [{ word: "apple", correct: false, note: "拼写差一个字母" }],
+		});
+		const d = await startSentence(["apple"]);
+		d.go();
+		audioStateCbs[0]?.(false);
+		playDeferreds[0]?.resolve("completed");
+		await flushAsyncWork();
+		d.setWordInput("a red appple");
+		d.submitWord();
+		await flushAsyncWork();
+
+		expect(mocks.requestAnswerGrades).toHaveBeenCalledWith(
+			"sentence",
+			[
+				{
+					word: "apple",
+					expected: "a red apple",
+					answer: "a red appple",
+				},
+			],
+			expect.anything(),
+			expect.any(AbortSignal),
+		);
+		const row = d.resultRows()[0];
+		const sentenceField = row.fields.find((f) => f.kind === "sentence");
+		// 判定来自整句匹配（错）；AI 只补一条备注
+		expect(sentenceField).toMatchObject({
+			graded: true,
+			correct: false,
+			note: "拼写差一个字母",
+		});
+		expect(rowJudgement(row)).toBe(false);
+	});
+
+	it("书写模式短句：只有标准整句可对照，不产生得分", async () => {
+		const d = await startSentence(["apple"], "writing");
+		d.go();
+		audioStateCbs[0]?.(false);
+		playDeferreds[0]?.resolve("completed");
+		await flushAsyncWork();
+		// 书写模式用空格跳轮
+		d.onRootKeyDown({
+			code: "Space",
+			target: { tagName: "BODY", isContentEditable: false },
+			preventDefault: vi.fn(),
+		} as unknown as KeyboardEvent);
+		await flushAsyncWork();
+		expect(d.phase()).toBe("results");
+		const row = d.resultRows()[0];
+		expect(row.fields.map((f) => f.kind)).toEqual(["sentence"]);
+		expect(rowJudgement(row)).toBeUndefined();
+		expect(mocks.requestAnswerGrades).not.toHaveBeenCalled();
 	});
 });

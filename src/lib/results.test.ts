@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	buildResultRows,
+	highlightWordSegments,
 	rowJudgement,
 	correctCount,
 	isAllCorrectRows,
@@ -315,17 +316,19 @@ describe("统计与庆祝判定", () => {
 });
 
 describe("模式文案", () => {
-	it("四种模式的判定说明与标签齐全", () => {
+	it("五种模式的判定说明与标签齐全", () => {
 		expect(JUDGEMENT_NOTES).toMatchObject({
 			word: expect.stringContaining("单词判定"),
 			definition: expect.stringContaining("AI 批改"),
 			chinese: expect.stringContaining("AI 批改"),
+			sentence: expect.stringContaining("整句需完全一致"),
 			cloze: expect.stringContaining("每个空独立比对"),
 		});
 		expect(CONTENT_MODE_LABELS).toEqual({
 			word: "单词",
 			definition: "释义",
 			chinese: "中文词",
+			sentence: "短句",
 			cloze: "组句",
 		});
 	});
@@ -416,5 +419,118 @@ describe("buildResultRows 组句模式", () => {
 		const rows = buildResultRows([clozeRound()], "writing", "cloze");
 		expect(rows[0].fields[0]).toMatchObject({ graded: false });
 		expect(rowJudgement(rows[0])).toBeUndefined();
+	});
+});
+
+describe("buildResultRows 短句模式", () => {
+	const sentenceRound = (overrides: Partial<WordRoundLike> = {}): WordRoundLike => ({
+		kind: "word",
+		word: "apple",
+		audioName: "a_red_apple.mp3",
+		variant: "sentence",
+		sentence: "a red apple",
+		answer: "a red apple",
+		...overrides,
+	});
+
+	it("标准整句进 context；判定是整句匹配（graded 的 sentence 字段）", () => {
+		const [row] = buildResultRows([sentenceRound()], "cyber", "sentence");
+		expect(row.context).toBe("a red apple");
+		const field = row.fields.find((f) => f.kind === "sentence");
+		expect(field).toMatchObject({
+			expected: "a red apple",
+			userValue: "a red apple",
+			graded: true,
+			correct: true,
+		});
+		expect(rowJudgement(row)).toBe(true);
+	});
+
+	it("忽略大小写：大小写写错不算错", () => {
+		const [row] = buildResultRows(
+			[sentenceRound({ answer: "A Red Apple" })],
+			"cyber",
+			"sentence",
+		);
+		expect(row.fields.find((f) => f.kind === "sentence")?.correct).toBe(true);
+		expect(rowJudgement(row)).toBe(true);
+	});
+
+	it("空格与标点必须对上：多/少空格、丢标点都算错", () => {
+		for (const answer of ["a  red apple", "a redapple", "a red apple." /* 多标点 */]) {
+			const [row] = buildResultRows(
+				[sentenceRound({ answer })],
+				"cyber",
+				"sentence",
+			);
+			expect(row.fields.find((f) => f.kind === "sentence")?.correct).toBe(false);
+			expect(rowJudgement(row)).toBe(false);
+		}
+	});
+
+	it("AI 备注只挂在字段上作参考，不改变判定", () => {
+		const [row] = buildResultRows(
+			[sentenceRound({ answer: "a red appple" })],
+			"cyber",
+			"sentence",
+			{ apple: { correct: true, note: "拼写差一个字母" } },
+		);
+		const field = row.fields.find((f) => f.kind === "sentence");
+		// 判定按整句匹配（错），AI 的 correct 不覆盖它
+		expect(field?.correct).toBe(false);
+		expect(field?.note).toBe("拼写差一个字母");
+		expect(correctCount([row])).toBe(0);
+	});
+
+	it("空作答算错", () => {
+		const [row] = buildResultRows(
+			[sentenceRound({ answer: "" })],
+			"cyber",
+			"sentence",
+		);
+		expect(rowJudgement(row)).toBe(false);
+	});
+
+	it("书写模式只给标准整句对照，不产生判定", () => {
+		const [row] = buildResultRows([sentenceRound()], "writing", "sentence");
+		expect(row.fields.map((f) => f.kind)).toEqual(["sentence"]);
+		expect(row.fields[0]?.graded).toBe(false);
+		expect(rowJudgement(row)).toBeUndefined();
+	});
+
+	it("降级轮（没有短句）按单词轮处理并带备注", () => {
+		const [row] = buildResultRows(
+			[{ kind: "word", word: "banana", audioName: "banana.mp3", variant: "word", answer: "banana" }],
+			"cyber",
+			"sentence",
+		);
+		expect(row.note).toContain("按单词默写");
+		expect(row.context).toBeUndefined();
+		expect(row.fields.map((f) => f.kind)).toEqual(["word"]);
+		expect(rowJudgement(row)).toBe(true);
+	});
+});
+
+describe("highlightWordSegments", () => {
+	it("标记目标词（含屈折变化），其余保持原样", () => {
+		const segments = highlightWordSegments("I ate two apples and an apple pie", "apple");
+		expect(segments.map((s) => s.text).join("")).toBe(
+			"I ate two apples and an apple pie",
+		);
+		expect(segments.filter((s) => s.hit).map((s) => s.text)).toEqual([
+			"apples",
+			"apple",
+		]);
+	});
+
+	it("没有命中时返回整段", () => {
+		expect(highlightWordSegments("a red apple", "banana")).toEqual([
+			{ text: "a red apple", hit: false },
+		]);
+	});
+
+	it("不去误伤子串（pineapple 不是 apple）", () => {
+		const segments = highlightWordSegments("a pineapple", "apple");
+		expect(segments.some((s) => s.hit)).toBe(false);
 	});
 });

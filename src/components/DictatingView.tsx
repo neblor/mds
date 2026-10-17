@@ -10,6 +10,8 @@ export interface DictatingViewProps {
 	showNumber: boolean;
 	repeatIndex: number;
 	repeatCount: number;
+	/** 播报序列的标签（短句轮为 ["单词","整句 1","整句 2"]）；缺省时按序号显示 */
+	playLabels?: string[];
 	speechDone: boolean;
 	/** 是否正在发声（播报间隔期间为 false） */
 	sounding: boolean;
@@ -33,10 +35,16 @@ function autoFocus(el: HTMLInputElement | undefined) {
 }
 
 /** 播报状态文案 */
+/** 当前正在播的那一项叫什么（短句轮显示「单词」「整句 1」这类标签） */
+function currentPlayLabel(props: DictatingViewProps): string {
+	const label = props.playLabels?.[Math.max(0, props.repeatIndex)];
+	if (label) return label;
+	return `第 ${Math.max(1, props.repeatIndex + 1)} 遍`;
+}
+
 function playStatus(props: DictatingViewProps): string {
 	if (props.speechDone) return "播报完成";
-	if (props.sounding)
-		return `播报 ${Math.max(0, props.repeatIndex + 1)}/${props.repeatCount}`;
+	if (props.sounding) return `播报 ${currentPlayLabel(props)}`;
 	return "请作答…";
 }
 
@@ -56,6 +64,8 @@ function step(props: DictatingViewProps): "word" | "def" | "done" | "none" {
 function statusText(props: DictatingViewProps): string {
 	const s = step(props);
 	if (s === "none") return "用笔写在纸上吧 ✍️";
+	if (props.contentMode === "sentence")
+		return "听整句写整句，写完按回车";
 	if (s === "word") return "听语音写单词，写完按回车";
 	if (s === "def")
 		return props.contentMode === "chinese"
@@ -102,7 +112,9 @@ function WordRow(props: DictatingViewProps) {
 				<input
 					ref={autoFocus}
 					class="w-full bg-transparent text-base text-ink outline-none placeholder:text-ink-faint"
-					placeholder="输入单词…"
+					placeholder={
+						props.contentMode === "sentence" ? "输入整句…" : "输入单词…"
+					}
 					value={props.wordInput}
 					onInput={(e) => props.onWordInput(e.currentTarget.value)}
 					onKeyDown={(e) => {
@@ -202,7 +214,7 @@ export default function DictatingView(props: DictatingViewProps) {
 					{props.speechDone
 						? "播报完成"
 						: props.sounding
-							? `正在播报 · 第 ${Math.max(1, props.repeatIndex + 1)} 遍`
+							? `正在播报 · ${currentPlayLabel(props)}`
 							: "请作答…"}
 				</span>
 			</div>

@@ -24,7 +24,13 @@ import { isValidBankId } from "./bank-types";
 export type StoredCard = { [key: string]: JsonValue };
 export type StoredCards = Record<string, StoredCard>;
 
-export const REVIEW_MODES = ["word", "definition", "chinese", "cloze"] as const;
+export const REVIEW_MODES = [
+	"word",
+	"definition",
+	"chinese",
+	"sentence",
+	"cloze",
+] as const;
 export type ReviewMode = (typeof REVIEW_MODES)[number];
 export const QUEUE_KINDS = ["new", "review", "relearn"] as const;
 export type QueueKind = (typeof QUEUE_KINDS)[number];

@@ -4,6 +4,7 @@ import {
 	JUDGEMENT_NOTES,
 	correctCount,
 	isAllCorrectRows,
+	highlightWordSegments,
 	rowJudgement,
 	type ResultField,
 	type ResultFieldKind,
@@ -35,6 +36,7 @@ interface Props {
 function labelOf(kind: ResultFieldKind): string {
 	if (kind === "definition") return "释义";
 	if (kind === "chinese") return "中文词";
+	if (kind === "sentence") return "整句";
 	return "单词";
 }
 
@@ -122,16 +124,33 @@ function Celebration() {
 /* ---------- 参考字段行（只对照不批改） ---------- */
 function ReferenceFieldLines(props: { field: ResultField }) {
 	const f = props.field;
+	// 整句很长：换行显示（最多 3 行，悬停可看全文），不做单行截断
+	const wrap = f.kind === "sentence" ? "break-words line-clamp-3" : "truncate";
 	return (
 		<div class="flex flex-col">
 			<Show when={f.expected}>
-				<span class="truncate text-[13px] text-ink-faint">
+				<span class={`text-[13px] text-ink-faint ${wrap}`} title={f.expected}>
 					{labelOf(f.kind)}：{f.expected}
 				</span>
 			</Show>
 			<Show when={f.userValue !== undefined}>
-				<span class="truncate text-[13px] text-ink-soft">
+				<span
+					class={`text-[13px] text-ink-soft ${wrap}`}
+					title={f.userValue}
+				>
 					我的{labelOf(f.kind)}：{f.userValue || "（未填写）"}
+				</span>
+			</Show>
+			{/* 整句 AI 批改只作参考：graded=false，因此不影响得分 */}
+			<Show when={f.correct !== undefined}>
+				<span
+					class={`flex items-center gap-1 text-[12px] ${f.correct ? "text-ok" : "text-err"}`}
+				>
+					{f.correct ? <Check class="h-3.5 w-3.5" /> : <X class="h-3.5 w-3.5" />}
+					整句{f.correct ? "基本正确" : "有明显出入"}
+					<Show when={f.note}>
+						<span class="text-ink-faint">· {f.note}</span>
+					</Show>
 				</span>
 			</Show>
 		</div>
@@ -187,6 +206,10 @@ function ResultRowItem(props: {
 						/>
 					</button>
 				</div>
+				{/* 降级说明（短句场次里没有合格短句的词） */}
+				<Show when={props.row.note}>
+					<span class="text-[12px] text-ink-faint">{props.row.note}</span>
+				</Show>
 				{/* 组句轮的句子上下文（答案已填入，便于对照自己填错了什么） */}
 				<Show when={props.row.context}>
 					<span class="truncate text-[13px] text-ink-faint">
@@ -221,6 +244,102 @@ function ResultRowItem(props: {
 						)}
 					</For>
 				</div>
+			</Show>
+		</div>
+	);
+}
+
+/* ---------- 短句行：目标词 + 标准整句（高亮目标词）+ 用户整句 + 整句判定 ---------- */
+function SentenceResultRow(props: {
+	row: ResultRow;
+	mode: "writing" | "cyber";
+	playingAudioName: string | null;
+	onPlayAudio: (audioName: string) => void;
+}) {
+	const sentenceField = createMemo(() =>
+		props.row.fields.find((f) => f.kind === "sentence"),
+	);
+	/** 判定口径是「整句匹配」（忽略大小写，空格与标点都算） */
+	const verdict = () => (props.mode === "cyber" ? sentenceField()?.correct : undefined);
+	const standard = () => sentenceField()?.expected ?? props.row.context ?? "";
+	const userSentence = () => sentenceField()?.userValue ?? "";
+	const playing = () =>
+		props.playingAudioName !== null &&
+		props.playingAudioName === props.row.audioName;
+	const bg = () => {
+		if (props.mode !== "cyber") return "bg-surface shadow-sm";
+		return verdict() ? "bg-ok-bg" : "bg-err-bg";
+	};
+
+	return (
+		<div class={`flex flex-col gap-1.5 rounded-lg px-4 py-3 ${bg()}`}>
+			{/* 第一行：本句要默的词 + 整句发音 + 整句判定 */}
+			<div class="flex items-center gap-2">
+				<Show when={verdict() !== undefined}>
+					{verdict() ? (
+						<Check class="h-4 w-4 shrink-0 text-ok" />
+					) : (
+						<X class="h-4 w-4 shrink-0 text-err" />
+					)}
+				</Show>
+				<span class="text-base font-semibold text-ink">{props.row.word}</span>
+				<span class="text-[12px] text-ink-faint">本句要默的词</span>
+				<button
+					type="button"
+					class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink-faint transition hover:bg-brand/10 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-35"
+					disabled={!props.row.audioName}
+					onClick={() => props.onPlayAudio(props.row.audioName)}
+					aria-label={`播放 ${props.row.word} 所在整句`}
+					title={`播放整句（${props.row.word}）`}
+					aria-pressed={playing()}
+				>
+					<Volume2
+						class={`h-4 w-4 ${playing() ? "animate-pulse text-brand" : ""}`}
+					/>
+				</button>
+				<Show when={verdict() !== undefined}>
+					<span
+						class={`text-[12px] font-semibold ${verdict() ? "text-ok" : "text-err"}`}
+					>
+						{verdict() ? "整句写对了" : "整句有出入"}
+					</span>
+				</Show>
+			</div>
+
+			{/* 标准整句：目标词高亮 */}
+			<p class="break-words text-[15px] leading-relaxed text-ink" title={standard()}>
+				<span class="mr-1 text-[13px] text-ink-faint">标准：</span>
+				<For each={highlightWordSegments(standard(), props.row.word)}>
+					{(part) => (
+						<Show when={part.hit} fallback={<span>{part.text}</span>}>
+							<span class="rounded bg-brand/20 px-0.5 font-semibold text-brand">
+								{part.text}
+							</span>
+						</Show>
+					)}
+				</For>
+			</p>
+
+			{/* 用户整句：原样显示（大小写也对得上，方便自己核对） */}
+			<Show when={props.mode === "cyber"}>
+				<p
+					class="break-words text-[15px] leading-relaxed text-ink-soft line-clamp-3"
+					title={userSentence()}
+				>
+					<span class="mr-1 text-[13px] text-ink-faint">我写：</span>
+					{userSentence() || "（未填写）"}
+				</p>
+				{/* AI 备注只解释「差在哪」，不参与计分 */}
+				<Show when={sentenceField()?.note}>
+					<span class="text-[12px] text-ink-faint">
+						AI 参考：{sentenceField()?.note}
+					</span>
+				</Show>
+			</Show>
+
+			{/* 降级说明（该词没有合格短句） */}
+			<Show when={props.row.note}>
+				<span class="text-[12px] text-ink-faint">{props.row.note}</span>
 			</Show>
 		</div>
 	);
@@ -265,12 +384,24 @@ export default function ResultsView(props: Props) {
 			<div class="flex flex-col gap-2.5 overflow-y-auto pr-1">
 				<For each={props.rows}>
 					{(r) => (
-						<ResultRowItem
-							row={r}
-							mode={props.mode}
-							playingAudioName={props.playingAudioName}
-							onPlayAudio={props.onPlayAudio}
-						/>
+						<Show
+							when={r.fields.some((f) => f.kind === "sentence")}
+							fallback={
+								<ResultRowItem
+									row={r}
+									mode={props.mode}
+									playingAudioName={props.playingAudioName}
+									onPlayAudio={props.onPlayAudio}
+								/>
+							}
+						>
+							<SentenceResultRow
+								row={r}
+								mode={props.mode}
+								playingAudioName={props.playingAudioName}
+								onPlayAudio={props.onPlayAudio}
+							/>
+						</Show>
 					)}
 				</For>
 			</div>

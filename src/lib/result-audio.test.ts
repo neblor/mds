@@ -57,8 +57,7 @@ describe("createResultAudioPlayer", () => {
 		player.play("apple.mp3");
 		const opts = mocks.playWithIntervals.mock.calls[0][0] as PlayOptions;
 		expect(opts).toMatchObject({
-			url: "/api/audio?name=apple.mp3",
-			count: 1,
+			items: [{ url: "/api/audio?name=apple.mp3" }],
 			gapsMs: [0],
 		});
 

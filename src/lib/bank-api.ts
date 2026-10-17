@@ -13,6 +13,7 @@ import type {
 	WordBank,
 } from "./bank-types";
 import { isValidBankId } from "./bank-types";
+import type { ReviewMode } from "./review-store";
 
 /** 内置词库清单（随包发布的静态资源） */
 export const BUILTIN_MANIFEST_PATH = "/banks/manifest.json";
@@ -77,7 +78,8 @@ export interface CommitView {
 export interface ReviewCommitItemInput {
 	word: string;
 	correct: boolean;
-	mode: "word" | "definition" | "chinese" | "cloze";
+	/** 该轮的判定口径；短句场次里被降级为单词轮时按 word 记（逐项覆盖，见 review-service） */
+	mode: ReviewMode;
 	genMode: "writing" | "cyber";
 	elapsedMs: number;
 }

@@ -68,8 +68,9 @@ describe("playWithIntervals", () => {
 
 	const run = (count: number, gapsMs: number[]) =>
 		playWithIntervals({
-			url: "/api/audio?name=test.mp3",
-			count,
+			items: Array.from({ length: count }, () => ({
+				url: "/api/audio?name=test.mp3",
+			})),
 			gapsMs,
 			signal: abort.signal,
 			onPlay: (i) => plays.push(i),

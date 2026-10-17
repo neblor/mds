@@ -15,15 +15,17 @@ export type DictationMode = "writing" | "cyber";
  * - word：只默单词，批改单词
  * - definition：默单词 + 英文释义，批改单词，释义只对照不批改
  * - chinese：默中文对应词，批改中文词（准备阶段由 AI 抓取）
+ * - sentence：短句（准备阶段为每个词生成一个短句，播报与作答对象是整句，判定核心是目标词）
  * - cloze：范例组句（准备阶段由 AI 一次出整场题，每空选词作答）
  */
-export type ContentMode = "word" | "definition" | "chinese" | "cloze";
+export type ContentMode = "word" | "definition" | "chinese" | "sentence" | "cloze";
 
 /** 内容模式白名单：持久化恢复与历史条目校验共用一份，避免各处各写一份而漏项 */
 export const CONTENT_MODES: readonly ContentMode[] = [
 	"word",
 	"definition",
 	"chinese",
+	"sentence",
 	"cloze",
 ];
 

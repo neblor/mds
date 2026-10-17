@@ -20,6 +20,7 @@
     "get:explain": "node scripts/get-explain.mjs",
     "get:tts": "node scripts/get-tts.mjs",
     "get:cloze": "node scripts/get-cloze.mjs",
+    "get:sentences": "node scripts/get-sentences.mjs",
     "client:start": "electron .",
     "client:dev": "pnpm web:build && pnpm client:start",
     "client:package:dir": "pnpm web:build && electron-builder --win dir",
@@ -105,7 +106,7 @@
       "mirror": "https://npmmirror.com/mirrors/electron/"
     }
   },
-  "version": "0.8.1",
+  "version": "0.9.0",
   "description": "默点啥 — 记单词 · 听写 · 默写小帮手",
   "author": "neblor"
 }

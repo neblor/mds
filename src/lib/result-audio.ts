@@ -34,8 +34,7 @@ export function createResultAudioPlayer(
 		const controller = new AbortController();
 		current = controller;
 		void playWithIntervals({
-			url: audioUrl(audioName),
-			count: 1,
+			items: [{ url: audioUrl(audioName) }],
 			gapsMs: [0],
 			signal: controller.signal,
 			onPlay: () => {},

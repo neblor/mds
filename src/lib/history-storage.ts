@@ -32,6 +32,7 @@ const FIELD_KINDS: readonly ResultField["kind"][] = [
 	"word",
 	"definition",
 	"chinese",
+	"sentence",
 ];
 
 function normalizeField(value: unknown): ResultField | null {
@@ -63,6 +64,7 @@ function normalizeRow(value: unknown): ResultRow | null {
 		word: r.word,
 		audioName: typeof r.audioName === "string" ? r.audioName : "",
 		...(typeof r.context === "string" && r.context ? { context: r.context } : {}),
+		...(typeof r.note === "string" && r.note ? { note: r.note } : {}),
 		fields,
 	};
 }

@@ -11,6 +11,7 @@ import {
 	BookOpen,
 	Languages,
 	TextCursorInput,
+	MessageSquareQuote,
 	History,
 	Undo2,
 } from "lucide-solid";
@@ -62,6 +63,7 @@ const CONTENT_MODES: SliderOption<ContentMode>[] = [
 	{ value: "word", label: "单词", icon: Type },
 	{ value: "definition", label: "释义", icon: BookOpen },
 	{ value: "chinese", label: "中文词", icon: Languages },
+	{ value: "sentence", label: "短句", icon: MessageSquareQuote },
 	{ value: "cloze", label: "组句", icon: TextCursorInput },
 ];
 

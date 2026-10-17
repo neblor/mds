@@ -146,3 +146,57 @@ export function countdownDuration(opts: {
 	}
 	return scaleTime(total, level, multiplier);
 }
+
+/* ---------- 短句模式（sentence） ---------- */
+
+/**
+ * 短句模式的播报与计时口径（崔总 2026-10-17 定，属基础计算方式，不是调系数）：
+ * - **只念整句，念 3 遍**，不再先念单词——用户听到第一个音就开始写了，念单词没有用；
+ * - 整句比单词长得多，每遍后的思考时间、每字符书写时间都要按整句重设；
+ * - 字符数**含空格与标点**（整句匹配也要求这些一致，写的时候同样要落笔）。
+ * 三档速率（SPEED_RATE）与设置里的倍率调整仍然照乘——那是全局缩放，与本口径相互独立。
+ */
+export const SENTENCE_REPEATS = 3;
+/** 每遍播报后的思考时间（整句需要回忆句子结构、核对已写部分） */
+export const SENTENCE_THINK_SECONDS = 4;
+/** 每个字符（含空格与标点）的书写时间 */
+export const SENTENCE_CHAR_SECONDS = 0.45;
+
+/** 整句字符数：含空格与标点（至少 1） */
+export function sentenceCharCount(sentence: string): number {
+	return Math.max(1, [...sentence.trim()].length);
+}
+
+/**
+ * 短句轮每遍播报后的间隔（秒），共 3 项，顺序即播报顺序。
+ * 沿用单词模式「前几遍思考、最后一遍只书写」的分配方式：
+ * [思考, 思考+书写, 书写]
+ */
+export function sentenceSpeechIntervals(opts: {
+	sentence: string;
+	level: SpeedLevel;
+	multiplier?: number;
+}): number[] {
+	const { sentence, level, multiplier = 1 } = opts;
+	const write = SENTENCE_CHAR_SECONDS * sentenceCharCount(sentence);
+	const raw = [SENTENCE_THINK_SECONDS, SENTENCE_THINK_SECONDS + write, write];
+	return raw.map((gap) => scaleTime(gap, level, multiplier));
+}
+
+/**
+ * 短句轮计数轨时长（秒）：整句 3 遍 ×（每遍思考 + 按整句字符数估的书写时间）。
+ * 与单词/释义/中文词同一套双重缩放（三档速率 × 倍率调整），但基础公式是短句专用的：
+ * 不再叠加「目标词段」，每遍的思考与书写单价都按整句重设。
+ *
+ * 与音频时长无关：双轨制保证「倒计时结束但语音没放完」时继续等语音。
+ */
+export function sentenceCountdownDuration(opts: {
+	sentence: string;
+	level: SpeedLevel;
+	multiplier?: number;
+}): number {
+	const { sentence, level, multiplier = 1 } = opts;
+	const perRepeat =
+		SENTENCE_THINK_SECONDS + SENTENCE_CHAR_SECONDS * sentenceCharCount(sentence);
+	return scaleTime(perRepeat * SENTENCE_REPEATS, level, multiplier);
+}

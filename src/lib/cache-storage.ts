@@ -29,6 +29,9 @@ export interface RuntimeCacheStorage {
 	writeDefinitions(value: unknown): void;
 	readChineseWords(): unknown | undefined;
 	writeChineseWords(value: unknown): void;
+	/** 短句模式的「英文单词 → 短句」（与释义分开文件，格式演进互不牵连） */
+	readSentences(): unknown | undefined;
+	writeSentences(value: unknown): void;
 }
 
 const audioNamePattern = /^[a-z0-9_-]{1,80}\.mp3$/;
@@ -44,6 +47,7 @@ function assertAudioName(name: string): void {
 export class FileSystemRuntimeCacheStorage implements RuntimeCacheStorage {
 	readonly definitionsPath: string;
 	readonly chineseWordsPath: string;
+	readonly sentencesPath: string;
 
 	constructor(
 		readonly mode: RuntimeMode,
@@ -52,6 +56,7 @@ export class FileSystemRuntimeCacheStorage implements RuntimeCacheStorage {
 		mkdirSync(rootDir, { recursive: true });
 		this.definitionsPath = join(rootDir, "definitions.json");
 		this.chineseWordsPath = join(rootDir, "chinese-words.json");
+		this.sentencesPath = join(rootDir, "sentences.json");
 	}
 
 	private audioPath(name: string): string {
@@ -112,6 +117,14 @@ export class FileSystemRuntimeCacheStorage implements RuntimeCacheStorage {
 
 	writeChineseWords(value: unknown): void {
 		writeJsonAtomic(this.chineseWordsPath, value);
+	}
+
+	readSentences(): unknown | undefined {
+		return readJsonFile(this.sentencesPath);
+	}
+
+	writeSentences(value: unknown): void {
+		writeJsonAtomic(this.sentencesPath, value);
 	}
 }
 

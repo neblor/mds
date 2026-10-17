@@ -16,6 +16,12 @@ import {
 	DEF_THINK_SECONDS,
 	DEF_LETTER_SECONDS,
 	SPEED_RATE,
+	sentenceCharCount,
+	sentenceSpeechIntervals,
+	sentenceCountdownDuration,
+	SENTENCE_REPEATS,
+	SENTENCE_THINK_SECONDS,
+	SENTENCE_CHAR_SECONDS,
 } from "./timing";
 
 describe("wordLength", () => {
@@ -384,5 +390,85 @@ describe("clozeDuration", () => {
 		expect(
 			clozeDuration({ sentences: [], blankCount: -3, level: "normal" }),
 		).toBe(CLOZE_BASE_SECONDS);
+	});
+});
+
+describe("短句模式计时（只念整句 3 遍，基础公式按整句重设）", () => {
+	const round1 = (v: number) => Math.round(v * 10) / 10;
+	const SENTENCE = "I ate an apple after lunch";
+
+	it("整句字符数含空格与标点（写的时候也要落笔）", () => {
+		// 26 个字符（含 4 个空格）："I ate an apple after lunch"
+		expect(sentenceCharCount(SENTENCE)).toBe(26);
+		expect(sentenceCharCount("Hello, world!")).toBe(13);
+		// 全空白按 1 处理，避免除零/负时长
+		expect(sentenceCharCount("   ")).toBe(1);
+	});
+
+	it("只念整句：遍数为 3，间隔共 3 项", () => {
+		expect(SENTENCE_REPEATS).toBe(3);
+		const gaps = sentenceSpeechIntervals({ sentence: SENTENCE, level: "normal" });
+		expect(gaps).toHaveLength(3);
+	});
+
+	it("播报间隔按「先思考、后书写」分配：[思考, 思考+书写, 书写]", () => {
+		const write = SENTENCE_CHAR_SECONDS * sentenceCharCount(SENTENCE);
+		const gaps = sentenceSpeechIntervals({ sentence: SENTENCE, level: "normal" });
+		expect(gaps[0]).toBe(round1(SENTENCE_THINK_SECONDS));
+		expect(gaps[1]).toBe(round1(SENTENCE_THINK_SECONDS + write));
+		expect(gaps[2]).toBe(round1(write));
+	});
+
+	it("基础公式：整句 3 遍 ×（每遍思考 + 按整句字符数估的书写时间）", () => {
+		const perRepeat =
+			SENTENCE_THINK_SECONDS +
+			SENTENCE_CHAR_SECONDS * sentenceCharCount(SENTENCE);
+		expect(
+			sentenceCountdownDuration({ sentence: SENTENCE, level: "normal" }),
+		).toBe(round1(perRepeat * SENTENCE_REPEATS));
+	});
+
+	it("比原来的「先念词 + 整句 2 遍」口径更长（崔总反馈计时偏快）", () => {
+		// 旧口径：词段 (2+0.3×5)×1 + 整句段 (2+0.3×19)×2 = 3.5 + 15.4 = 18.9
+		const legacy = 3.5 + (2 + 0.3 * 19) * 2;
+		const now = sentenceCountdownDuration({ sentence: SENTENCE, level: "normal" });
+		expect(now).toBeGreaterThan(legacy * 1.5);
+	});
+
+	it("长句估时严格大于短句（逐句按长度估算，不是固定值）", () => {
+		const short = sentenceCountdownDuration({ sentence: "a cat", level: "normal" });
+		const long = sentenceCountdownDuration({
+			sentence: "the cat sat quietly beside the old wooden window",
+			level: "normal",
+		});
+		expect(long).toBeGreaterThan(short);
+	});
+
+	it("双重缩放仍由三档速率 × 倍率调整相乘（与基础公式相互独立）", () => {
+		const base = sentenceCountdownDuration({ sentence: SENTENCE, level: "normal" });
+		expect(
+			sentenceCountdownDuration({ sentence: SENTENCE, level: "fast" }),
+		).toBe(round1(base * SPEED_RATE.fast));
+		expect(
+			sentenceCountdownDuration({ sentence: SENTENCE, level: "slow" }),
+		).toBe(round1(base * SPEED_RATE.slow));
+		expect(
+			sentenceCountdownDuration({ sentence: SENTENCE, level: "normal", multiplier: 1.5 }),
+		).toBe(round1(base * 1.5));
+		expect(
+			sentenceCountdownDuration({ sentence: SENTENCE, level: "slow", multiplier: 2 }),
+		).toBe(round1(base * SPEED_RATE.slow * 2));
+	});
+
+	it("间隔同样走双重缩放", () => {
+		const base = sentenceSpeechIntervals({ sentence: SENTENCE, level: "normal" });
+		const fast = sentenceSpeechIntervals({
+			sentence: SENTENCE,
+			level: "fast",
+			multiplier: 1.5,
+		});
+		fast.forEach((gap, index) => {
+			expect(gap).toBe(round1((base[index] as number) * SPEED_RATE.fast * 1.5));
+		});
 	});
 });
