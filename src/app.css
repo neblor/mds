@@ -160,3 +160,9 @@ body {
 .toggle-switch:checked::after {
   transform: translateX(20px);
 }
+
+/* 准备阶段的「不确定进度」：单次 AI 请求没有中间进度，用流动条表示仍在进行 */
+@keyframes prep-indeterminate {
+	0% { transform: translateX(-100%); }
+	100% { transform: translateX(300%); }
+}

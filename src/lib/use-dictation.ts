@@ -196,6 +196,8 @@ export function useDictation() {
 
 	// 准备阶段
 	const [prepProgress, setPrepProgress] = createSignal(0);
+	/** 当前阶段无法给出确定进度（单次 AI 请求）时为 true，进度条改为流动动画 */
+	const [prepIndeterminate, setPrepIndeterminate] = createSignal(false);
 	const [prepStatus, setPrepStatus] = createSignal("");
 	const [prepError, setPrepError] = createSignal<string | null>(null);
 	let prepAbort: AbortController | null = null;
@@ -517,6 +519,7 @@ export function useDictation() {
 		setPhase("preparing");
 		setPrepError(null);
 		setPrepProgress(0);
+		setPrepIndeterminate(false);
 		setPrepStatus(content === "cloze" ? "正在出题…" : "正在生成语音…");
 		prepAbort = new AbortController();
 		const seq = ++prepSeq;
@@ -544,6 +547,8 @@ export function useDictation() {
 		const pool = ws.slice(0, CLOZE_MAX_CANDIDATES);
 		setClozeCandidates(shuffle(pool));
 		setPrepProgress(0);
+		// 出题是单次请求，没有中间进度：用不确定态动画而不是把 0% 冻在屏幕上
+		setPrepIndeterminate(true);
 		setPrepStatus("正在出题…（一次性生成整场题目）");
 		const items = await requestClozeQuestions(
 			pool.map((word) => {
@@ -554,6 +559,7 @@ export function useDictation() {
 			signal,
 		);
 		if (!alive()) return;
+		setPrepIndeterminate(false);
 		const answerWords = [
 			...new Set(items.flatMap((item) => item.blanks.map((blank) => blank.answer))),
 		];
@@ -639,8 +645,26 @@ export function useDictation() {
 					: content === "chinese"
 						? requestChineseWords(shuffled, settings(), signal)
 						: Promise.resolve<Record<string, string>>({});
+			// 语音与 AI 并行：语音跑满 100% 后若 AI 还没回来，进度条切成不确定态，
+			// 避免出现「100% 却还在等」的误导（实测释义轮会干等十几秒）。
+			let ttsFinished = false;
+			let aiFinished = false;
+			const syncStage = () => {
+				if (!alive()) return;
+				setPrepIndeterminate(ttsFinished && !aiFinished);
+			};
+			// 这两个 .then 只为切进度态：必须吞掉拒绝，否则会额外造出未处理的 Promise
+			// （真实拒绝由下面的 await 统一处理，陈旧任务的拒绝也要静默）
+			const markFinished = (which: "tts" | "ai") => () => {
+				if (which === "tts") ttsFinished = true;
+				else aiFinished = true;
+				syncStage();
+			};
+			void ttsPromise.then(markFinished("tts"), markFinished("tts"));
+			void aiPromise.then(markFinished("ai"), markFinished("ai"));
 			const [items, aiPairs] = await Promise.all([ttsPromise, aiPromise]);
 			if (!alive()) return;
+			setPrepIndeterminate(false);
 
 			const nameMap = new Map<string, string>(
 				items.map((i: TtsItem) => [i.word, i.name]),
@@ -671,6 +695,7 @@ export function useDictation() {
 	const abortPreparation = () => {
 		// 先递增 token 再中止：旧任务的任何异步回调都立即失效
 		prepSeq++;
+		setPrepIndeterminate(false);
 		prepAbort?.abort();
 		prepAbort = null;
 		setRounds([]);
@@ -966,6 +991,7 @@ export function useDictation() {
 		mode,
 		error,
 		prepProgress,
+		prepIndeterminate,
 		prepStatus,
 		prepError,
 		rounds,

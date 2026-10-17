@@ -156,6 +156,7 @@ export default function Home() {
 				<Show when={d.phase() === "preparing"}>
 					<PreparingOverlay
 						progress={d.prepProgress()}
+						indeterminate={d.prepIndeterminate()}
 						status={d.prepStatus()}
 						error={d.prepError()}
 						onAbort={d.abortPreparation}
