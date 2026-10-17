@@ -4,6 +4,7 @@ import {
 	isChineseMatch,
 	isDefinitionMatch,
 	isSentenceMatch,
+	normalizeSentence,
 	normalizeChinese,
 	normalizeDefinition,
 	isAllCorrect,
@@ -59,35 +60,58 @@ describe("isDefinitionMatch", () => {
 	});
 });
 
+describe("normalizeSentence（短句归一化）", () => {
+	it("小写 + 去标点 + 压空白 + 去首尾空白", () => {
+		expect(normalizeSentence("  She  EATS an apple.  ")).toBe("she eats an apple");
+		expect(normalizeSentence("Hello,   world!")).toBe("hello world");
+		expect(normalizeSentence("Don't stop!")).toBe("dont stop");
+	});
+
+	it("全角标点/中文标点也去掉，字母保留", () => {
+		// 标点是直接删掉、不补空格（按崔总给的规则）：紧邻标点的两个词会连在一起
+		expect(normalizeSentence("Apple，banana。")).toBe("applebanana");
+		expect(normalizeSentence("Apple, banana.")).toBe("apple banana");
+	});
+
+	it("只有标点时归一为空串", () => {
+		expect(normalizeSentence("!!!")).toBe("");
+	});
+});
+
 describe("isSentenceMatch（整句默写口径）", () => {
-	it("忽略大小写：大小写写错不算错", () => {
-		expect(isSentenceMatch("SHE EATS AN APPLE.", "She eats an apple.")).toBe(true);
-		expect(isSentenceMatch("the library is quiet", "The library is quiet.")).toBe(
-			false, // 标点仍算：整句要全对
-		);
+	const expected = "She eats an apple.";
+
+	it("完全一致算对", () => {
+		expect(isSentenceMatch("She eats an apple.", expected)).toBe(true);
 	});
 
-	it("完全一致算对（含标点）", () => {
-		expect(isSentenceMatch("She eats an apple.", "She eats an apple.")).toBe(true);
+	it("忽略大小写", () => {
+		expect(isSentenceMatch("SHE EATS AN APPLE.", expected)).toBe(true);
+		expect(isSentenceMatch("she eats an apple.", expected)).toBe(true);
 	});
 
-	it("空格必须对上：多空格/少空格/丢词都算错", () => {
-		expect(isSentenceMatch("She  eats an apple.", "She eats an apple.")).toBe(false);
-		expect(isSentenceMatch("She eats anapple.", "She eats an apple.")).toBe(false);
-		expect(isSentenceMatch("She eats apple.", "She eats an apple.")).toBe(false);
+	it("忽略标点", () => {
+		expect(isSentenceMatch("She eats an apple", expected)).toBe(true);
+		expect(isSentenceMatch("She eats an apple!!!", expected)).toBe(true);
+		expect(isSentenceMatch("She, eats an apple", expected)).toBe(true);
 	});
 
-	it("标点差异算错（整句全对口径）", () => {
-		expect(isSentenceMatch("She eats an apple", "She eats an apple.")).toBe(false);
+	it("空格多少不影响（压成单个空格后比较）", () => {
+		expect(isSentenceMatch("She  eats   an apple.", expected)).toBe(true);
+		expect(isSentenceMatch("  She eats an apple.  ", expected)).toBe(true);
 	});
 
-	it("首尾空白不算错（提交时已 trim，这里兜一次）", () => {
-		expect(isSentenceMatch("  She eats an apple.  ", "She eats an apple.")).toBe(true);
+	it("词序/词形/漏词仍然算错（只放宽大小写与标点空格）", () => {
+		expect(isSentenceMatch("eats She an apple", expected)).toBe(false);
+		expect(isSentenceMatch("She eats apples", expected)).toBe(false);
+		expect(isSentenceMatch("She eats apple", expected)).toBe(false);
+		expect(isSentenceMatch("She eats an apple pie", expected)).toBe(false);
 	});
 
-	it("空作答一律算错", () => {
-		expect(isSentenceMatch("", "She eats an apple.")).toBe(false);
-		expect(isSentenceMatch("   ", "She eats an apple.")).toBe(false);
+	it("空作答算错（归一后为空，与整句不等）", () => {
+		expect(isSentenceMatch("", expected)).toBe(false);
+		expect(isSentenceMatch("   ", expected)).toBe(false);
+		expect(isSentenceMatch("!!!", expected)).toBe(false);
 	});
 });
 

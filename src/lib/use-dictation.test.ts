@@ -1597,10 +1597,7 @@ describe("useDictation 短句模式（sentence）", () => {
 		expect(mocks.requestAnswerGrades).not.toHaveBeenCalled();
 	});
 
-	it("整句有出入时才请 AI 批改，备注只作参考不改判定", async () => {
-		mocks.requestAnswerGrades.mockResolvedValue({
-			grades: [{ word: "apple", correct: false, note: "拼写差一个字母" }],
-		});
+	it("短句模式不做 AI 批改：有出入也直接进结果页", async () => {
 		const d = await startSentence(["apple"]);
 		d.go();
 		audioStateCbs[0]?.(false);
@@ -1610,27 +1607,14 @@ describe("useDictation 短句模式（sentence）", () => {
 		d.submitWord();
 		await flushAsyncWork();
 
-		expect(mocks.requestAnswerGrades).toHaveBeenCalledWith(
-			"sentence",
-			[
-				{
-					word: "apple",
-					expected: "a red apple",
-					answer: "a red appple",
-				},
-			],
-			expect.anything(),
-			expect.any(AbortSignal),
-		);
+		// 不请求批改、不经历 grading 阶段
+		expect(mocks.requestAnswerGrades).not.toHaveBeenCalled();
+		expect(d.phase()).toBe("results");
+		expect(d.gradeNote()).toBeNull();
 		const row = d.resultRows()[0];
 		const sentenceField = row.fields.find((f) => f.kind === "sentence");
-		// 判定来自整句匹配（错）；AI 只补一条备注
-		expect(sentenceField).toMatchObject({
-			graded: true,
-			correct: false,
-			note: "拼写差一个字母",
-		});
-		expect(rowJudgement(row)).toBe(false);
+		expect(sentenceField).toMatchObject({ graded: true, correct: false });
+		expect(sentenceField?.note).toBeUndefined();
 	});
 
 	it("书写模式短句：只有标准整句可对照，不产生得分", async () => {

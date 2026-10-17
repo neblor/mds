@@ -36,7 +36,6 @@ import {
 	type GradeItem,
 	type PlayItem,
 } from "./api";
-import { isSentenceMatch } from "./match";
 import {
 	shuffle,
 	resolveStoredContentMode,
@@ -365,20 +364,10 @@ export function useDictation() {
 	const finishDictation = () => {
 		roundSeq++;
 		clearRoundRuntime();
-		// 短句模式：整句全部对上了就不必再请 AI 批改（AI 备注只是「差在哪」的参考）
-		const sentenceNeedsGrade =
-			contentMode() === "sentence" &&
-			rounds().some(
-				(r) =>
-					r.kind === "word" &&
-					r.variant === "sentence" &&
-					!isSentenceMatch(r.answer ?? "", r.sentence ?? ""),
-			);
+		// 短句模式不做 AI 批改（归一化比较就够），因此不进 grading 阶段、结果立刻可见
 		if (
 			mode() === "cyber" &&
-			(contentMode() === "chinese" ||
-				contentMode() === "definition" ||
-				sentenceNeedsGrade)
+			(contentMode() === "chinese" || contentMode() === "definition")
 		) {
 			setPhase("grading");
 			void runGrading();
@@ -406,34 +395,17 @@ export function useDictation() {
 
 	/* ---------- AI 批改（一次请求批改本场全部第二步作答） ---------- */
 	const runGrading = async () => {
-		const kind =
-			contentMode() === "chinese"
-				? "chinese"
-				: contentMode() === "sentence"
-					? "sentence"
-					: "definition";
-		// 短句模式批改「整句」，其余模式批改第二步作答
-		const items: GradeItem[] =
-			kind === "sentence"
-				? rounds()
-						.filter((r): r is WordRound => r.kind === "word")
-						.filter(
-							(r) => r.variant === "sentence" && (r.sentence ?? "").trim().length > 0,
-						)
-						.map((r) => ({
-							word: r.word,
-							expected: r.sentence ?? "",
-							answer: r.answer ?? "",
-						}))
-				: rounds()
-						.filter((r): r is WordRound => r.kind === "word")
-						.filter((r) => r.answerDef !== undefined)
-						.map((r) => ({
-							word: r.word,
-							expected:
-								kind === "chinese" ? (r.chineseWord ?? "") : (r.definition ?? ""),
-							answer: r.answerDef ?? "",
-						}));
+		const kind = contentMode() === "chinese" ? "chinese" : "definition";
+		// 只批改两段式内容模式的第二步作答（短句模式走归一化比较，不请求 AI）
+		const items: GradeItem[] = rounds()
+			.filter((r): r is WordRound => r.kind === "word")
+			.filter((r) => r.answerDef !== undefined)
+			.map((r) => ({
+				word: r.word,
+				expected:
+					kind === "chinese" ? (r.chineseWord ?? "") : (r.definition ?? ""),
+				answer: r.answerDef ?? "",
+			}));
 		// 防御：没有可批改的作答（理论不会发生）直接进结果
 		if (items.length === 0) {
 			enterResults();

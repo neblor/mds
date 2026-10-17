@@ -6,8 +6,7 @@
  * - definition 模式（赛博）：判定 = 英文单词（严格匹配）+ 英文释义（AI 批改，
  *   可用 grades 覆盖；无 AI 结果时回退本地归一化匹配；书写模式只展示参考）
  * - chinese 模式（赛博）：判定 = 英文单词（严格匹配）+ 中文词（AI 批改，同上）
- * - sentence 模式：判定 = **整句匹配**（忽略大小写，空格与标点都算）；
- *   「整句 AI 批改」只作参考备注，不参与计分（崔总 2026-10-17 定）
+ * - sentence 模式：判定 = **整句归一化后全等**（小写 + 去标点 + 压空白），不做 AI 批改
  */
 import {
 	isChineseMatch,
@@ -148,10 +147,8 @@ function buildFields(
 			// 书写模式无作答记录：只展示标准整句供自检
 			return [{ kind: "sentence", expected: sentence, graded: false }];
 		}
-		// 判分口径（崔总 2026-10-17）：**整句匹配**——忽略大小写，空格与标点都算数。
-		// 大小写写错不算错，结算页会原样显示用户输入供自己核对。
-		// AI 批改只提供「差在哪」的参考备注，不参与计分。
-		const override = grades?.[r.word];
+		// 判分口径（崔总 2026-10-17）：**整句归一化后全等**——
+		// 小写、去标点、压空白后比较，大小写/标点/空格多少都不影响；不做 AI 批改。
 		return [
 			{
 				kind: "sentence",
@@ -159,7 +156,6 @@ function buildFields(
 				userValue: r.answer ?? "",
 				graded: true,
 				correct: isSentenceMatch(r.answer ?? "", sentence),
-				...(override?.note ? { note: override.note } : {}),
 			},
 		];
 	}
@@ -242,8 +238,7 @@ export const JUDGEMENT_NOTES: Record<ContentMode, string> = {
 	definition: "英文单词大小写与标点需完全一致 · 释义由 AI 批改，意思相同即算对",
 	chinese:
 		"中文词由 AI 批改，常见同义词也算对 · 英文单词大小写与标点需完全一致",
-	sentence:
-		"整句需完全一致（忽略大小写；空格与标点都要对上）· AI 备注仅作参考不计分",
+	sentence: "整句匹配：忽略大小写与标点，空格按单个空格比较（词序写错才算错）",
 	cloze: "组句判定：每个空独立比对，选中与正确词完全一致才算对（忽略首尾空格）",
 };
 

@@ -25,7 +25,7 @@ function errorResult(code: DefinitionProviderErrorCode, message: string) {
 	return { error: code, message };
 }
 
-const GRADE_KINDS: GradeKind[] = ["chinese", "definition", "sentence"];
+const GRADE_KINDS: GradeKind[] = ["chinese", "definition"];
 
 function extractKind(raw: unknown): GradeKind {
 	const kind = String(raw ?? "").trim() as GradeKind;
@@ -33,7 +33,7 @@ function extractKind(raw: unknown): GradeKind {
 		throw new HTTPError({
 			status: 400,
 			statusText: "Bad Request",
-			message: 'kind 必须是 "chinese"、"definition" 或 "sentence"',
+			message: 'kind 必须是 "chinese" 或 "definition"',
 		});
 	}
 	return kind;

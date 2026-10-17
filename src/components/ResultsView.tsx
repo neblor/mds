@@ -259,7 +259,7 @@ function SentenceResultRow(props: {
 	const sentenceField = createMemo(() =>
 		props.row.fields.find((f) => f.kind === "sentence"),
 	);
-	/** 判定口径是「整句匹配」（忽略大小写，空格与标点都算） */
+	/** 判定口径是「整句归一化后全等」（小写 + 去标点 + 压空白），不做 AI 批改 */
 	const verdict = () => (props.mode === "cyber" ? sentenceField()?.correct : undefined);
 	const standard = () => sentenceField()?.expected ?? props.row.context ?? "";
 	const userSentence = () => sentenceField()?.userValue ?? "";
@@ -273,7 +273,7 @@ function SentenceResultRow(props: {
 
 	return (
 		<div class={`flex flex-col gap-1.5 rounded-lg px-4 py-3 ${bg()}`}>
-			{/* 第一行：本句要默的词 + 整句发音 + 整句判定 */}
+			{/* 第一行：本句要默的词 + 整句发音（对错靠左侧 ✓/✗ 与底色表达） */}
 			<div class="flex items-center gap-2">
 				<Show when={verdict() !== undefined}>
 					{verdict() ? (
@@ -297,13 +297,6 @@ function SentenceResultRow(props: {
 						class={`h-4 w-4 ${playing() ? "animate-pulse text-brand" : ""}`}
 					/>
 				</button>
-				<Show when={verdict() !== undefined}>
-					<span
-						class={`text-[12px] font-semibold ${verdict() ? "text-ok" : "text-err"}`}
-					>
-						{verdict() ? "整句写对了" : "整句有出入"}
-					</span>
-				</Show>
 			</div>
 
 			{/* 标准整句：目标词高亮 */}
@@ -329,12 +322,6 @@ function SentenceResultRow(props: {
 					<span class="mr-1 text-[13px] text-ink-faint">我写：</span>
 					{userSentence() || "（未填写）"}
 				</p>
-				{/* AI 备注只解释「差在哪」，不参与计分 */}
-				<Show when={sentenceField()?.note}>
-					<span class="text-[12px] text-ink-faint">
-						AI 参考：{sentenceField()?.note}
-					</span>
-				</Show>
 			</Show>
 
 			{/* 降级说明（该词没有合格短句） */}

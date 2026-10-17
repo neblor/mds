@@ -321,7 +321,7 @@ describe("模式文案", () => {
 			word: expect.stringContaining("单词判定"),
 			definition: expect.stringContaining("AI 批改"),
 			chinese: expect.stringContaining("AI 批改"),
-			sentence: expect.stringContaining("整句需完全一致"),
+			sentence: expect.stringContaining("忽略大小写与标点"),
 			cloze: expect.stringContaining("每个空独立比对"),
 		});
 		expect(CONTENT_MODE_LABELS).toEqual({
@@ -456,8 +456,19 @@ describe("buildResultRows 短句模式", () => {
 		expect(rowJudgement(row)).toBe(true);
 	});
 
-	it("空格与标点必须对上：多/少空格、丢标点都算错", () => {
-		for (const answer of ["a  red apple", "a redapple", "a red apple." /* 多标点 */]) {
+	it("标点与空格多少不影响（归一化后比较）", () => {
+		for (const answer of ["a  red apple", "A red apple!", "a red,apple".replace(",", " ")]) {
+			const [row] = buildResultRows(
+				[sentenceRound({ answer })],
+				"cyber",
+				"sentence",
+			);
+			expect(row.fields.find((f) => f.kind === "sentence")?.correct).toBe(true);
+		}
+	});
+
+	it("词序/词形/漏词仍然算错", () => {
+		for (const answer of ["red a apple", "a red apples", "a apple"]) {
 			const [row] = buildResultRows(
 				[sentenceRound({ answer })],
 				"cyber",
@@ -468,7 +479,7 @@ describe("buildResultRows 短句模式", () => {
 		}
 	});
 
-	it("AI 备注只挂在字段上作参考，不改变判定", () => {
+	it("不做 AI 批改：即使传了 grades 也不影响短句判定、也不产生备注", () => {
 		const [row] = buildResultRows(
 			[sentenceRound({ answer: "a red appple" })],
 			"cyber",
@@ -476,9 +487,8 @@ describe("buildResultRows 短句模式", () => {
 			{ apple: { correct: true, note: "拼写差一个字母" } },
 		);
 		const field = row.fields.find((f) => f.kind === "sentence");
-		// 判定按整句匹配（错），AI 的 correct 不覆盖它
 		expect(field?.correct).toBe(false);
-		expect(field?.note).toBe("拼写差一个字母");
+		expect(field?.note).toBeUndefined();
 		expect(correctCount([row])).toBe(0);
 	});
 

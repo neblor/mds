@@ -709,11 +709,11 @@ export async function fetchChineseWords(
 
 /* ---------- 答案 AI 批改（中文词 / 英文释义，结构同构） ---------- */
 
-export type GradeKind = "chinese" | "definition" | "sentence";
+export type GradeKind = "chinese" | "definition";
 
 export interface GradeItem {
 	word: string;
-	/** 标准答案（中文对应词 / 英文释义 / 短句模式的标准整句） */
+	/** 标准答案（中文对应词或英文释义） */
 	expected: string;
 	/** 学生作答 */
 	answer: string;
@@ -759,16 +759,6 @@ const GRADE_SYSTEM_PROMPTS: Record<GradeKind, string> = {
 		"For each item judge whether the student's English definition expresses the same core meaning as the expected definition: " +
 		"paraphrases and different wording are acceptable; ignore capitalization, punctuation, and article (a/the) differences; " +
 		"minor spelling mistakes that do not obscure the meaning are acceptable; a blank answer is incorrect; " +
-		"include every requested word exactly once, keyed by the exact original word.",
-	sentence:
-		"You are a strict but fair grader for an English sentence dictation exercise. " +
-		'Reply with STRICT JSON only (no markdown fences, no extra text) using this shape: ' +
-		'{"results":[{"word":"<exact original word>","correct":true,"note":"<optional short reason>"}]}. ' +
-		"For each item judge whether the student's written sentence reproduces the expected sentence closely enough: " +
-		"ignore capitalization, punctuation, and spacing differences; small inflection or article slips are acceptable " +
-		"only when they do not change the meaning; a missing or unrelated word, a wrong tense that changes meaning, " +
-		"or a sentence conveying a different meaning is incorrect; a blank answer is incorrect; " +
-		"write the note in Simplified Chinese (short, at most 20 characters); " +
 		"include every requested word exactly once, keyed by the exact original word.",
 };
 
