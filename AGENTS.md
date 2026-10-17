@@ -44,6 +44,7 @@
 | `pnpm test` | `pnpm test:run`的常用别名，单次运行全部 Vitest |
 | `pnpm check` | 完整 Web 交付检查：Vitest → Web 生产构建 → Web 生产冒烟 |
 | `pnpm get:explain word1 word2 ...` | 直接调用独立 AI 释义服务做人工诊断；读取项目`.env`中的`MDS_AI_BASE_URL`、`MDS_AI_API_KEY`、`MDS_AI_MODEL`，不读写业务缓存 |
+| `pnpm get:tts word1 word2 ...` | 语音合成诊断：复用生产 Edge TTS provider，逐词输出命中端点/是否回退/耗时/字节数/mp3 头/失败原因，不写业务缓存。403 优先查系统时间（令牌按 5 分钟窗口），见`.implementation-report/2026-10-17-edge-tts-v2-and-hydration-crash.md`§六 |
 
 ### Web 模式
 
@@ -55,6 +56,7 @@
 | `pnpm web:prod` | 先生产构建，再启动 Web 生产服务 |
 | `pnpm web:preview` | 使用 Vite preview 预览已有构建，仅用于本地检查，不作为正式生产启动方式 |
 | `pnpm web:smoke` | 对已有`.output`使用随机本机端口做 HTTP 200 与缓存路由冒烟，完成后自动停止；通常由`pnpm check`调用 |
+| `pnpm web:smoke:hydration` | 二次启动水合回归（无头浏览器 + 真实 SSR/hydration）：导入最小内置词表→写入`mds.vocab.v1`的`mode:"bank"`→重载，断言无`Uncaught Client Exception`且词表名已恢复。需本机有 Chromium/Chrome（可用`MDS_SMOKE_BROWSER_PATH`指定），缺失时打印提示并跳过；不进`pnpm check` |
 
 `web:start`支持命令行参数，也兼容同名环境变量：
 
@@ -216,4 +218,5 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 这里我预期的难点包括:
 
 - 发音生成: 这个需要查一下有没有typescript实现的edge-tts库可以调，集成一个python程序太麻烦了，生成的音色配置要看下怎么弄，看要不要做进配置里
+  - **现状（2026-10-17）**：已改为**项目内自研**：`src/lib/edge-tts-token.ts`（v2 `Sec-MS-GEC` 令牌）+ `src/lib/edge-tts-client.ts`（双端点、连接/回合超时、AbortSignal），不再依赖`edge-tts-universal`（它仍是 v1 令牌，且在握手失败时会让请求永不返回——正是「一直卡在生成音频中」的成因）。排障先跑`pnpm get:tts <word>`，详见`.implementation-report/2026-10-17-edge-tts-v2-and-hydration-crash.md`
 - AI释义生成: 其实这个难度倒不大，提供一个提示词，要求AI返回指定格式的json，一次性提交所有的单词，一次交互在json里返回所有单词对应的释义就行

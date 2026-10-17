@@ -19,6 +19,37 @@ export type DictationMode = "writing" | "cyber";
  */
 export type ContentMode = "word" | "definition" | "chinese" | "cloze";
 
+/** 内容模式白名单：持久化恢复与历史条目校验共用一份，避免各处各写一份而漏项 */
+export const CONTENT_MODES: readonly ContentMode[] = [
+	"word",
+	"definition",
+	"chinese",
+	"cloze",
+];
+
+export function isContentMode(value: unknown): value is ContentMode {
+	return (
+		typeof value === "string" &&
+		(CONTENT_MODES as readonly string[]).includes(value)
+	);
+}
+
+/**
+ * 解析持久化的内容模式：新键优先，缺失/非法时兼容旧版释义开关。
+ *
+ * 历史 bug：恢复白名单漏了 "cloze"，于是选了「组句」的用户重启后会静默掉回「单词」。
+ * 返回 null 表示没有可恢复的持久化值，调用方保持默认。
+ */
+export function resolveStoredContentMode(
+	saved: string | null,
+	legacyWithDefinition: string | null,
+): ContentMode | null {
+	if (isContentMode(saved)) return saved;
+	if (legacyWithDefinition === "1") return "definition";
+	if (legacyWithDefinition === "0") return "word";
+	return null;
+}
+
 export interface Round {
 	word: string;
 	definition?: string;

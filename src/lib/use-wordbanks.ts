@@ -8,7 +8,7 @@
  *
  * 与 use-dictation 的分工：这里只决定「词从哪来」，默写流程与计时仍在 use-dictation。
  */
-import { createSignal } from "solid-js";
+import { createSignal, onMount } from "solid-js";
 import {
 	type CommitView,
 	type QueueView,
@@ -145,7 +145,11 @@ export function useWordBanks(options: {
 	/** 写回自定义清单地址（来自设置） */
 	onManifestUrl?: (url: string) => void;
 }): WordBanksApi {
-	const [prefs, setPrefs] = createSignal<VocabPrefs>(loadVocabPrefs());
+	// 水合安全：初值必须是「服务端也能渲染出」的默认形态，**不能**在这里读 localStorage。
+	// 否则服务端渲染「录入」界面、客户端水合时按持久化偏好渲染「词表」界面，
+	// 两边结构不一致会让 Solid 水合直接失败（整页 Error | Uncaught Client Exception），
+	// 历史上只要点过一次「词表」的用户重启必崩。持久化偏好一律等挂载后再恢复。
+	const [prefs, setPrefs] = createSignal<VocabPrefs>({ ...DEFAULT_PREFS });
 	const [banks, setBanks] = createSignal<BankSummary[]>([]);
 	const [catalog, setCatalog] = createSignal<CatalogRow[]>([]);
 	const [queue, setQueue] = createSignal<QueueView | null>(null);
@@ -224,6 +228,14 @@ export function useWordBanks(options: {
 		});
 		await refreshQueue();
 	};
+
+	// 挂载后恢复持久化偏好；词表模式下还要把词表列表与今日队列拉回来，
+	// 否则重启后只会看到「词表名空白 + 队列为空」的空壳界面。
+	onMount(() => {
+		const saved = loadVocabPrefs();
+		setPrefs(saved);
+		if (saved.mode === "bank") void refresh();
+	});
 
 	return {
 		mode: () => prefs().mode,

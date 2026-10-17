@@ -129,3 +129,138 @@
   详细证据与观察到的问题见 `.implementation-report/2026-10-13-cloze-click-and-lenient-questions.md` §四.5。
 - **留下的问题**：见下面第 13 条（题面自然度 vs 覆盖面），不再重跑一次就算完。
 
+### 13. 基础词池下的题面自然度 vs 覆盖面
+
+- **观察**：候选池几乎全是功能词（`I/the/a/is/…`）时，模型会产出 `She is a big apple.`、`The is on the book.` 这类句子，
+  且「每个空恰好一个明确正确答案」并未被遵守（`##1 is a good apple.` 其实 he/she/it 都通）。
+- **可选做法**（待定）：① 接受（提问如实要求了「语法正确 / 唯一解」，模型不照做而已）；
+  ② 把要求写得更硬（如「每个句子必须自己读起来正确自然」）；③ 小候选池时降低覆盖面要求（6–16 → 尽量覆盖）；
+  ④ 对答案词覆盖率/常见功能词做诊断记录，不拦截。
+- **触发条件**：崔总认为这类句子影响默写体验时。
+- **代价/前置**：仅改 `CLOZE_SYSTEM_PROMPT` 措辞（重跑 `pnpm get:cloze` 即可比对），不涉校验与界面。
+
+### 8. 组句题面质量的「温和提示」（被砍的硬拦的替补）
+
+- **做什么**：把「未挖空的候选词出现在句中」「同词重复过多」「答案词覆盖不足」这类原本硬拒的条件改为**只记诊断**（写进 `get:cloze` 输出/Client 日志），不结束本场。本地无法调用模型判质量，但可以让用户事后看到「本场题目偏送答案」的提示。
+- **触发条件**：真实 Key 复核（第 7 条）发现题面质量明显不稳时。
+- **代价/前置**：`cloze-parse.ts` 需要把「格式错」与「质量提醒」拆成两类返回值（现在只有 `ClozeParseError` 一条路径）。
+
+### 9. 候选池「干扰项池 + 答案池」比例只靠提示词了
+
+- **做什么**：原 R6 要求「实际考到 ≤16 个不同答案词、干扰项池 > 答案池」，现已成为**不再硬拦的提示词要求**。若实测发现 AI 把 24 个候选词全用到（没有干扰项、题目变简单），可以回到「提示词里强调覆盖面」而出不加校验。
+- **触发条件**：真实 Key 复核时发现学生可以从候选池直接反推答案。
+- **代价/前置**：无需改动校验；只需调整 `CLOZE_SYSTEM_PROMPT` 的措辞后重跑复核。
+
+### 10. 组句候选卡的鼠标提示文案
+
+- **做什么**：候选卡右上角的操作提示现在只写键盘（`←→ 选词 · 1–9 快选 · 回车填入`）；已支持「点一下就填入并跳到下一个空」，但界面上没写。
+- **触发条件**：崔总觉得鼠标用户发现不了这个操作、或反馈过“不知道怎么点”。
+- **代价/前置**：动 `.design/mds.md` 里固定的提示行文案与 27 屏设计稿，需先重新对齐设计口径（卡片宽度有限，文案不能太长）。
+
+### 11. 一次性待复核：Windows 包上确认 Alt 不再唤出菜单
+
+- **做什么**：本轮已在主进程 `Menu.setApplicationMenu(null)`，并在 xvfb 探针里验证「没有菜单栏可显示」；但 Linux/WSL 下没法真按 Alt，需在 Windows 安装版上按一下 Alt 确认。
+- **触发条件**：下次用 `pnpm client:package <bump>` 打一个包运行时（顺手一试）。
+- **代价/前置**：无；若仍能唤出，调查方向是 Windows 的窗口菜单栏（`setMenuBarVisibility`）与框架是否有其它菜单来源。
+
+### 12. 把「组句轮打桩冒烟」固化成脚本
+
+- **做什么**：本轮用一次性脚本（Playwright + 打桩 `/api/cloze`、`/api/tts`）验证了「点词自动跳格 / 已填空槽可改选 / 放宽后的题面能渲染」，共 9 项断言。可固化为 `scripts/` 下可 `pnpm` 执行的冒烟（不需 AI Key、不耗额度）。
+- **触发条件**：组句交互再动一次、或希望接入 `pnpm check` 时。
+- **代价/前置**：需要声明 chromium 可执行路径（本机是 `~/.cache/ms-playwright`）与一个稳定的选择器口径（目前靠 `.overflow-y-auto` 与 `button[title^="填入「"]`）；若进 `check` 要考虑跑不跑得动 playwright 的环境差异。
+
+### 14. `.design/mds.pen` 4 设置屏补「生成级别」行
+
+- **做什么**：生成级别（小学/初中/高中/大学）已按现有下拉样式实现在 AI 服务卡里（见
+  `.implementation-report/2026-10-13-generation-level-and-objective-prompts.md`），但设计稿没同步。
+- **触发条件**：pencil MCP 能连上运行中的 Pencil 应用时（本轮它报 `visual_studio_code` 未连接，`.pen` 加密不能手改），
+  或下次批量维护设计稿时。
+- **代价/前置**：打开 Pencil 应用后，在 4 号屏 AI 卡内加一行「生成级别 + 下拉 + 说明」，并核对面板总高与内滚动。
+
+### 15. `module.register()` 迁移到 `registerHooks()`
+
+- **做什么**：Node 已把 `module.register()`（异步钩子）标为 deprecated，建议用同步的 `registerHooks()`。
+  `scripts/ts-resolve-hook.mjs` 目前是异步 `resolve`，被 `get-cloze.mjs` / `get-explain.mjs` / `build-banks.mjs` 三个脚本共用。
+- **触发条件**：Node 真正移除旧 API 时，或脚本输出里的 Deprecation 警告影响到人工看结果时。
+- **代价/前置**：钩子改成同步签名（`nextResolve` 不再 await），三个脚本改为 `registerHooks`；
+  注意 `explain-cli.test.ts` 已容忍 stderr 里的警告行，迁移后可再收紧。
+
+### 16. 剑桥 PET（B1 Preliminary）词库（**已完成 2026-10-13**：官方 PDF → 随包内置）
+
+- **结果**：新增内置词库 `pet`「剑桥 PET 核心词」——从剑桥官方词表 PDF（2025-08 版：字母表 + **词套** + **主题表**）
+  提取 **3,306** 条，再与 ECDICT 交叉后落盘 **3,380** 词（英文释义覆盖 89.9%、音标 90.4%，1.0 MB），随包发布。
+  实现、口径与验证见 `.implementation-report/2026-10-13-pet-builtin-bank.md`。
+- **复现**：`pnpm build:pet-words`（拉 PDF → `pdftotext` → `src/lib/pet-wordlist.ts` 解析 → 写 `scripts/data/pet-b1-words.txt`）
+  → `pnpm build:banks`（词表 ∩ ECDICT → `public/banks/pet.json` + manifest）。
+- **版权口径**：词表归 Cambridge University Press & Assessment，已随包注明来源与「个人学习用」许可；
+  官方 PDF：https://www.cambridgeenglish.org/Images/506887-b1-preliminary-vocabulary-list.pdf
+- **附录 1 / 主题表**：已按崔总要求一并入库。附录 1 里原文写 `etc.` 的部分（基数词、序数词、星期、月份）
+  由 `scripts/data/pet-word-sets.txt` 人工补全（范围写在文件头）；附录 2 主题表按元素解析后并入。
+- **另两条路线未采用**：Qwerty Learner 的 `pet-vacabulary-list-2024.json`（仓库 GPL-3.0 + 内容源自剑桥版权表）
+  与 CEFR-J A1–B1（只能近似，覆盖官方主表 87%）；如将来需要一个「可商用重发」的 B1 词库，CEFR-J 那条仍是备选。
+
+### 17. 生成短句默写模式（用整句默写代替只默单词）
+
+- **做什么**：第五种内容模式：先用 AI 为每个词生成**一句包含该词的短句**，然后默写整句（赛博模式敲整句；书写模式自己用笔默）。
+  - 出题：一次请求批量生成「词 → 短句」（复用现有 provider 形态：STRICT JSON、候选词校验、失败即报「AI 当前不可用」、不降级）；
+  - 音频：TTS 合成整句，缓存 key 必须与单词音频分开（句子哈希域独立）——与第 4 条「组句整句朗读」共用同一套句子音频缓存；
+  - 判定：按词对齐打分，能指出错在哪几个词（可选再加 AI 批改「意思对不对」）；
+  - 时长：按句长 × 档位 × 倍率计算，沿用 `timing.ts` 现有口径；
+  - 结果页：以句子为单元展示，逐词标红绿 + 整句发音按钮（现有结果页按「空/词」建模，需扩成句子单元）。
+- **触发条件**：单词级默写已熟练，崔总想要「词在句子里怎么用」这一层练习时。
+- **代价/前置**：新 provider + 句子级 TTS 缓存口径 + 结果页单元改造 + 键盘流/焦点规则重走一遍设计（先出 `.design` 稿再实现）。
+- **相关落点**：`src/lib/definition-provider.ts`（新 kind 或新 provider）、`src/lib/tts-filename.ts`、`src/lib/timing.ts`、
+  `src/lib/use-dictation.ts`（新 round kind）、`src/components/ResultsView.tsx`、`.design/mds.pen`。
+
+### 18. `daily.json` 的「今日已完成」口径与词库维度
+
+- **现状**：卡片状态与日志已经**分词库**（`<bankId>.cards.json` / `<bankId>.log.jsonl`，队列/提交 API 全带 bankId），
+  但每日汇总 `review/daily.json` 是全局一份：`done` 每次由**当前词库**重算后覆盖（`review-service.ts:114-121`、`217-272`），
+  而 `correct` / `total` / `elapsedMs` 是跨词库累加的 → 同一份记录里混了两种口径。
+- **为什么现在看不出来**：界面「已默 x / N」读的是队列响应里现算的 `progress`（按当前词库），不读落盘的 `done`。
+- **做什么**：将来做学习统计 / 积分进度（本文第一节）时，要么把 `done` 改成按词库分桶，要么整个汇总不进落盘、
+  全部从 `<bankId>.log.jsonl` 派生。
+- **触发条件**：开始做按天/按词库的统计图或连续打卡展示时。
+- **代价/前置**：`daily.json` 结构版本号要升，旧文件里的 `done` 无法归属词库（只保留 correct/total/elapsedMs）。
+
+
+## 六、Edge TTS / 水合回归遗留（Agent 记录，2026-10-17）
+
+> 实施报告：`.implementation-report/2026-10-17-edge-tts-v2-and-hydration-crash.md`。
+> 本轮把「微软令牌升到 v2 导致音频全挂」与「点过词表后重启水合崩溃」两件事一起修了，以下是本轮有意不做/被砍的项。
+
+### 1. 长文本（句子）合成需要按协议切分
+
+- **做什么**：现在单次合成文本上限 4000 字节（`MAX_TEXT_BYTES`），超过直接报错；要做「整句朗读」（第五节第 4 条）就得按 4096 字节切分多个回合，再把 mp3 片段拼接起来。
+- **触发条件**：真的开始做整句/段落朗读时。
+- **代价/前置**：mp3 拼接本身有边界问题（ID3 头、帧边界、静音间隔），要么做无损拼接要么在准备阶段就分段落多次合成并按段播放。
+
+### 2. 音色列表动态获取
+
+- **做什么**：音色目前是 `settings.ts` 里硬编码的 9 个 edge-tts 音色；端点其实提供音色清单（`voices/list`），可拉回来做「更多音色」。
+- **触发条件**：崔总想用列表外的音色，或想按语言筛选时。
+- **代价/前置**：要处理离线（清单拉不到时回落硬编码）、以及清单缓存与失效策略；顺带要确认音色名变更时的音频缓存隔离（现有缓存名已含音色 slug）。
+
+### 3. 诊断日志文件名与内容不再匹配
+
+- **做什么**：`runtime-logger` 写的是 `mds-data/logs/ai-definitions.log`，现在里面除了 AI 释义/批改，还多了 TTS 的降级与失败事件（`tts.endpoint-fallback` / `tts.synth-failed`）。
+- **触发条件**：需要人工翻日志排查时（文件名容易让人以为里面只有 AI 释义）。
+- **代价/前置**：改名要同时处理轮换文件（`.1`）与老日志的迁移/共存，属于「不影响功能但会误导人」的整理项。
+
+### 4. 水合回归脚本是否进 `pnpm check`
+
+- **做什么**：新增的 `pnpm web:smoke:hydration`（无头浏览器 + 真实 SSR/hydration）目前是独立命令，不在 `pnpm check` 里。
+- **触发条件**：有 CI（或在打包机上装了 Chromium）时，希望「一条命令给全绿」。
+- **代价/前置**：依赖本机 Chromium/Chrome（缺失时脚本打印提示并跳过），若进 `check` 需要在打包机器上准备浏览器；否则保持现状（手动跑）更稳。
+
+### 5. 「持久化状态初始化」的静态约束
+
+- **做什么**：本轮事故的通用形态是「模块初始化期读 localStorage → 首帧结构与 SSR 不一致 → 水合失败」。现在只有 `use-wordbanks` 有注释与单测守着。
+- **触发条件**：再出现同类事故，或希望提前防住（例如新增设置项/偏好时）。
+- **代价/前置**：可选做法——① 加一条 lint/静态规则（`createSignal` 初值不得调用 `load*` 系列）；② 写一个测试工具函数 `assertHydrationSafe(mount)` 把「首帧快照」断言标准化；③ 只在 AGENTS.md 里补一条开发纪律。三者的成本差别很大，等有第二次案例再决定。
+
+### 6. 一次性待复核：Windows 安装版上确认新端点可达
+
+- **做什么**：本轮的合成验证都在 WSL 里完成（端点 `api.msedgeservices.com` 可达、相符网络条件下 1.3–1.6s 出音频）。请在 Windows 安装版上真跑一次默写，确认目标环境（家用网络/代理）也连通，并观察 `mds-data/logs/ai-definitions.log` 是否出现 `tts.endpoint-fallback`（出现说明主端点在那儿不通、已自动回退旧端点）。
+- **触发条件**：下次在 Windows 上使用打包版时（同时验证 `pnpm get:tts` 是否可用）。
+- **代价/前置**：无；若显示回退，进一步看是 DNS/代理还是区域封锁。

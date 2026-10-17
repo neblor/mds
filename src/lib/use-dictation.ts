@@ -31,7 +31,12 @@ import {
 	type TtsItem,
 	type GradeItem,
 } from "./api";
-import { shuffle, type DictationMode, type ContentMode } from "./state";
+import {
+	shuffle,
+	resolveStoredContentMode,
+	type DictationMode,
+	type ContentMode,
+} from "./state";
 import {
 	CLOZE_MAX_CANDIDATES,
 	type ClozeItem,
@@ -941,20 +946,11 @@ export function useDictation() {
 		// 恢复内容模式的持久化值（SSR 阶段信号无 localStorage，必须在客户端恢复）
 		try {
 			setWords(loadWords());
-			const savedMode = localStorage.getItem(CONTENT_MODE_KEY);
-			if (
-				savedMode === "word" ||
-				savedMode === "definition" ||
-				savedMode === "chinese"
-			) {
-				setContentMode(savedMode);
-			} else {
-				// 兼容旧版释义开关
-				const legacy = localStorage.getItem(LEGACY_DEFINITION_KEY);
-				if (legacy === "1" || legacy === "0") {
-					setContentMode(legacy === "1" ? "definition" : "word");
-				}
-			}
+			const restored = resolveStoredContentMode(
+				localStorage.getItem(CONTENT_MODE_KEY),
+				localStorage.getItem(LEGACY_DEFINITION_KEY),
+			);
+			if (restored) setContentMode(restored);
 		} catch {
 			// localStorage 不可用（隐私模式等）时忽略，保持默认单词模式
 		}

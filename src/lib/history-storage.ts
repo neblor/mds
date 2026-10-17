@@ -7,7 +7,7 @@
  * 老数据（无 mode 字段）兼容视为 cyber。
  */
 import { correctCount, type ResultField, type ResultRow } from "./results";
-import type { ContentMode } from "./state";
+import { isContentMode, type ContentMode } from "./state";
 
 export const HISTORY_STORAGE_KEY = "mds.history.v1";
 export const HISTORY_MAX = 5;
@@ -32,12 +32,6 @@ const FIELD_KINDS: readonly ResultField["kind"][] = [
 	"word",
 	"definition",
 	"chinese",
-];
-const CONTENT_MODES: readonly ContentMode[] = [
-	"word",
-	"definition",
-	"chinese",
-	"cloze",
 ];
 
 function normalizeField(value: unknown): ResultField | null {
@@ -78,7 +72,7 @@ function normalizeEntry(value: unknown): HistoryEntry | null {
 	const e = value as Record<string, unknown>;
 	if (typeof e.finishedAt !== "number" || !Number.isFinite(e.finishedAt))
 		return null;
-	if (!CONTENT_MODES.includes(e.contentMode as ContentMode)) return null;
+	if (!isContentMode(e.contentMode)) return null;
 	if (!Array.isArray(e.rows)) return null;
 	const rows = e.rows
 		.map(normalizeRow)

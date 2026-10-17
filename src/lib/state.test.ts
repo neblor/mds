@@ -2,8 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
 	createState,
 	canAdvance,
-	isLastRound,
 	isAllCorrect,
+	isContentMode,
+	isLastRound,
+	resolveStoredContentMode,
 	type Round,
 } from "./state";
 
@@ -127,5 +129,34 @@ describe("state 边界用例", () => {
 			},
 		];
 		expect(isAllCorrect(s)).toBe(false);
+	});
+});
+
+describe("内容模式的持久化恢复", () => {
+	it("isContentMode 收全部四种模式，其余一律不合格", () => {
+		for (const mode of ["word", "definition", "chinese", "cloze"] as const) {
+			expect(isContentMode(mode)).toBe(true);
+		}
+		for (const bad of [null, undefined, "", "Cloze", "nonsense", 3]) {
+			expect(isContentMode(bad)).toBe(false);
+		}
+	});
+
+	it("四种模式都能恢复——组句（cloze）曾经被白名单漏掉，重启后静默掉回单词", () => {
+		expect(resolveStoredContentMode("cloze", null)).toBe("cloze");
+		expect(resolveStoredContentMode("chinese", null)).toBe("chinese");
+		expect(resolveStoredContentMode("definition", null)).toBe("definition");
+		expect(resolveStoredContentMode("word", null)).toBe("word");
+	});
+
+	it("新键缺失或非法时兼容旧版释义开关", () => {
+		expect(resolveStoredContentMode(null, "1")).toBe("definition");
+		expect(resolveStoredContentMode(null, "0")).toBe("word");
+		expect(resolveStoredContentMode("nonsense", "1")).toBe("definition");
+	});
+
+	it("没有任何可用值时返回 null，调用方保持默认", () => {
+		expect(resolveStoredContentMode(null, null)).toBeNull();
+		expect(resolveStoredContentMode(null, "2")).toBeNull();
 	});
 });

@@ -3,11 +3,15 @@
  * 请求：{ words: string[] }
  * 返回：{ items: [{ word, name, cached }] }
  * 语音文件名按单词转义（见 lib/tts-filename），命中缓存则跳过合成（增量缓存）。
- * 服务端运行在 Deno（deno desktop）或 Node（vite dev）下，node:fs 两者兼容。
+ *
+ * 合成走项目内的 Edge TTS 客户端（lib/edge-tts-client）：它自带连接/回合超时与
+ * 端点回退，任何失败都会抛错而不是悬挂——旧库在握手失败时会让请求永远不返回，
+ * 界面就一直停在「正在生成语音」。降级与失败在这里落诊断日志（Client 模式生效）。
  */
 import { HTTPError } from "h3";
-import { EdgeTTS } from "edge-tts-universal";
+import { EdgeTtsError, edgeTts } from "~/lib/edge-tts-client";
 import { runtimeCache } from "~/lib/cache-storage";
+import { runtimeDiagnosticLogger } from "~/lib/runtime-logger";
 import { cacheFileName } from "~/lib/tts-filename";
 import { VOICE } from "~/lib/word-cache";
 import { readJsonBody, extractWords, type RouteEvent } from "~/lib/server-body";
@@ -27,33 +31,76 @@ function hasMp3Header(bytes: Uint8Array): boolean {
 	return bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0;
 }
 
+function abortedError(): HTTPError {
+	return new HTTPError({
+		status: 499,
+		statusText: "aborted",
+		message: "aborted",
+	});
+}
+
 async function synthOne(
 	word: string,
 	voice: string,
 	isAborted: () => boolean,
+	signal?: AbortSignal,
 ): Promise<void> {
-	const tts = new EdgeTTS(word, voice);
-	const result = await tts.synthesize();
-	const buf = await result.audio.arrayBuffer();
-	// 合成返回后检查中止：已中止则丢弃结果，并让路由明确失败，不能返回不存在的文件名。
-	if (isAborted()) {
+	const name = cacheFileName(word, voice);
+	let audio: Uint8Array;
+	try {
+		const result = await edgeTts.synthesize({ text: word, voice, signal });
+		if (isAborted()) throw abortedError();
+		audio = result.audio;
+		if (result.fallback) {
+			// 自动降级必须留痕：主端点失败换到了备用端点
+			runtimeDiagnosticLogger.write({
+				event: "tts.endpoint-fallback",
+				level: "warning",
+				details: {
+					word,
+					voice,
+					endpoint: result.endpoint,
+					elapsedMs: result.elapsedMs,
+				},
+			});
+		}
+	} catch (error) {
+		if (
+			isAborted() ||
+			(error instanceof EdgeTtsError && error.code === "aborted")
+		) {
+			throw abortedError();
+		}
+		const detail = error instanceof Error ? error.message : String(error);
+		runtimeDiagnosticLogger.write({
+			event: "tts.synth-failed",
+			level: "error",
+			details: {
+				word,
+				voice,
+				detail,
+				code: error instanceof EdgeTtsError ? error.code : undefined,
+				statusCode: error instanceof EdgeTtsError ? error.statusCode : undefined,
+				attempts:
+					error instanceof EdgeTtsError ? error.attempts : undefined,
+			},
+		});
 		throw new HTTPError({
-			status: 499,
-			statusText: "aborted",
-			message: "aborted",
+			status: 502,
+			statusText: "TTS Failed",
+			message: `语音合成失败：${detail}`,
 		});
 	}
-	const bytes = new Uint8Array(buf);
-	if (!hasMp3Header(bytes)) {
-		throw new Error(`语音合成结果无效：${word}`);
-	}
-	runtimeCache.writeAudio(cacheFileName(word, voice), bytes, () => !isAborted());
-	if (isAborted()) {
+	if (!hasMp3Header(audio)) {
 		throw new HTTPError({
-			status: 499,
-			statusText: "aborted",
-			message: "aborted",
+			status: 502,
+			statusText: "Invalid Audio",
+			message: `语音合成结果无效：${word}`,
 		});
+	}
+	runtimeCache.writeAudio(name, audio, () => !isAborted());
+	if (isAborted()) {
+		throw abortedError();
 	}
 }
 
@@ -102,13 +149,8 @@ export async function POST(event: RouteEvent) {
 		if (runtimeCache.hasAudio(name)) {
 			return { word, name, cached: true } satisfies TtsItem;
 		}
-		if (isAborted())
-			throw new HTTPError({
-				status: 499,
-				statusText: "aborted",
-				message: "aborted",
-			});
-		await synthOne(word, voice, isAborted);
+		if (isAborted()) throw abortedError();
+		await synthOne(word, voice, isAborted, signal);
 		// 路由返回 200 的强不变量：响应里的每个音频名都必须已经可以读取。
 		if (!runtimeCache.hasAudio(name)) {
 			throw new HTTPError({

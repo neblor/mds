@@ -114,7 +114,7 @@ AI 日志会记录请求失败、兼容降级、响应缺项或截断及缓存�
 
 ### 技术栈
 
-SolidStart 2 · SolidJS · TypeScript · Tailwind CSS · Electron · Nitro · Vitest · edge-tts-universal
+SolidStart 2 · SolidJS · TypeScript · Tailwind CSS · Electron · Nitro · Vitest · 自研 Edge TTS 客户端（v2 令牌）
 
 ---
 
@@ -227,7 +227,7 @@ Diagnostic logs cover request failures, compatibility fallbacks, truncated or in
 
 ### Stack
 
-SolidStart 2 · SolidJS · TypeScript · Tailwind CSS · Electron · Nitro · Vitest · edge-tts-universal
+SolidStart 2 · SolidJS · TypeScript · Tailwind CSS · Electron · Nitro · Vitest · 自研 Edge TTS 客户端（v2 令牌）
 
 ## License
 

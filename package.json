@@ -14,9 +14,11 @@
     "web:prod": "pnpm web:build && pnpm web:start",
     "web:preview": "vite preview",
     "web:smoke": "node scripts/smoke-web.mjs",
+    "web:smoke:hydration": "node scripts/smoke-hydration.mjs",
     "test:run": "node scripts/run-vitest.mjs run",
     "test:watch": "node scripts/run-vitest.mjs",
     "get:explain": "node scripts/get-explain.mjs",
+    "get:tts": "node scripts/get-tts.mjs",
     "get:cloze": "node scripts/get-cloze.mjs",
     "client:start": "electron .",
     "client:dev": "pnpm web:build && pnpm client:start",
@@ -32,18 +34,19 @@
   "dependencies": {
     "@solidjs/router": "^1.0.0",
     "@solidjs/start": "^2.0.0-rc.6",
-    "edge-tts-universal": "^1.4.0",
     "es-toolkit": "^1.50.0",
     "h3": "2.0.1-rc.22",
     "lucide-solid": "^1.28.0",
     "nitro": "^3.0.260610-beta",
     "solid-js": "^1.9.14",
     "ts-fsrs": "^5.4.2",
-    "vite": "^8.0.0"
+    "vite": "^8.0.0",
+    "ws": "^8.22.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.7",
     "@types/node": "^26.1.2",
+    "@types/ws": "^8.18.2",
     "electron": "^43.2.0",
     "electron-builder": "^26.15.3",
     "playwright-core": "^1.62.1",
