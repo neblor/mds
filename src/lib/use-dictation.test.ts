@@ -537,6 +537,21 @@ describe("useDictation 生产流程编排", () => {
 		expect(entry.correctCount).toBe(0);
 		expect(entry.gradeNote).toBeNull();
 	});
+
+	it("startWeakDrill 固定单词+赛博，退出后恢复用户内容模式", async () => {
+		mounted = mountDictation();
+		const d = mounted.dictation;
+		d.changeContentMode("definition");
+		d.startWeakDrill(["apple"]);
+		await flushAsyncWork();
+		expect(d.phase()).toBe("ready");
+		expect(d.mode()).toBe("cyber");
+		expect(d.contentMode()).toBe("word");
+		expect(d.rounds()[0]?.kind).toBe("word");
+		d.abortPreparation();
+		expect(d.phase()).toBe("idle");
+		expect(d.contentMode()).toBe("definition");
+	});
 });
 
 describe("useDictation 准备任务竞态（token 隔离）", () => {

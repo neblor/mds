@@ -20,12 +20,14 @@ import BankPickerDialog from "~/components/BankPickerDialog";
 import ManifestUpdateDialog from "~/components/ManifestUpdateDialog";
 import NewBankDialog from "~/components/NewBankDialog";
 import BankDetailScreen from "~/components/BankDetailScreen";
+import BankArchiveScreen from "~/components/BankArchiveScreen";
 import BankSourceCard from "~/components/BankSourceCard";
 import SourceModeSwitch from "~/components/SourceModeSwitch";
 import TodayQueueCard from "~/components/TodayQueueCard";
 import SegmentedSlider, {
 	type SliderOption,
 } from "~/components/SegmentedSlider";
+import ModeActions from "~/components/ModeActions";
 import type { SpeedLevel } from "~/lib/timing";
 import type { ContentMode } from "~/lib/state";
 import type { WordBanksApi } from "~/lib/use-wordbanks";
@@ -46,6 +48,8 @@ interface Props {
 	onContentMode: (m: ContentMode) => void;
 	onStartWriting: () => void;
 	onStartCyber: () => void;
+	/** 档案页「专练薄弱词」：由上层开始一场单词 + 赛博 */
+	onStartDrill: (bankId: string, words: string[]) => void;
 	onOpenSettings: () => void;
 	onOpenHistory: () => void;
 	/** 暂存词表数量（再次默写覆盖前存的当前词表）；>0 时显示「恢复词汇」按钮 */
@@ -74,6 +78,8 @@ export default function WordBank(props: Props) {
 	const [manifestOpen, setManifestOpen] = createSignal(false);
 	const [newBankOpen, setNewBankOpen] = createSignal(false);
 	const [detailBankId, setDetailBankId] = createSignal<string | null>(null);
+	const [archiveBankId, setArchiveBankId] = createSignal<string | null>(null);
+	let archiveTrigger: HTMLButtonElement | undefined;
 
 	const submit = () => {
 		const v = input().trim();
@@ -86,6 +92,8 @@ export default function WordBank(props: Props) {
 	const bannerError = () => props.error ?? props.vocab.error();
 	/** 组句只允许赛博作答：书写按钮置灰 + 信息条说明原因 */
 	const clozeOnly = () => props.contentMode === "cloze";
+	/** 本次默写要用的词（模式操作区用；录入模式没有队列） */
+	const queueWords = () => props.vocab.queue()?.queue.words ?? [];
 
 	return (
 		<div class="relative flex h-full flex-col gap-5 p-7">
@@ -136,6 +144,13 @@ export default function WordBank(props: Props) {
 						busy={props.vocab.busy()}
 						onOpenPicker={() => setPickerOpen(true)}
 						onTodayTarget={props.vocab.setTodayTarget}
+						onOpenArchive={() => {
+							const bankId = props.vocab.activeBankId();
+							if (bankId) setArchiveBankId(bankId);
+						}}
+						archiveButtonRef={(el) => {
+							archiveTrigger = el;
+						}}
 					/>
 				}
 			>
@@ -260,6 +275,11 @@ export default function WordBank(props: Props) {
 					onChange={props.onContentMode}
 					ariaLabel="默写内容模式"
 				/>
+				{/* 按模式变化的操作区（当前只有短句模式有操作） */}
+				<ModeActions
+					contentMode={props.contentMode}
+					queueWords={queueWords()}
+				/>
 			</div>
 
 			<Show
@@ -365,6 +385,33 @@ export default function WordBank(props: Props) {
 				/>
 			</Show>
 
+			{/* 学习档案：整屏覆盖；详情打开时先隐藏档案，返回后重新加载 */}
+			<Show when={!detailBankId() ? archiveBankId() : null}>
+				{(bankId) => (
+					<div class="absolute inset-0 z-30 bg-canvas">
+						<BankArchiveScreen
+							bankId={bankId()}
+							api={props.vocab}
+							onBack={() => {
+								setArchiveBankId(null);
+								requestAnimationFrame(() => archiveTrigger?.focus());
+							}}
+							onOpenDetail={(id) => setDetailBankId(id)}
+							onStartSession={() => {
+								setArchiveBankId(null);
+								props.onStartCyber();
+							}}
+							onPracticeWeak={(words) => {
+								const id = archiveBankId();
+								if (!id) return;
+								setArchiveBankId(null);
+								props.onStartDrill(id, words);
+							}}
+						/>
+					</div>
+				)}
+			</Show>
+
 			{/* 词表详情：整屏覆盖（与历史界面同层级） */}
 			<Show when={detailBankId()}>
 				{(bankId) => (
@@ -373,7 +420,22 @@ export default function WordBank(props: Props) {
 							bankId={bankId()}
 							api={props.vocab}
 							entryWords={props.words}
-							onBack={() => setDetailBankId(null)}
+							onBack={() => {
+								setDetailBankId(null);
+								const archiveId = archiveBankId();
+								if (archiveId) {
+									// 详情里删除了词表：档案没有可展示的对象，直接回主界面
+									const stillExists = props.vocab
+										.banks()
+										.some((bank) => bank.id === archiveId);
+									if (!stillExists) {
+										setArchiveBankId(null);
+										requestAnimationFrame(() => archiveTrigger?.focus());
+									}
+								} else {
+									requestAnimationFrame(() => archiveTrigger?.focus());
+								}
+							}}
 						/>
 					</div>
 				)}

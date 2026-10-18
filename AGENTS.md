@@ -46,6 +46,8 @@
 | `pnpm get:explain word1 word2 ...` | 直接调用独立 AI 释义服务做人工诊断；读取项目`.env`中的`MDS_AI_BASE_URL`、`MDS_AI_API_KEY`、`MDS_AI_MODEL`，不读写业务缓存 |
 | `pnpm get:sentences word1 word2 ...` | 短句模式诊断：复用生产生句链路（含超长收紧重试），逐词输出句子/词数/是否偏长，并汇总长度分布（目标 3–6 词、硬上限 8 词），不写业务缓存 |
 | `pnpm get:tts word1 word2 ...` | 语音合成诊断：复用生产 Edge TTS provider，逐词输出命中端点/是否回退/耗时/字节数/mp3 头/失败原因，不写业务缓存。403 优先查系统时间（令牌按 5 分钟窗口），见`.implementation-report/2026-10-17-edge-tts-v2-and-hydration-crash.md`§六 |
+| `pnpm db:status` | 只读查看复习 SQLite：schema v1、各库 cards/logs/sessions 条数、`migrated-v1/` 归档、WAL、`quick_check`；不启动服务、不触发迁移 |
+| `pnpm db:rollback -- --yes` | 回滚学习状态：先把 `review.sqlite*` 备份为 `review.sqlite.bak-<时间戳>`，再把 `review/migrated-v1/` 旧文件搬回 `review/`；执行前必须退出应用 |
 
 ### Web 模式
 
@@ -110,6 +112,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 
 - 主进程：`electron/main.mjs` — 启动内置 nitro server（`.output/server/index.mjs`，import 即监听）+ BrowserWindow 加载 `http://127.0.0.1:<port>`；端口由 `electron/port-picker.mjs` 动态挑选（首选 4827，被 Windows 动态保留段拒绝时由 OS 分配空闲端口，避免 srvx 静默吞掉 listen 失败导致"启动超时"）
 - 运行时缓存不得写入或打包进静态 `public`：Web 默认使用项目 `.mds-data/word-cache`（部署时可用 `MDS_CACHE_DIR` 覆盖）；Electron 安装版统一使用 `userData/mds-data/word-cache`（卸载默认保留）
+- 复习状态使用 `mds-data/review/review.sqlite`（SQLite/WAL）：首次启动自动迁移旧 `cards.json` / `log.jsonl` / `sessions.jsonl`，旧文件归档到 `review/migrated-v1/`；迁移失败进入兼容模式（默写/队列/结算可用，统计 503）。`daily.json` 已移除，今日进度由 `review_log` 按库/日聚合
 - Client 主进程必须在启动内置服务前设置 `MDS_RUNTIME_MODE=client` 和 `MDS_CACHE_DIR`；业务层通过 `/api/audio` 动态读取外置音频，不依赖静态目录
 - Client 模式下第三方 AI 释义调用的降级、错误、缺词/截断及缓存写入失败记录到外置 `mds-data/logs/ai-definitions.log`，日志达到 1 MiB 时轮换一份 `.1`；日志不得记录 API Key
 - Electron 主窗口默认及最大尺寸为 `1120×820`，最小尺寸为各边约三分之二的 `747×547`；允许在该范围内缩放，但必须禁用最大化和全屏
@@ -157,7 +160,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 
 因为该项目功能极其简单，所以没有单独的实现文档，需求直接写这里了：
 
-- 功能很简单，没有数据库等大型持久化需求，提供一个输入框，让用户输入完一个打回车，单词被添加进一个美化过的列表中；词库使用浏览器`localStorage`持久化，Web 刷新或 Electron 重启后自动恢复
+- 功能入口简单，但复习状态需要按词库/天/模式统计，因此使用本地 SQLite（见下「词库 / 复习 / 学习档案」）；录入模式的单词表仍用浏览器`localStorage`持久化，Web 刷新或 Electron 重启后自动恢复
   - 列表可以用横向瀑布流，单词有长有短无所谓就横向排列，到头了放不下自然换行
   - 单词允许是词组或短句，这个无所谓
   - 提供清空功能，提供点击删除单个单词功能
@@ -213,6 +216,10 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
   - 判定是**整句归一化后全等**：小写 → 去掉所有标点 → 去掉首尾空白 → 中间连续空白压成单个空格，然后全等比较；因此大小写、标点、空格多少都不影响，词序/词形/漏词才算错。**不做 AI 批改**（归一化比较就够）
   - 结果页只做三件事：这一句默的是哪个词、标准整句（目标词高亮）、用户输入的**原文**；对错由行首 ✓/✗ 与底色表达，不额外解释
   - 书写与赛博两种作答都支持（区别于只有赛博的组句模式）
+- 主界面模式滑块右侧是**模式操作区**（`ModeActions.tsx`，按选中模式显示不同操作，目前只短句模式有操作）：
+  - 短句模式的`更新短句`按**当前今日队列**的词清掉短句缓存（`sentences.json` 对应条目；`model`/`contentLevel` 与其它词保留，大小写不敏感），下次准备重新生句并各自写回缓存
+  - 队列为空/录入模式时按钮置灰并给出原因提示；结果提示分「已清掉 N 个」「本来就没缓存」「失败」三态，离开短句模式即清掉旧提示
+  - 只清文本缓存，不清理旧句子音频（无引用清理，见 FUTURE.md）
 - 注意：释义只能英文释义，不支持中文释义
 - 界面提供设置功能，有以下设置，使用 electron 的 localStorage（持久化到 userData）进行存储：
   - 设置面板不提供确认按钮；文本输入及其他控件每次变化时立即同步界面状态，并通过 `es-toolkit` 在停止变更 1.5 秒后防抖写入 localStorage。关闭面板或页面退出时立即提交尚未写入的设置，不使用失焦保存。点击面板左右的遮罩空白处可关闭，点击面板内部不得误关闭
@@ -221,6 +228,23 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
   - 每轮默写倒计时是否显示数字（精确到0.1秒），关掉的话只有倒计时条
 - 根据上面提供的要求和各个元素，设计界面排版，界面风格以浅色为主，高雅精致，设计一个好看的primary和辅色搭配整个界面
 - 为生成的windows应用程序提供一个图标，这个图标可以基于lucide中已经有的图标拼出来，比如可以有个漂亮的小黄星星这样
+
+### 词库 / 复习 / 学习档案（2026-10-18 更新）
+
+- **词库模式**：词库本体仍是 `mds-data/banks/*.json`；每日队列由 FSRS-6 排期计算，不落盘；队列来源（新词/复习/重学）由服务端判定。
+- **复习状态（唯一事实来源）**：`mds-data/review/review.sqlite`。表：`cards`（每词 FSRS 快照）、`review_log`（逐题判定）、`session` + `session_word`（每场使用记录与词）。写入一场 = 一个事务；`session.id` 为幂等键，重放不重复。
+- **场次采集**：书写与赛博都写场次（书写 `correct` 为 `null`）；书写不进 SRS 调度，但计入使用频率。客户端在开始默写时生成 `session.id`/起始时间，结算时提交 `words/correct/activeMs/wallMs`。`session.correct` 以逐题日志重算（**按题/空计数**）；「最近练习」的分母用 `judged`（该场日志条数，`review_log.session_id` 索引子查询），所以组句一轮多空时会出现 `2 / 3`（2 词 3 空），不会再被夹成 `2 / 2`。书写场次 `judged = 0`，显示 `— / 词数`。
+- **今日进度**：不再有 `daily.json`；`readDayStats(bankId, day)` 由 `review_log` 聚合 `correct/total/elapsedMs`；`done` 仍由 `doneWordsToday` 从卡片 `last_review` 计算（自愈）。
+- **迁移/兼容**：工厂 `createReviewStore(reviewDir)` 负责打开/建库/迁移；旧文件先导临时库、计数校验、`quick_check`、原子 rename，再归档。失败保留旧文件并返回 JSON 兼容 store（`mode="legacy"`，`stats=null`）；下次启动重试。`node:sqlite` 通过 `process.getBuiltinModule` 运行时获取，不得改成静态 import。
+- **学习档案**：词表模式当前词表左侧 `library` → 32×32 按钮打开档案（点词表名仍打开选择弹层）。档案 = 4 KPI + 学习进度 / 180 天热力 / 最近 3 场 + 14 天到期预测 / 薄弱·常练词；Esc 返回并恢复焦点。「已掌握」= 下次间隔 ≥ 21 天；正确率样本 < 10 显示「—」；旧数据无场次时场次类指标显示 `—` 并注明从本版开始。热力网格区**固定高度**（7 行 18px 格 ≈ 158px，容器 176px + `overflow-y` 显式取 `hidden`）且卡片不可被 flex 压缩：窗口变矮时整页滚动或网格横向滚动，**不允许内部出纵向滚动条**。
+- **写回判定字段**：结算写回（`buildCommitItems`）的对错 = **该行所有 `graded` 字段都对**：短句轮是 `sentence`（整句归一化比较），其余模式与短句降级轮是 `word`。只认 `word` 会让短句场次整场不写回（卡片不排期/日志不落盘/最近练习显示 `0 / N`）；只取 `word` 字段又会让「拼写对、释义错」进 FSRS 记成 Good（与结算页判错矛盾）——两处都是同一行错误（2026-10-18 修复）。耗时按 `roundIndex`（轮）取，组句一轮多空均分到各空。
+- **卡片按词聚合**：`review_log` 逐题（正确率/耗时按题看），但**每词一场只推进一次 FSRS**（`aggregateItemsByWord`：有一空错就记 Again）。原因：同一时刻对同一张卡连续评分两次会让它提前毕业（实测新卡同毫秒两次 Good 直接从 Learning 跳到 2 天后）。
+- **书写不推进队列**：书写场次不写卡，所以 `doneWordsToday`/「已默 x / N」不因书写而增长，队列词也不会打勾（既定口径，见 FUTURE）。
+- **改这里必须同时跑** `src/lib/review-service.test.ts` 的 store 级回归（短句写回、场次得分、同词多空）。
+- **专练**：薄弱词最多 5 个，一键「单词 + 赛博」；`runContentMode` 只覆盖本场，结果页/历史显示「单词」，关闭后恢复用户模式。
+- **代码边界**：`review-service.ts` 的 `buildCommitItems` 被浏览器端复用，该模块及其依赖**不得 import `node:*`**（曾因 `node:crypto` 导致 Vite dev 下整页 externalized 报错、水合失败）。
+- **测试**：统计口径/迁移/store 的单测直接覆盖生产实现；改这些模块必须同步 `pnpm test:run` 与 `pnpm check`。
+- **文档**：方案 `plans/wordbank-stats.md`；实施报告 `.implementation-report/2026-10-18-wordbank-stats.md`；短句写回/热力滚动条/更新短句见 `.implementation-report/2026-10-18-sentence-writeback-and-archive-fixes.md`。
 
 ### 难点攻关
 

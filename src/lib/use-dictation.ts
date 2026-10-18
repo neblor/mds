@@ -302,6 +302,12 @@ export function useDictation() {
 	const CONTENT_MODE_KEY = "mds.contentMode.v1";
 	const LEGACY_DEFINITION_KEY = "mds.withDefinition.v1";
 	const [contentMode, setContentMode] = createSignal<ContentMode>("word");
+	/** 本场实际使用的模式（专练强制单词轮；为空时用用户设置） */
+	const [runContentMode, setRunContentMode] = createSignal<ContentMode | null>(
+		null,
+	);
+	const activeContentMode = (): ContentMode =>
+		runContentMode() ?? contentMode();
 	const changeContentMode = (m: ContentMode) => {
 		setContentMode(m);
 		try {
@@ -367,7 +373,8 @@ export function useDictation() {
 		// 短句模式不做 AI 批改（归一化比较就够），因此不进 grading 阶段、结果立刻可见
 		if (
 			mode() === "cyber" &&
-			(contentMode() === "chinese" || contentMode() === "definition")
+			(activeContentMode() === "chinese" ||
+				activeContentMode() === "definition")
 		) {
 			setPhase("grading");
 			void runGrading();
@@ -383,9 +390,14 @@ export function useDictation() {
 	const enterResults = () => {
 		appendHistory(
 			buildHistoryEntry({
-				rows: buildResultRows(rounds(), mode(), contentMode(), lastGrades ?? undefined),
+				rows: buildResultRows(
+					rounds(),
+					mode(),
+					activeContentMode(),
+					lastGrades ?? undefined,
+				),
 				mode: mode(),
-				contentMode: contentMode(),
+				contentMode: activeContentMode(),
 				finishedAt: Date.now(),
 				gradeNote: mode() === "cyber" ? gradeNote() : null,
 			}),
@@ -395,7 +407,7 @@ export function useDictation() {
 
 	/* ---------- AI 批改（一次请求批改本场全部第二步作答） ---------- */
 	const runGrading = async () => {
-		const kind = contentMode() === "chinese" ? "chinese" : "definition";
+		const kind = activeContentMode() === "chinese" ? "chinese" : "definition";
 		// 只批改两段式内容模式的第二步作答（短句模式走归一化比较，不请求 AI）
 		const items: GradeItem[] = rounds()
 			.filter((r): r is WordRound => r.kind === "word")
@@ -571,6 +583,7 @@ export function useDictation() {
 		m: DictationMode,
 		wordsOverride?: string[],
 		definitions?: Record<string, string>,
+		contentOverride?: ContentMode,
 	) => {
 		// 词表模式会用「今日队列」覆盖本次词表；录入模式仍然用手敲的那张表
 		const ws = wordsOverride && wordsOverride.length > 0 ? wordsOverride : words();
@@ -587,7 +600,7 @@ export function useDictation() {
 		setGradeNote(null);
 		setResultNote(null);
 		setRoundElapsed([]);
-		const content = contentMode();
+		const content = contentOverride ?? contentMode();
 		if (content !== "word" && !isAiConfigured(settings())) {
 			setError(
 				content === "cloze"
@@ -599,6 +612,7 @@ export function useDictation() {
 			return;
 		}
 		// 组句只能赛博作答（选词必须在屏幕上完成）
+		setRunContentMode(content);
 		setMode(content === "cloze" ? "cyber" : m);
 		setPhase("preparing");
 		setPrepError(null);
@@ -899,6 +913,7 @@ export function useDictation() {
 		prepAbort?.abort();
 		prepAbort = null;
 		setRounds([]);
+		setRunContentMode(null);
 		setPhase("idle");
 	};
 
@@ -930,7 +945,8 @@ export function useDictation() {
 		}
 		if (r.answer === undefined) return false;
 		if (
-			(contentMode() === "definition" || contentMode() === "chinese") &&
+			(activeContentMode() === "definition" ||
+				activeContentMode() === "chinese") &&
 			r.answerDef === undefined
 		) {
 			return false;
@@ -950,7 +966,7 @@ export function useDictation() {
 		}
 		const patch = timedOutInputPatch({
 			round: r,
-			contentMode: contentMode(),
+			contentMode: activeContentMode(),
 			wordInput: wordInput(),
 			definitionInput: defInput(),
 		});
@@ -1048,7 +1064,8 @@ export function useDictation() {
 		if (!r || r.kind === "cloze") return "none";
 		if (r.answer === undefined) return "word";
 		if (
-			(contentMode() === "definition" || contentMode() === "chinese") &&
+			(activeContentMode() === "definition" ||
+				activeContentMode() === "chinese") &&
 			r.answerDef === undefined
 		) {
 			return "def";
@@ -1061,7 +1078,7 @@ export function useDictation() {
 	 * 状态机判定由 runStep 负责，这里只改数据。
 	 */
 	const chooseClozeWord = (blankIndex: number, word: string) => {
-		if (mode() !== "cyber" || contentMode() !== "cloze") return;
+		if (mode() !== "cyber" || activeContentMode() !== "cloze") return;
 		const i = currentIndex();
 		const r = rounds()[i];
 		if (!r || r.kind !== "cloze") return;
@@ -1075,7 +1092,7 @@ export function useDictation() {
 
 	/** 组句轮清除某个空的所选词（Backspace） */
 	const clearClozeWord = (blankIndex: number) => {
-		if (mode() !== "cyber" || contentMode() !== "cloze") return;
+		if (mode() !== "cyber" || activeContentMode() !== "cloze") return;
 		patchClozeBlank(currentIndex(), blankIndex, undefined);
 		refreshInputDone();
 	};
@@ -1097,11 +1114,26 @@ export function useDictation() {
 	/* ---------- 结果 ---------- */
 	// 结果行仅在结果页读取，直接由当前 rounds 派生，避免服务端渲染环境的惰性 memo 固化初值。
 	const resultRows = (): ResultRow[] =>
-		buildResultRows(rounds(), mode(), contentMode(), lastGrades ?? undefined);
+		buildResultRows(
+			rounds(),
+			mode(),
+			activeContentMode(),
+			lastGrades ?? undefined,
+		);
 
 	const closeResults = () => {
 		resultAudio.stop();
+		setRunContentMode(null);
 		setPhase("idle");
+	};
+
+	/** 档案页「专练薄弱词」：固定单词 + 赛博，不依赖 AI */
+	const startWeakDrill = (weakWords: string[]) => {
+		if (weakWords.length === 0) {
+			setError("没有可专练的词");
+			return;
+		}
+		startDictation("cyber", weakWords, {}, "word");
 	};
 
 	const changeSettings = (s: AppSettings) => {
@@ -1187,7 +1219,7 @@ export function useDictation() {
 	return {
 		words,
 		speed,
-		contentMode,
+		contentMode: activeContentMode,
 		settings,
 		settingsOpen,
 		phase,
@@ -1220,6 +1252,7 @@ export function useDictation() {
 		setSpeed,
 		changeContentMode,
 		startDictation,
+		startWeakDrill,
 		abortPreparation,
 		abortGrading,
 		go,

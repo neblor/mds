@@ -2,6 +2,10 @@
 
 > 状态：**待崔总审核**。本文件只做规划与调研，不含界面设计；审完再进 `.design` 出设计稿。
 > 调研数据都是实测（命令与结果见文末「附录」），关键外部事实均给了出处 URL。
+>
+> **2026-10-18 更新**：复习状态已从 JSON 迁移到 SQLite（`mds-data/review/review.sqlite`）；
+> 本文件 §3 的 `<bankId>.cards.json / .log.jsonl / daily.json` 是当时方案，现行数据模型见 `AGENTS.md`
+> 与 `plans/wordbank-stats.md`，迁移/回滚见 `.implementation-report/2026-10-18-wordbank-stats.md`。
 
 ---
 

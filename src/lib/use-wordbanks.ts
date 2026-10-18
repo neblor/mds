@@ -10,6 +10,8 @@
  */
 import { createSignal, onMount } from "solid-js";
 import {
+	type BankStatsView,
+	type CommitSessionInput,
 	type CommitView,
 	type QueueView,
 	commitReview,
@@ -18,6 +20,7 @@ import {
 	downloadCatalogBank,
 	downloadRemoteBank,
 	fetchBankDetail,
+	fetchBankStats,
 	fetchBanks,
 	fetchBuiltinCatalog,
 	fetchRemoteManifest,
@@ -34,7 +37,7 @@ import {
 	type ResultRowLike,
 	type ReviewCommitItem,
 } from "./review-service";
-import type { ReviewMode } from "./review-store";
+import type { ReviewMode } from "./review-types";
 
 export type SourceMode = "entry" | "bank";
 
@@ -51,6 +54,14 @@ const DEFAULT_PREFS: VocabPrefs = {
 	bankId: null,
 	todayTarget: DEFAULT_TODAY_TARGET,
 };
+
+/** 场次幂等键；浏览器/Electron 都有 crypto.randomUUID，旧环境回退时间戳 */
+function createSessionId(): string {
+	if (typeof globalThis.crypto?.randomUUID === "function") {
+		return globalThis.crypto.randomUUID();
+	}
+	return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 /** 归一偏好设置：字段缺失/非法一律回落默认值 */
 export function normalizeVocabPrefs(raw: unknown): VocabPrefs {
@@ -114,6 +125,8 @@ export interface WordBanksApi {
 		bankId: string,
 		options?: { offset?: number; limit?: number; q?: string },
 	) => Promise<Awaited<ReturnType<typeof fetchBankDetail>>>;
+	/** 学习档案（兼容模式会抛出 503 文案） */
+	loadStats: (bankId: string, days?: number) => Promise<BankStatsView>;
 	createNew: (name: string, words?: string[]) => Promise<BankSummary>;
 	download: (row: CatalogRow) => Promise<BankSummary>;
 	importFromFile: (payload: unknown, rename?: string) => Promise<BankSummary>;
@@ -126,8 +139,8 @@ export interface WordBanksApi {
 	deleteBank: (bankId: string) => Promise<void>;
 	/** 资源词表 → 复制为自建词表（服务端复制，不搬数据） */
 	copyAsCustom: (bankId: string, rename?: string) => Promise<BankSummary>;
-	/** 记录本场的词表（结算写回时用） */
-	beginSession: (bankId: string) => void;
+	/** 记录本场的词表与起始时间（结算写回时用） */
+	beginSession: (bankId: string, words: string[]) => void;
 	sessionBankId: () => string | null;
 	lastCommit: () => CommitView | null;
 	commitSession: (input: {
@@ -157,6 +170,9 @@ export function useWordBanks(options: {
 	const [error, setError] = createSignal<string | null>(null);
 	const [sessionBankId, setSessionBankId] = createSignal<string | null>(null);
 	const [lastCommit, setLastCommit] = createSignal<CommitView | null>(null);
+	let sessionId = "";
+	let sessionStartedAt = 0;
+	let sessionWords: string[] = [];
 
 	const patchPrefs = (patch: Partial<VocabPrefs>) => {
 		const next = { ...prefs(), ...patch };
@@ -284,6 +300,8 @@ export function useWordBanks(options: {
 		loadDetail: (bankId, detailOptions) =>
 			fetchBankDetail(bankId, detailOptions),
 
+		loadStats: (bankId, days) => fetchBankStats(bankId, days),
+
 		createNew: (name, words) =>
 			withBusy(async () => {
 				const { bank } = await createBank(name, words);
@@ -337,7 +355,16 @@ export function useWordBanks(options: {
 				return bank;
 			}),
 
-		beginSession: (bankId) => {
+		beginSession: (bankId, words) => {
+			sessionId = createSessionId();
+			sessionStartedAt = Date.now();
+			sessionWords = Array.from(
+				new Set(
+					words
+						.map((word) => word.trim())
+						.filter((word) => word.length > 0),
+				),
+			);
 			setLastCommit(null);
 			setSessionBankId(bankId);
 		},
@@ -353,13 +380,41 @@ export function useWordBanks(options: {
 				genMode: input.genMode,
 				elapsedMs: input.elapsedMs,
 			});
-			// 书写模式没有判定字段 → items 为空，不写回（也不清空 session，便于复查）
-			if (items.length === 0) return null;
+			const activeMs = (input.elapsedMs ?? []).reduce(
+				(sum, ms) => sum + Math.max(0, Math.round(ms)),
+				0,
+			);
+			const fallbackWords = input.rows
+				.map((row) => row.word.trim())
+				.filter(Boolean);
+			// 优先用结果行里的实际作答词：组句场次里队列候选词 ≠ 本场挖空的词，
+			// 用候选词会把 recent 的得分分母（词数）放大。
+			const words =
+				fallbackWords.length > 0 ? fallbackWords : sessionWords;
+			const session: CommitSessionInput = {
+				id: sessionId || createSessionId(),
+				genMode: input.genMode,
+				contentMode: input.mode,
+				words,
+				correct:
+					input.genMode === "writing"
+						? null
+						: items.filter((item) => item.correct).length,
+				activeMs,
+				wallMs: Math.max(
+					activeMs,
+					sessionStartedAt > 0 ? Date.now() - sessionStartedAt : activeMs,
+				),
+			};
+			// 书写模式 items 为空，但场次仍要记（使用频率统计）；
+			// 没有词也没有判定时没有什么可记的。
+			if (items.length === 0 && words.length === 0) return null;
 			try {
 				const view = await commitReview(
 					bankId,
 					items,
 					options.requestRetention(),
+					session,
 				);
 				setLastCommit(view);
 				await refreshQueue();

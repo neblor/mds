@@ -36,6 +36,7 @@ export default function BankDetailScreen(props: Props) {
 	const [historyOpen, setHistoryOpen] = createSignal(false);
 	// 历史记录从 localStorage 现取（仅用户点开导入弹层时读一次，避免 SSR 首帧不一致）
 	const [historyEntries, setHistoryEntries] = createSignal<HistoryEntry[]>([]);
+	let container: HTMLDivElement | undefined;
 
 	const load = async (nextLimit = limit()) => {
 		try {
@@ -51,7 +52,10 @@ export default function BankDetailScreen(props: Props) {
 		}
 	};
 
-	onMount(() => void load());
+	onMount(() => {
+		void load();
+		requestAnimationFrame(() => container?.focus());
+	});
 	// 切换词表（例如复制为自建后）重新拉取
 	createEffect(() => {
 		const id = props.bankId;
@@ -124,7 +128,8 @@ export default function BankDetailScreen(props: Props) {
 
 	return (
 		<div
-			class="flex h-full flex-col gap-4 bg-canvas p-7"
+			ref={container}
+			class="flex h-full flex-col gap-4 bg-canvas p-7 outline-none"
 			tabIndex={-1}
 			onKeyDown={(event) => {
 				if (event.key === "Escape" && !historyOpen()) {

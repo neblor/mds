@@ -199,6 +199,27 @@ export async function requestSentences(
 	}
 }
 
+/**
+ * 失效默写队列中这些词的短句缓存（主界面「更新短句」）：下次准备会重新生成短句。
+ * 返回真正清掉的条数；失败抛错（由调用方展示）。
+ */
+export async function refreshSentences(words: string[]): Promise<number> {
+	if (words.length === 0) return 0;
+	const res = await fetch("/api/sentence-cache", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({ words }),
+	});
+	const data = (await res.json().catch(() => null)) as {
+		removed?: number;
+		message?: string;
+	} | null;
+	if (!res.ok) {
+		throw new Error(data?.message || `清短句缓存失败（${res.status}）`);
+	}
+	return typeof data?.removed === "number" ? data.removed : 0;
+}
+
 /** 一次请求生成本场全部组句题（失败即抛错，调用方按「AI 当前不可用」结束本场） */
 export async function requestClozeQuestions(
 	candidates: ClozeCandidate[],

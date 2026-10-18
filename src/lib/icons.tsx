@@ -33,6 +33,7 @@ export { default as RotateCcw } from "lucide-solid/icons/rotate-ccw";
 export { default as ScrollText } from "lucide-solid/icons/scroll-text";
 export { default as Undo2 } from "lucide-solid/icons/undo-2";
 export { default as Library } from "lucide-solid/icons/library";
+export { default as Target } from "lucide-solid/icons/target";
 export { default as ChevronDown } from "lucide-solid/icons/chevron-down";
 export { default as RefreshCw } from "lucide-solid/icons/refresh-cw";
 export { default as Download } from "lucide-solid/icons/download";

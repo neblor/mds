@@ -1,15 +1,29 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { localDateKey } from "./daily-queue";
+import { createReviewStore, loadSqliteModule, parseLogRecord } from "./review-store";
+import { createLegacyReviewStore } from "./review-store-legacy";
+import { createSqliteReviewStore } from "./review-store-sqlite";
 import {
-	createReviewStore,
-	parseLogRecord,
-	type DailyStat,
+	parseSessionRecord,
+	sessionToJson,
 	type ReviewLogRecord,
-} from "./review-store";
+	type ReviewStore,
+	type SessionLogRecord,
+	type StoredCard,
+} from "./review-types";
 
 const dirs: string[] = [];
+const stores: ReviewStore[] = [];
 
 function tempDir(): string {
 	const dir = mkdtempSync(join(tmpdir(), "mds-review-"));
@@ -17,13 +31,51 @@ function tempDir(): string {
 	return dir;
 }
 
+function openStore(dir: string): ReviewStore {
+	const store = createReviewStore(dir);
+	stores.push(store);
+	return store;
+}
+
+function openLegacy(dir: string): ReviewStore {
+	const store = createLegacyReviewStore(dir);
+	stores.push(store);
+	return store;
+}
+
 afterEach(() => {
+	for (const store of stores.splice(0)) {
+		try {
+			store.close();
+		} catch {
+			// 清理阶段忽略
+		}
+	}
 	for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
+const NOW = new Date(2026, 9, 12, 10, 0, 0);
+const AT = NOW.getTime();
+const TODAY = localDateKey(NOW);
+
+function makeCard(overrides: Partial<StoredCard> = {}): StoredCard {
+	return {
+		due: new Date(AT + 3 * 24 * 60 * 60 * 1000).toISOString(),
+		stability: 3.2,
+		difficulty: 5.1,
+		elapsed_days: 0,
+		scheduled_days: 3,
+		learning_steps: 0,
+		reps: 1,
+		lapses: 0,
+		state: 1,
+		...overrides,
+	};
+}
+
 function makeLog(overrides: Partial<ReviewLogRecord> = {}): ReviewLogRecord {
 	return {
-		at: 1_700_000_000_000,
+		at: AT,
 		word: "apple",
 		bankId: "cet4",
 		rating: 3,
@@ -41,79 +93,276 @@ function makeLog(overrides: Partial<ReviewLogRecord> = {}): ReviewLogRecord {
 	};
 }
 
-describe("卡片状态", () => {
-	it("写入后读回同一形状", () => {
-		const store = createReviewStore(tempDir());
-		store.writeCards("cet4", {
-			apple: { due: "2026-10-15T00:00:00.000Z", stability: 3.2, state: 1 },
+function makeSession(overrides: Partial<SessionLogRecord> = {}): SessionLogRecord {
+	return {
+		id: "session-1",
+		at: AT,
+		bankId: "cet4",
+		genMode: "cyber",
+		contentMode: "definition",
+		words: ["apple", "banana"],
+		correct: 1,
+		activeMs: 4200,
+		wallMs: 9000,
+		...overrides,
+	};
+}
+
+describe("SQLite store", () => {
+	it("一场结算原子写入卡片、日志、场次，并能读回", () => {
+		const store = openStore(tempDir());
+		expect(store.mode).toBe("sqlite");
+		const session = makeSession();
+		const log = { ...makeLog(), sessionId: session.id };
+		const result = store.commit("cet4", {
+			cards: [{ key: "apple", card: makeCard() }],
+			logs: [log],
+			session,
 		});
-		expect(store.readCards("cet4")).toEqual({
-			apple: { due: "2026-10-15T00:00:00.000Z", stability: 3.2, state: 1 },
+		expect(result.duplicate).toBe(false);
+
+		const cards = store.readCards("cet4");
+		expect(cards.apple).toMatchObject({
+			stability: 3.2,
+			difficulty: 5.1,
+			scheduled_days: 3,
+			state: 1,
+		});
+		expect(cards.apple.due).toBe(makeCard().due);
+
+		const logs = store.readLogs("cet4");
+		expect(logs).toHaveLength(1);
+		expect(logs[0]).toMatchObject({
+			word: "apple",
+			sessionId: session.id,
+			mode: "definition",
+			correct: true,
+		});
+
+		const sessions = store.readSessions("cet4");
+		expect(sessions).toHaveLength(1);
+		expect(sessions[0]).toMatchObject({
+			id: session.id,
+			genMode: "cyber",
+			contentMode: "definition",
+			correct: 1,
+			words: ["apple", "banana"],
+		});
+
+		expect(store.readDayStats("cet4", TODAY)).toEqual({
+			date: TODAY,
+			correct: 1,
+			total: 1,
+			elapsedMs: 4200,
 		});
 	});
 
-	it("文件缺失返回空对象；损坏文件返回空对象而不是抛错", () => {
-		const dir = tempDir();
-		const store = createReviewStore(dir);
-		expect(store.readCards("cet4")).toEqual({});
-		writeFileSync(join(dir, "cet4.cards.json"), "{ broken");
-		expect(store.readCards("cet4")).toEqual({});
+	it("同一 session.id 重放不重复写卡片/日志/场次", () => {
+		const store = openStore(tempDir());
+		const session = makeSession();
+		store.commit("cet4", {
+			cards: [{ key: "apple", card: makeCard() }],
+			logs: [{ ...makeLog(), sessionId: session.id }],
+			session,
+		});
+		const second = store.commit("cet4", {
+			cards: [{ key: "banana", card: makeCard() }],
+			logs: [{ ...makeLog({ word: "banana" }), sessionId: session.id }],
+			session,
+		});
+		expect(second.duplicate).toBe(true);
+		expect(Object.keys(store.readCards("cet4"))).toEqual(["apple"]);
+		expect(store.readLogs("cet4")).toHaveLength(1);
+		expect(store.readSessions("cet4")).toHaveLength(1);
 	});
 
-	it("非对象条目被跳过，其余照常读出", () => {
+	it("场次与日志可以分开写：书写场次 items 为空也保留使用记录", () => {
+		const store = openStore(tempDir());
+		const session = makeSession({
+			id: "writing-1",
+			genMode: "writing",
+			contentMode: "word",
+			correct: null,
+			words: ["apple"],
+		});
+		store.commit("cet4", { cards: [], logs: [], session });
+		expect(store.readCards("cet4")).toEqual({});
+		expect(store.readLogs("cet4")).toEqual([]);
+		expect(store.readSessions("cet4")[0]).toMatchObject({
+			id: "writing-1",
+			genMode: "writing",
+			correct: null,
+			words: ["apple"],
+		});
+	});
+
+	it("删库清除卡片、日志、场次与 session_word", () => {
+		const store = openStore(tempDir());
+		const session = makeSession();
+		store.commit("cet4", {
+			cards: [{ key: "apple", card: makeCard() }],
+			logs: [makeLog()],
+			session,
+		});
+		store.removeBankState("cet4");
+		expect(store.readCards("cet4")).toEqual({});
+		expect(store.readLogs("cet4")).toEqual([]);
+		expect(store.readSessions("cet4")).toEqual([]);
+		expect(store.readDayStats("cet4", TODAY).total).toBe(0);
+		expect(store.stats?.writingWords("cet4")).toEqual([]);
+	});
+
+	it("空日返回 0；非法词库 id 抛错", () => {
+		const store = openStore(tempDir());
+		expect(store.readDayStats("cet4", TODAY)).toEqual({
+			date: TODAY,
+			correct: 0,
+			total: 0,
+			elapsedMs: 0,
+		});
+		expect(() => store.readCards("../evil")).toThrow();
+		expect(() => store.commit("A1", { cards: [], logs: [], session: null })).toThrow();
+	});
+
+	it("重复 id 的 session_word 在库内去重", () => {
+		const store = openStore(tempDir());
+		const session = makeSession({ words: ["apple", "Apple", "banana"] });
+		store.commit("cet4", { cards: [], logs: [], session });
+		expect(store.readSessions("cet4")[0].words).toEqual(["apple", "banana"]);
+	});
+});
+
+describe("兼容模式 store", () => {
+	it("commit 写 JSON/JSONL，读回形状与 SQLite 一致", () => {
 		const dir = tempDir();
-		const store = createReviewStore(dir);
+		const store = openLegacy(dir);
+		expect(store.mode).toBe("legacy");
+		expect(store.stats).toBeNull();
+		const session = makeSession();
+		store.commit("cet4", {
+			cards: [{ key: "apple", card: makeCard() }],
+			logs: [{ ...makeLog(), sessionId: session.id }],
+			session,
+		});
+		expect(store.readCards("cet4").apple).toMatchObject({ state: 1 });
+		expect(store.readLogs("cet4")[0].sessionId).toBe(session.id);
+		expect(store.readSessions("cet4")[0].words).toEqual(["apple", "banana"]);
+		expect(store.readDayStats("cet4", TODAY)).toMatchObject({
+			correct: 1,
+			total: 1,
+			elapsedMs: 4200,
+		});
+		expect(existsSync(join(dir, "cet4.sessions.jsonl"))).toBe(true);
+	});
+
+	it("同一 session.id 重放不重复追加", () => {
+		const store = openLegacy(tempDir());
+		const session = makeSession();
+		store.commit("cet4", { cards: [], logs: [makeLog()], session });
+		const second = store.commit("cet4", {
+			cards: [],
+			logs: [makeLog({ word: "banana" })],
+			session,
+		});
+		expect(second.duplicate).toBe(true);
+		expect(store.readLogs("cet4")).toHaveLength(1);
+		expect(store.readSessions("cet4")).toHaveLength(1);
+	});
+});
+
+describe("旧数据迁移", () => {
+	function writeLegacy(dir: string): void {
+		mkdirSync(dir, { recursive: true });
 		writeFileSync(
 			join(dir, "cet4.cards.json"),
 			JSON.stringify({
 				version: 1,
-				cards: { apple: { due: "x" }, bad: 42, worse: ["no"], ok: { due: "y" } },
+				cards: { apple: makeCard(), broken: { due: "x" } },
 			}),
 		);
-		expect(store.readCards("cet4")).toEqual({
-			apple: { due: "x" },
-			ok: { due: "y" },
-		});
-	});
-
-	it("非法词库 id 抛错（防路径穿越）", () => {
-		const store = createReviewStore(tempDir());
-		expect(() => store.readCards("../evil")).toThrow();
-		expect(() => store.writeCards("A1", {})).toThrow();
-	});
-});
-
-describe("复习日志", () => {
-	it("追加写入并按行读回（append-only，不覆盖历史）", () => {
-		const dir = tempDir();
-		const store = createReviewStore(dir);
-		store.appendLogs("cet4", [makeLog()]);
-		store.appendLogs("cet4", [makeLog({ word: "banana", rating: 1, correct: false })]);
-		const logs = store.readLogs("cet4");
-		expect(logs.map((log) => log.word)).toEqual(["apple", "banana"]);
-		expect(logs[1].rating).toBe(1);
-		expect(readFileSync(join(dir, "cet4.log.jsonl"), "utf8").trim().split("\n")).toHaveLength(2);
-	});
-
-	it("坏行跳过，不影响同一文件里的其它记录", () => {
-		const dir = tempDir();
-		const store = createReviewStore(dir);
-		store.appendLogs("cet4", [makeLog()]);
 		writeFileSync(
 			join(dir, "cet4.log.jsonl"),
-			`${readFileSync(join(dir, "cet4.log.jsonl"), "utf8")}{ broken\n`,
+			[
+				JSON.stringify(makeLog()),
+				"{ broken",
+				JSON.stringify(makeLog({ word: "banana", correct: false, rating: 1 })),
+			].join("\n"),
 		);
-		expect(store.readLogs("cet4")).toHaveLength(1);
-	});
+		writeFileSync(
+			join(dir, "cet4.sessions.jsonl"),
+			[
+				JSON.stringify({
+					id: "legacy-session",
+					at: AT,
+					bankId: "cet4",
+					genMode: "writing",
+					contentMode: "word",
+					words: ["apple"],
+					correct: null,
+					activeMs: 2000,
+					wallMs: 3000,
+				}),
+			].join("\n"),
+		);
+		writeFileSync(join(dir, "daily.json"), "{\"version\":1,\"days\":{}}");
+	}
 
-	it("没有日志时返回空数组", () => {
-		expect(createReviewStore(tempDir()).readLogs("cet4")).toEqual([]);
-	});
-
-	it("空数组不写文件", () => {
+	it("导入 cards/logs/sessions、归档旧文件、忽略 daily、二次打开不重复导入", () => {
 		const dir = tempDir();
-		createReviewStore(dir).appendLogs("cet4", []);
-		expect(() => readFileSync(join(dir, "cet4.log.jsonl"), "utf8")).toThrow();
+		writeLegacy(dir);
+		const store = openStore(dir);
+		expect(store.mode).toBe("sqlite");
+		expect(Object.keys(store.readCards("cet4"))).toEqual(["apple"]);
+		expect(store.readLogs("cet4")).toHaveLength(2);
+		const sessions = store.readSessions("cet4");
+		expect(sessions).toHaveLength(1);
+		expect(sessions[0].words).toEqual(["apple"]);
+		expect(store.readDayStats("cet4", TODAY)).toMatchObject({
+			correct: 1,
+			total: 2,
+			elapsedMs: 8400,
+		});
+
+		expect(existsSync(join(dir, "review.sqlite"))).toBe(true);
+		expect(existsSync(join(dir, "cet4.cards.json"))).toBe(false);
+		expect(existsSync(join(dir, "daily.json"))).toBe(false);
+		const archive = join(dir, "migrated-v1");
+		expect(existsSync(join(archive, "cet4.cards.json"))).toBe(true);
+		expect(existsSync(join(archive, "cet4.log.jsonl"))).toBe(true);
+		expect(existsSync(join(archive, "cet4.sessions.jsonl"))).toBe(true);
+		expect(existsSync(join(archive, "daily.json"))).toBe(true);
+		expect(readFileSync(join(dir, "migration.log"), "utf8")).toContain(
+			"migration-ok",
+		);
+
+		// 二次打开：DB 已在，旧文件已归档，计数保持
+		store.close();
+		const reopened = openStore(dir);
+		expect(reopened.mode).toBe("sqlite");
+		expect(reopened.readLogs("cet4")).toHaveLength(2);
+		expect(reopened.readCards("cet4").apple).toBeTruthy();
+	});
+
+	it("迁移失败时保留旧文件并回退兼容模式", () => {
+		const dir = tempDir();
+		mkdirSync(dir, { recursive: true });
+		writeFileSync(join(dir, "review.sqlite"), "not a sqlite database");
+		writeFileSync(join(dir, "cet4.log.jsonl"), JSON.stringify(makeLog()));
+		const store = openStore(dir);
+		expect(store.mode).toBe("legacy");
+		expect(store.readLogs("cet4")).toHaveLength(1);
+		expect(existsSync(join(dir, "cet4.log.jsonl"))).toBe(true);
+		expect(readFileSync(join(dir, "migration.log"), "utf8")).toContain(
+			"open-failed",
+		);
+	});
+
+	it("没有旧文件时创建空库", () => {
+		const dir = tempDir();
+		const store = openStore(dir);
+		expect(store.mode).toBe("sqlite");
+		expect(store.readCards("cet4")).toEqual({});
+		expect(existsSync(join(dir, "review.sqlite"))).toBe(true);
 	});
 });
 
@@ -153,54 +402,63 @@ describe("parseLogRecord", () => {
 		});
 	});
 
-	it("越界的 rating 被夹到 1–4，认识的 mode/queueKind 保留", () => {
+	it("越界 rating 夹到 1–4；认识的 mode/queueKind 保留；sessionId 只留非空", () => {
 		expect(parseLogRecord({ ...makeLog(), rating: 99 })?.rating).toBe(4);
 		expect(parseLogRecord({ ...makeLog(), rating: -1 })?.rating).toBe(1);
 		expect(parseLogRecord({ ...makeLog(), mode: "cloze" })?.mode).toBe("cloze");
 		expect(parseLogRecord({ ...makeLog(), mode: "nope" })?.mode).toBe("word");
 		expect(parseLogRecord({ ...makeLog(), queueKind: "new" })?.queueKind).toBe("new");
 		expect(parseLogRecord({ ...makeLog(), queueKind: "nope" })?.queueKind).toBe("review");
+		expect(parseLogRecord({ ...makeLog(), sessionId: "s1" })?.sessionId).toBe("s1");
+		expect(parseLogRecord({ ...makeLog(), sessionId: "  " })?.sessionId).toBeUndefined();
 	});
 });
 
-describe("每日汇总", () => {
-	const stat: DailyStat = {
-		date: "2026-10-12",
-		target: 20,
-		done: 8,
-		correct: 6,
-		total: 8,
-		elapsedMs: 90_000,
-	};
-
-	it("写入后读回", () => {
-		const store = createReviewStore(tempDir());
-		store.writeDaily({ "2026-10-12": stat });
-		expect(store.readDaily()).toEqual({ "2026-10-12": stat });
-	});
-
-	it("坏日期与坏字段被丢弃，其余保留", () => {
-		const dir = tempDir();
-		const store = createReviewStore(dir);
-		writeFileSync(
-			join(dir, "daily.json"),
-			JSON.stringify({
-				version: 1,
-				days: {
-					"2026-10-12": stat,
-					"not-a-date": stat,
-					"2026-10-13": { date: "2026-10-13", target: "x" },
-				},
-			}),
+describe("parseSessionRecord", () => {
+	it("id 缺失丢弃；bankId 可按文件覆盖", () => {
+		expect(parseSessionRecord({ ...makeSession(), id: "" })).toBeNull();
+		expect(parseSessionRecord(sessionToJson(makeSession()), "other")?.bankId).toBe(
+			"other",
 		);
-		expect(Object.keys(store.readDaily())).toEqual(["2026-10-12"]);
 	});
 
-	it("文件缺失或损坏时返回空对象", () => {
+	it("书写场次 correct 强制 null；words 去重限长；wallMs 不小于 activeMs", () => {
+		const parsed = parseSessionRecord({
+			...makeSession(),
+			genMode: "writing",
+			correct: 99,
+			words: ["apple", "Apple", " banana ", "  "],
+			activeMs: 5000,
+			wallMs: 1000,
+		});
+		expect(parsed).toMatchObject({
+			correct: null,
+			words: ["apple", "banana"],
+			activeMs: 5000,
+			wallMs: 5000,
+		});
+	});
+
+	it("赛博场次 correct 夹到词数范围", () => {
+		expect(
+			parseSessionRecord({ ...makeSession(), correct: 99, words: ["a", "b"] })
+				?.correct,
+		).toBe(2);
+		expect(
+			parseSessionRecord({ ...makeSession(), correct: -3, words: ["a", "b"] })
+				?.correct,
+		).toBe(0);
+	});
+});
+
+describe("SQLite 模块可用性", () => {
+	it("当前 Node/Electron 运行时能拿到 node:sqlite", () => {
+		expect(loadSqliteModule()).not.toBeNull();
 		const dir = tempDir();
-		const store = createReviewStore(dir);
-		expect(store.readDaily()).toEqual({});
-		writeFileSync(join(dir, "daily.json"), "nope");
-		expect(store.readDaily()).toEqual({});
+		const sqlite = loadSqliteModule();
+		if (!sqlite) return;
+		const store = createSqliteReviewStore(join(dir, "review.sqlite"), sqlite);
+		stores.push(store);
+		expect(store.mode).toBe("sqlite");
 	});
 });

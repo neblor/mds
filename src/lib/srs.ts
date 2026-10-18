@@ -22,7 +22,7 @@ import {
 	fsrs,
 } from "ts-fsrs";
 import type { JsonValue } from "./json-file";
-import type { StoredCard } from "./review-store";
+import type { StoredCard } from "./review-types";
 
 export const DEFAULT_REQUEST_RETENTION = 0.9;
 export const MIN_REQUEST_RETENTION = 0.7;

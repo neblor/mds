@@ -9,21 +9,22 @@
 
 ## 中文
 
-mds（默点啥）把单词收集、发音准备、随机默写和结果对照放进一个简单流程里。它既可以陪孩子用纸笔默写，也支持直接在电脑上输入答案；默写内容可在「单词 / 释义 / 中文词」三种模式间滑动切换——释义与中文词模式通过 OpenAI 兼容接口生成内容（英文释义或常用中文对应词）。
+mds（默点啥）把单词收集、发音准备、随机默写和结果对照放进一个简单流程里。它既可以陪孩子用纸笔默写，也支持直接在电脑上输入答案；默写内容可在「单词 / 释义 / 中文词 / 短句 / 组句」五种模式间切换；后四种通过 OpenAI 兼容接口生成内容（英文释义、中文对应词、短句或组句题）。
 
 ### 功能
 
 - 单词、词组和短句的快速录入、批量导入、删除与清空
-- 词库自动保存在浏览器本地存储中，刷新或重启后仍会保留
+- 录入模式的词表保存在浏览器本地存储；词表模式（SRS）的词库保存在应用数据目录，刷新或重启后仍会保留
 - 书写默写与赛博默写两种模式
-- 默写内容三选一：单词、单词+英文释义、中文对应词（两段式：先英文后中文；释义与中文词均由 AI 批改，同义/改述也算对）
-- 可滑动、可扩展的选择条组件切换默写内容，支持点击、拖拽与方向键
+- 五种默写内容：单词、单词+英文释义、中文对应词、短句、组句；释义/中文词由 AI 批改（同义/改述也算对），短句按整句归一化判定，组句选词作答（仅赛博）
+- 可滑动、可扩展的选择条组件切换默写内容，支持点击、拖拽与方向键；选择条右侧是按模式变化的操作区，短句模式可一键`更新短句`（清掉今日队列这些词的短句缓存，下次准备重新生成）
 - 快、中、慢三档节奏及自定义倍率（中文词第二步按字符数 ×5 系数计时）
 - Edge TTS 预生成发音，增量缓存，默写时流畅播放
 - 可选 AI 内容生成，支持部分结果、超时、中止和兼容降级，中文词独立缓存文件
 - 随机顺序、播报进度、倒计时和键盘连续操作
 - 释义/中文词模式答完后先经「正在批改」遮罩，一次 AI 请求批改本场全部作答（关 thinking，自动兼容降级），失败/中止自动降级本地匹配
 - 结果页按模式通用化：判定字段标红/绿，参考部分（释义对照等）只展示不批改，全对两波星星庆祝
+- 词表模式 + FSRS 每日复习；每个词表有学习档案：掌握进度、近 7/30 天正确率、180 天练习热力、14 天到期预测、薄弱/常练词，并可一键专练薄弱词
 - Windows NSIS 安装包（引导式安装、仅当前用户、可选安装目录、卸载保留用户数据）
 
 ### 快速开始
@@ -47,7 +48,7 @@ pnpm check
 ### 使用方式
 
 1. 输入单词、词组或短句，按回车加入词库；也可以点击输入框右侧的“批量导入”。批量文本支持空格、Tab、回车、英文逗号和英文分号。
-2. 选择速度，并在「单词 / 释义 / 中文词」选择条上滑动或点击选择默写内容。
+2. 选择速度，并在「单词 / 释义 / 中文词 / 短句 / 组句」选择条上滑动或点击选择默写内容。短句模式下选择条右侧会出现`更新短句`：清掉今日队列这些词已生成的短句，下次准备时换成新句子。
 3. 选择“开始书写默写”或“开始赛博默写”。
 4. 等待语音和 AI 内容准备完成，在 `Let's Go!` 界面点击按钮或按回车开始。
 5. 完成后查看答案、正确数量和本轮发音。
@@ -97,6 +98,7 @@ pnpm client:package:wsl test
 
 - Web 默认缓存：`.mds-data/word-cache`（音频 `*.mp3`、释义 `definitions.json`、中文词 `chinese-words.json`）
 - 安装版客户端：统一使用 Electron `userData/mds-data/word-cache`（卸载默认保留）
+- 复习状态：`.mds-data/review/review.sqlite`（SQLite/WAL）；旧 JSON 首次启动自动迁移，归档到 `review/migrated-v1/`
 - AI 诊断日志：Client 的 `mds-data/logs/ai-definitions.log`
 
 AI 日志会记录请求失败、兼容降级、响应缺项或截断及缓存写入失败，但不会记录 API Key；达到 1 MiB 后保留一份轮换日志。
@@ -108,6 +110,8 @@ AI 日志会记录请求失败、兼容降级、响应缺项或截断及缓存�
 | `pnpm dev` | 启动 Web 开发服务 |
 | `pnpm test` | 运行全部 Vitest 单元测试 |
 | `pnpm check` | 测试、生产构建和 HTTP 冒烟 |
+| `pnpm db:status` | 只读查看复习 SQLite 状态（schema/条数/归档/quick_check） |
+| `pnpm db:rollback -- --yes` | 回滚到迁移前的 JSON（先退出应用） |
 | `pnpm get:explain ...` | 直接诊断 AI 释义接口（`--chinese` 诊断中文词） |
 | `pnpm client:dev` | 构建并启动 Electron 客户端 |
 | `pnpm client:package <major\|minor\|patch\|test>` | 自动检查、按模式管理版本并构建 Windows NSIS 安装包 |
@@ -122,14 +126,14 @@ SolidStart 2 · SolidJS · TypeScript · Tailwind CSS · Electron · Nitro · Vi
 
 <!-- “mds” comes from the Chinese name “默点啥”, roughly: “What should I dictate?” -->
 
-mds is a small English dictation app that keeps word collection, speech preparation, shuffled practice, and answer review in one focused flow. It works for pen-and-paper practice as well as typed answers, with three dictation content modes — word, English definition, and Chinese equivalent word — toggled by a draggable selector bar.
+mds is a small English dictation app that keeps word collection, speech preparation, shuffled practice, and answer review in one focused flow. It works for pen-and-paper practice as well as typed answers, with five dictation content modes — word, English definition, Chinese equivalent, short sentence, and cloze — toggled by a draggable selector bar.
 
 ### Highlights
 
 - Add words, phrases, or short sentences with Enter or the bulk importer
-- Keep the word list across refreshes and restarts with local browser storage
+- Entry-mode word lists persist in browser storage; SRS banks live in the app data directory across restarts
 - Handwriting and keyboard-based dictation modes
-- Content modes: word only, word + English definition (reference only), or AI-fetched Chinese equivalent word (graded)
+- Content modes: word, word + English definition, AI-fetched Chinese equivalent, AI-generated short sentence, or cloze (select words; keyboard mode only)
 - Draggable, extensible selector bar with click, drag, and arrow-key support
 - Three pacing levels plus a custom speed multiplier
 - Pre-generated Edge TTS audio with incremental local caching
@@ -137,6 +141,7 @@ mds is a small English dictation app that keeps word collection, speech preparat
 - Shuffled rounds, playback progress, countdowns, and keyboard-first interaction
 - Mode-aware result review: graded fields in red/green, reference fields ungraded, two-wave star celebration
 - A guided Windows NSIS installer (per-user, custom install directory, data kept on uninstall)
+- Per-bank learning archive: mastery progress, 7/30-day accuracy, 180-day practice heatmap, 14-day due forecast, weak/most-practiced words, and one-click weak-word drill
 
 ### Getting started
 
@@ -210,6 +215,7 @@ The required `bump_type` is one of `major`, `minor`, `patch`, or `test`. Major a
 
 - Web cache: `.mds-data/word-cache` (audio `*.mp3`, `definitions.json`, `chinese-words.json`)
 - Installed client cache: Electron `userData/mds-data/word-cache` (kept on uninstall by default)
+- Review state: `.mds-data/review/review.sqlite` (SQLite/WAL); legacy JSON is migrated on first start and archived under `review/migrated-v1/`
 - Client AI diagnostics: `mds-data/logs/ai-definitions.log`
 
 Diagnostic logs cover request failures, compatibility fallbacks, truncated or incomplete responses, and cache write failures. API keys are never logged, and the file rotates at 1 MiB.

@@ -4,10 +4,11 @@
  * 布局（与音频/释义缓存同级，但**不是缓存**——用户自建词表与复习进度属于用户数据）：
  *   <dataDir>/banks/<bankId>.json        词库
  *   <dataDir>/banks/index.json           词库索引（可由磁盘重建）
- *   <dataDir>/review/<bankId>.cards.json 卡片状态
- *   <dataDir>/review/<bankId>.log.jsonl  复习日志（append-only）
- *   <dataDir>/review/daily.json          每日汇总
+ *   <dataDir>/review/review.sqlite       卡片/日志/场次（唯一事实来源，WAL）
+ *   <dataDir>/review/migrated-v1/        旧 JSON 迁移归档（只读，回滚用）
  *   <dataDir>/word-cache/…               音频与释义缓存（现有）
+ *
+ * 旧版的 <bankId>.cards.json / .log.jsonl / daily.json 只在兼容模式或归档中存在。
  *
  * 目录优先级：MDS_DATA_DIR > dirname(MDS_CACHE_DIR) > <cwd>/.mds-data
  * （Electron 主进程注入 MDS_CACHE_DIR=userData/mds-data/word-cache，

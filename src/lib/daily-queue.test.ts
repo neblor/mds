@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BankEntry } from "./bank-types";
-import type { StoredCard, StoredCards } from "./review-store";
+import type { StoredCard, StoredCards } from "./review-types";
 import {
 	buildDailyQueue,
 	endOfLocalDay,

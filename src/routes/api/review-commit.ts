@@ -4,10 +4,14 @@
  *
  * 书写模式不写回（调用方不传 items 即可）；这里只做参数清洗 + 交给编排层。
  */
+import { randomUUID } from "node:crypto";
 import { HTTPError } from "h3";
-import type { ReviewCommitItem } from "~/lib/review-service";
+import type {
+	ReviewCommitItem,
+	SessionCommitInput,
+} from "~/lib/review-service";
 import { commitReviews } from "~/lib/review-service";
-import { REVIEW_MODES, type ReviewMode } from "~/lib/review-store";
+import { REVIEW_MODES, type ReviewMode } from "~/lib/review-types";
 import { bankStore, reviewStore } from "~/lib/runtime-stores";
 import { readJsonBody, type RouteEvent } from "~/lib/server-body";
 
@@ -43,12 +47,55 @@ function parseItems(raw: unknown): ReviewCommitItem[] {
 	return items;
 }
 
+function finite(value: unknown): number | null {
+	return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/** 场次参数清洗；缺失/非对象直接视为「没有场次」（旧客户端兼容） */
+function parseSession(raw: unknown): SessionCommitInput | null {
+	if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+		return null;
+	}
+	const holder = raw as {
+		id?: unknown;
+		genMode?: unknown;
+		contentMode?: unknown;
+		words?: unknown;
+		correct?: unknown;
+		activeMs?: unknown;
+		wallMs?: unknown;
+	};
+	const genMode = holder.genMode === "writing" ? "writing" : "cyber";
+	const contentMode = REVIEW_MODES.includes(holder.contentMode as ReviewMode)
+		? (holder.contentMode as ReviewMode)
+		: "word";
+	const words = Array.isArray(holder.words)
+		? holder.words.filter((word): word is string => typeof word === "string")
+		: [];
+	const activeMs = finite(holder.activeMs) ?? 0;
+	const wallMs = finite(holder.wallMs) ?? activeMs;
+	return {
+		id:
+			typeof holder.id === "string" && holder.id.trim()
+				? holder.id.trim()
+				: randomUUID(),
+		genMode,
+		contentMode,
+		words,
+		correct:
+			genMode === "writing" ? null : finite(holder.correct),
+		activeMs: Math.max(0, activeMs),
+		wallMs: Math.max(0, wallMs),
+	};
+}
+
 export async function POST(event: RouteEvent) {
 	const body = await readJsonBody(event);
 	const holder = (body ?? {}) as {
 		bankId?: unknown;
 		items?: unknown;
 		requestRetention?: unknown;
+		session?: unknown;
 	};
 	const bankId = typeof holder.bankId === "string" ? holder.bankId : "";
 	if (!bankStore.read(bankId)) {
@@ -69,5 +116,6 @@ export async function POST(event: RouteEvent) {
 			typeof holder.requestRetention === "number"
 				? holder.requestRetention
 				: undefined,
+		session: parseSession(holder.session),
 	});
 }

@@ -45,12 +45,19 @@ export default function Home() {
 				return;
 			}
 			vocab.setError(null);
-			vocab.beginSession(bankId);
+			vocab.beginSession(bankId, words);
 			// 组句的候选词带英文释义（出题质量更好），其余模式用不到
 			d.startDictation(mode, words, queue?.definitions ?? {});
 			return;
 		}
 		d.startDictation(mode);
+	};
+
+	/** 档案页专练：固定单词 + 赛博，写回当前词库，不占今日队列取词 */
+	const startDrill = (bankId: string, weakWords: string[]) => {
+		vocab.setError(null);
+		vocab.beginSession(bankId, weakWords);
+		d.startWeakDrill(weakWords);
 	};
 
 	/**
@@ -87,7 +94,7 @@ export default function Home() {
 	const reviewNote = () => {
 		if (d.mode() === "writing") {
 			return vocab.sessionBankId()
-				? "书写模式不计入复习计划；想纳入请用赛博默写"
+				? "书写模式不计入复习计划（仍记录练习场次）；想纳入请用赛博默写"
 				: null;
 		}
 		const commit = vocab.lastCommit();
@@ -145,6 +152,7 @@ export default function Home() {
 							onContentMode={d.changeContentMode}
 							onStartWriting={() => startDictation("writing")}
 							onStartCyber={() => startDictation("cyber")}
+							onStartDrill={startDrill}
 							onOpenSettings={() => d.setSettingsOpen(true)}
 							onOpenHistory={() => setHistoryOpen(true)}
 							stashCount={stashedWords()?.length ?? 0}

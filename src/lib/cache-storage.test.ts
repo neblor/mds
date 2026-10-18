@@ -44,6 +44,35 @@ describe("runtime cache storage", () => {
 		expect(existsSync(join(root, "definitions.json"))).toBe(true);
 	});
 
+	it("短句缓存可按词失效，大小写不敏感，meta 与其余词保留", () => {
+		const storage = createRuntimeCacheStorage({ mode: "web", rootDir: root });
+		storage.writeSentences({
+			model: "m",
+			contentLevel: "primary",
+			sentences: {
+				apple: "a red apple",
+				Apple: "A Red Apple",
+				banana: "a yellow banana",
+			},
+		});
+		expect(storage.removeSentences(["APPLE", "cherry"])).toBe(2);
+		expect(storage.readSentences()).toEqual({
+			model: "m",
+			contentLevel: "primary",
+			sentences: { banana: "a yellow banana" },
+		});
+	});
+
+	it("短句缓存缺失/损坏时失效不抛错（返回 0）", () => {
+		const storage = createRuntimeCacheStorage({ mode: "web", rootDir: root });
+		expect(storage.removeSentences(["apple"])).toBe(0);
+		expect(storage.removeSentences([])).toBe(0);
+		writeFileSync(join(root, "sentences.json"), "{ not json");
+		expect(storage.removeSentences(["apple"])).toBe(0);
+		writeFileSync(join(root, "sentences.json"), JSON.stringify({ sentences: 42 }));
+		expect(storage.removeSentences(["apple"])).toBe(0);
+	});
+
 	it("中文词使用独立 JSON 文件读写，互不污染释义缓存", () => {
 		const storage = createRuntimeCacheStorage({ mode: "web", rootDir: root });
 		storage.writeDefinitions({ model: "m", defs: { apple: "A fruit." } });

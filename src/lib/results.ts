@@ -37,6 +37,11 @@ export interface ResultField {
 export interface ResultRow {
 	word: string;
 	audioName: string;
+	/**
+	 * 这一行来自第几轮（组句一轮多个空 → 多行同轮）。
+	 * 复习日志的每轮耗时是按**轮**记的，写回时靠它把耗时对到行上。
+	 */
+	roundIndex?: number;
 	/** 组句模式的句子上下文（答案已填入）；短句模式为标准整句 */
 	context?: string;
 	/** 展示用备注（如「本词无合格短句，按单词默写」） */
@@ -87,16 +92,17 @@ export function buildResultRows(
 	grades?: Record<string, GradeOverride>,
 ): ResultRow[] {
 	const rows: ResultRow[] = [];
-	for (const round of rounds) {
+	for (const [roundIndex, round] of rounds.entries()) {
 		// 组句轮：每个空一行（同一题可能出现同一个词两次，各自独立判定）
 		if (isClozeRound(round)) {
-			rows.push(...buildClozeRows(round, mode));
+			rows.push(...buildClozeRows(round, mode, roundIndex));
 			continue;
 		}
 		const sentence = round.sentence?.trim();
 		rows.push({
 			word: round.word,
 			audioName: round.audioName,
+			roundIndex,
 			// 标准整句进 context：结果页据此高亮目标词并与用户整句并排对照
 			...(contentMode === "sentence" && sentence ? { context: sentence } : {}),
 			...(contentMode === "sentence" && !sentence
@@ -112,6 +118,7 @@ export function buildResultRows(
 function buildClozeRows(
 	round: ClozeRoundLike,
 	mode: "writing" | "cyber",
+	roundIndex: number,
 ): ResultRow[] {
 	return round.blanks.map((blank) => {
 		const expected = blank.answer;
@@ -120,6 +127,7 @@ function buildClozeRows(
 		return {
 			word: expected,
 			audioName: round.audioNames?.[expected] ?? "",
+			roundIndex,
 			context: sentenceOfBlank(round.sentences, round.blanks, blank.index),
 			fields: [
 				{

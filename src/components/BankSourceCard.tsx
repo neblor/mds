@@ -4,6 +4,7 @@
  * 点词表名打开选择词表弹层；数量用步进器调（5–100，步长 5），即改即存。
  * 键盘：步进器按钮回车/空格即调整；Tab 顺序为「选词表 → 减 → 加」。
  */
+import { Show } from "solid-js";
 import { ChevronDown, Library, Minus, Plus } from "lucide-solid";
 import { MAX_TODAY_TARGET, MIN_TODAY_TARGET } from "~/lib/daily-queue";
 
@@ -16,6 +17,9 @@ interface Props {
 	busy: boolean;
 	onOpenPicker: () => void;
 	onTodayTarget: (value: number) => void;
+	/** 书本图标：打开学习档案（无当前词表时不显示按钮） */
+	onOpenArchive: () => void;
+	archiveButtonRef?: (el: HTMLButtonElement) => void;
 }
 
 export default function BankSourceCard(props: Props) {
@@ -29,7 +33,21 @@ export default function BankSourceCard(props: Props) {
 
 	return (
 		<div class="flex items-center gap-2.5 rounded-2xl bg-surface px-4 py-3.5 shadow-sm">
-			<Library class="h-5 w-5 shrink-0 text-brand" />
+			<Show
+				when={props.hasBank}
+				fallback={<Library class="h-5 w-5 shrink-0 text-brand" />}
+			>
+				<button
+					type="button"
+					ref={props.archiveButtonRef}
+					class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-brand transition hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+					onClick={props.onOpenArchive}
+					aria-label="查看学习档案"
+					title="学习档案"
+				>
+					<Library class="h-5 w-5" />
+				</button>
+			</Show>
 			<button
 				type="button"
 				class="flex items-center gap-2 rounded-xl bg-canvas px-3 py-2 text-[15px] font-semibold text-ink transition hover:bg-soft"

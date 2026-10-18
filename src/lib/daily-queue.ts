@@ -11,7 +11,7 @@ import type { Card } from "ts-fsrs";
 import type { BankEntry } from "./bank-types";
 import { wordKey } from "./bank-parse";
 import { parseCard, sameLocalDay } from "./srs";
-import type { StoredCards } from "./review-store";
+import type { StoredCards } from "./review-types";
 
 /** 「今天默几个」：默认 20，可调区间 5–100 */
 export const DEFAULT_TODAY_TARGET = 20;

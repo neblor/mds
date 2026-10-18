@@ -12,8 +12,9 @@ import type {
 	ManifestEntry,
 	WordBank,
 } from "./bank-types";
+import type { BankStatsView } from "./bank-stats";
 import { isValidBankId } from "./bank-types";
-import type { ReviewMode } from "./review-store";
+import type { ReviewMode } from "./review-types";
 
 /** 内置词库清单（随包发布的静态资源） */
 export const BUILTIN_MANIFEST_PATH = "/banks/manifest.json";
@@ -82,6 +83,17 @@ export interface ReviewCommitItemInput {
 	mode: ReviewMode;
 	genMode: "writing" | "cyber";
 	elapsedMs: number;
+}
+
+/** 一场的使用记录（书写也要记；correct 为 null） */
+export interface CommitSessionInput {
+	id: string;
+	genMode: "writing" | "cyber";
+	contentMode: ReviewMode;
+	words: string[];
+	correct: number | null;
+	activeMs: number;
+	wallMs: number;
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -251,6 +263,26 @@ export function commitReview(
 	bankId: string,
 	items: ReviewCommitItemInput[],
 	requestRetention?: number,
+	session?: CommitSessionInput,
 ): Promise<CommitView> {
-	return postJson("/api/review-commit", { bankId, items, requestRetention });
+	return postJson("/api/review-commit", {
+		bankId,
+		items,
+		requestRetention,
+		...(session ? { session } : {}),
+	});
 }
+
+/** 学习档案（只读；兼容模式会收到 503） */
+export function fetchBankStats(
+	bankId: string,
+	days = 180,
+): Promise<BankStatsView> {
+	const params = new URLSearchParams({
+		bankId,
+		days: String(days),
+	});
+	return requestJson<BankStatsView>(`/api/bank-stats?${params.toString()}`);
+}
+
+export type { BankStatsView };
