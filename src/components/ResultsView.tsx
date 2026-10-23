@@ -1,5 +1,5 @@
 import { For, Show, createMemo } from "solid-js";
-import { Check, X, Sparkles, Star, Volume2 } from "lucide-solid";
+import { Check, LayoutGrid, Sparkles, Star, Volume2, X } from "lucide-solid";
 import {
 	JUDGEMENT_NOTES,
 	correctCount,
@@ -11,6 +11,9 @@ import {
 	type ResultRow,
 } from "~/lib/results";
 import type { ContentMode } from "~/lib/state";
+import { tokensFromString } from "~/lib/phonetic-parse";
+import { isStressToken } from "~/lib/phonetic-symbols";
+import { createPhonemeAudio } from "~/lib/use-phoneme-audio";
 
 interface Props {
 	rows: ResultRow[];
@@ -31,12 +34,17 @@ interface Props {
 	footerHint?: string;
 	/** 追加到根节点的样式（历史弹窗内需 flex-1 min-h-0 配合 max-h 裁剪滚动） */
 	class?: string;
+	/** 结果页单词发音的停止入口（音素试听前互斥） */
+	onStopAudio?: () => void;
+	/** 音标模式：打开全屏音标表（结果页不暂停） */
+	onOpenChart?: () => void;
 }
 
 function labelOf(kind: ResultFieldKind): string {
 	if (kind === "definition") return "释义";
 	if (kind === "chinese") return "中文词";
 	if (kind === "sentence") return "整句";
+	if (kind === "phonetic") return "音标";
 	return "单词";
 }
 
@@ -332,11 +340,176 @@ function SentenceResultRow(props: {
 	);
 }
 
+/* ---------- 音标结果行：标准/我的 token 都带喇叭 ---------- */
+function PhoneticToken(props: {
+	token: string;
+	audioKey: string;
+	playing: boolean;
+	failed: boolean;
+	onPlay: (token: string, key: string) => void;
+}) {
+	const stress = () => isStressToken(props.token);
+	return (
+		<span class="inline-flex h-7 items-stretch overflow-hidden rounded-md border border-soft bg-surface">
+			<span class="flex items-center px-1.5 font-data text-[14px] text-ink">
+				{props.token}
+			</span>
+			<Show
+				when={!stress()}
+				fallback={
+					<span
+						class="flex w-6 items-center justify-center border-l border-soft text-[10px] text-ink-faint"
+						title="重音符号不发音"
+					>
+						·
+					</span>
+				}
+			>
+				<button
+					type="button"
+					class="flex w-6 items-center justify-center border-l border-soft text-ink-faint transition hover:bg-brand/10 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-40"
+					onClick={() => props.onPlay(props.token, props.audioKey)}
+					aria-label={`播放音素 ${props.token}`}
+					title={`播放音素 ${props.token}`}
+					aria-pressed={props.playing}
+					disabled={props.failed}
+				>
+					<Volume2
+						class={`h-3 w-3 ${
+							props.playing ? "animate-pulse text-brand" : ""
+						}`}
+					/>
+				</button>
+			</Show>
+		</span>
+	);
+}
+
+function PhoneticResultRow(props: {
+	row: ResultRow;
+	mode: "writing" | "cyber";
+	playingAudioName: string | null;
+	playingPhonemeKey: string | null;
+	isPhonemeFailed: (token: string) => boolean;
+	onPlayAudio: (audioName: string) => void;
+	onPlayPhoneme: (token: string, key: string) => void;
+}) {
+	const field = createMemo(() =>
+		props.row.fields.find((f) => f.kind === "phonetic"),
+	);
+	const expectedTokens = () => tokensFromString(field()?.expected ?? "");
+	const userTokens = () => tokensFromString(field()?.userValue ?? "");
+	const verdict = () =>
+		props.mode === "cyber" ? field()?.correct : undefined;
+	const bg = () => {
+		if (props.mode !== "cyber") return "bg-surface shadow-sm";
+		return verdict() ? "bg-ok-bg" : "bg-err-bg";
+	};
+	const playingWord = () =>
+		props.playingAudioName !== null &&
+		props.playingAudioName === props.row.audioName;
+
+	return (
+		<div class={`flex flex-col gap-2 rounded-lg px-4 py-3 ${bg()}`}>
+			<div class="flex items-center gap-2">
+				<Show when={verdict() !== undefined}>
+					{verdict() ? (
+						<Check class="h-4 w-4 shrink-0 text-ok" />
+					) : (
+						<X class="h-4 w-4 shrink-0 text-err" />
+					)}
+				</Show>
+				<span class="text-base font-semibold text-ink">
+					{props.row.word}
+				</span>
+				<span class="text-[12px] text-ink-faint">音标</span>
+				<button
+					type="button"
+					class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink-faint transition hover:bg-brand/10 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-35"
+					disabled={!props.row.audioName}
+					onClick={() => props.onPlayAudio(props.row.audioName)}
+					aria-label={`播放 ${props.row.word} 的发音`}
+					title={`播放 ${props.row.word} 的发音`}
+					aria-pressed={playingWord()}
+				>
+					<Volume2
+						class={`h-4 w-4 ${
+							playingWord() ? "animate-pulse text-brand" : ""
+						}`}
+					/>
+				</button>
+				<Show when={field()?.note}>
+					<span class="text-[11px] text-ink-faint">{field()?.note}</span>
+				</Show>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-1.5">
+				<span class="mr-0.5 text-[13px] text-ink-faint">标准</span>
+				<For each={expectedTokens()}>
+					{(token, index) => (
+						<PhoneticToken
+							token={token}
+							audioKey={`result-${props.row.word}-std-${index()}`}
+							playing={
+								props.playingPhonemeKey ===
+								`result-${props.row.word}-std-${index()}`
+							}
+							failed={props.isPhonemeFailed(token)}
+							onPlay={props.onPlayPhoneme}
+						/>
+					)}
+				</For>
+			</div>
+
+			<Show when={props.mode === "cyber"}>
+				<div class="flex flex-wrap items-center gap-1.5">
+					<span class="mr-0.5 text-[13px] text-ink-faint">我的</span>
+					<Show
+						when={userTokens().length > 0}
+						fallback={
+							<span class="text-[13px] text-ink-faint">（未填写）</span>
+						}
+					>
+						<For each={userTokens()}>
+							{(token, index) => (
+								<PhoneticToken
+									token={token}
+									audioKey={`result-${props.row.word}-user-${index()}`}
+									playing={
+										props.playingPhonemeKey ===
+										`result-${props.row.word}-user-${index()}`
+									}
+									failed={props.isPhonemeFailed(token)}
+									onPlay={props.onPlayPhoneme}
+								/>
+							)}
+						</For>
+					</Show>
+				</div>
+			</Show>
+
+			<Show when={props.row.note}>
+				<span class="text-[12px] text-ink-faint">{props.row.note}</span>
+			</Show>
+		</div>
+	);
+}
+
 export default function ResultsView(props: Props) {
 	const correct = createMemo(() => correctCount(props.rows));
 	const celebrate = createMemo(
 		() => props.mode === "cyber" && isAllCorrectRows(props.rows),
 	);
+	// 结果页/历史回看各自持有一个音素播放器；点 token 前先停单词发音，反之亦然
+	const phoneme = createPhonemeAudio();
+	const playWordAudio = (audioName: string) => {
+		phoneme.stop();
+		props.onPlayAudio(audioName);
+	};
+	const playPhoneme = (token: string, key: string) => {
+		props.onStopAudio?.();
+		phoneme.play(token, key);
+	};
 
 	return (
 		<div class={`flex h-full min-h-0 flex-col gap-4 p-7 ${props.class ?? ""}`}>
@@ -352,14 +525,27 @@ export default function ResultsView(props: Props) {
 						</span>
 					</Show>
 				</div>
-				<button type="button"
-					class="flex items-center gap-1 rounded-full bg-surface px-4 py-2 text-sm text-ink-soft shadow-sm transition hover:text-ink"
-					onClick={props.onClose}
-					aria-label="关闭"
-				>
-					关闭
-					<X class="h-[18px] w-[18px]" />
-				</button>
+				<div class="flex items-center gap-2">
+					<Show when={props.contentMode === "phonetic" && props.onOpenChart}>
+						<button
+							type="button"
+							class="flex items-center gap-1.5 rounded-full bg-surface px-3 py-2 text-[12px] text-ink-soft shadow-sm transition hover:text-ink"
+							onClick={() => props.onOpenChart?.()}
+							title="全屏查看音标表（F1）"
+						>
+							<LayoutGrid class="h-4 w-4 text-brand" />
+							音标表
+						</button>
+					</Show>
+					<button type="button"
+						class="flex items-center gap-1 rounded-full bg-surface px-4 py-2 text-sm text-ink-soft shadow-sm transition hover:text-ink"
+						onClick={props.onClose}
+						aria-label="关闭"
+					>
+						关闭
+						<X class="h-[18px] w-[18px]" />
+					</button>
+				</div>
 			</div>
 
 			{/* 全对庆祝 */}
@@ -372,21 +558,36 @@ export default function ResultsView(props: Props) {
 				<For each={props.rows}>
 					{(r) => (
 						<Show
-							when={r.fields.some((f) => f.kind === "sentence")}
+							when={r.fields.some((f) => f.kind === "phonetic")}
 							fallback={
-								<ResultRowItem
-									row={r}
-									mode={props.mode}
-									playingAudioName={props.playingAudioName}
-									onPlayAudio={props.onPlayAudio}
-								/>
+								<Show
+									when={r.fields.some((f) => f.kind === "sentence")}
+									fallback={
+										<ResultRowItem
+											row={r}
+											mode={props.mode}
+											playingAudioName={props.playingAudioName}
+											onPlayAudio={playWordAudio}
+										/>
+									}
+								>
+									<SentenceResultRow
+										row={r}
+										mode={props.mode}
+										playingAudioName={props.playingAudioName}
+										onPlayAudio={playWordAudio}
+									/>
+								</Show>
 							}
 						>
-							<SentenceResultRow
+							<PhoneticResultRow
 								row={r}
 								mode={props.mode}
 								playingAudioName={props.playingAudioName}
-								onPlayAudio={props.onPlayAudio}
+								playingPhonemeKey={phoneme.playingKey()}
+								isPhonemeFailed={phoneme.isFailed}
+								onPlayAudio={playWordAudio}
+								onPlayPhoneme={playPhoneme}
 							/>
 						</Show>
 					)}

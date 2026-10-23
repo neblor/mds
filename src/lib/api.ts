@@ -104,6 +104,61 @@ export async function requestDefinitions(
 	}
 }
 
+/**
+ * 一次请求用 AI 补全内置词典缺失的音标（只补缺失词）。
+ * 返回值是 token 数组变体；调用方仍要用 parsePhoneticVariants 再校验一次。
+ */
+export async function requestPhonetics(
+	words: string[],
+	settings: AppSettings,
+	signal: AbortSignal,
+): Promise<{
+	phonetics: Record<string, string[][]>;
+	missing?: string[];
+	warning?: string;
+}> {
+	try {
+		const res = await fetch("/api/phonetics", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				words,
+				baseUrl: settings.aiBaseUrl,
+				apiKey: settings.aiApiKey,
+				model: settings.aiModel,
+			}),
+			signal,
+		});
+		const data = (await res.json().catch(() => null)) as {
+			phonetics?: Record<string, string[][]>;
+			missing?: string[];
+			warning?: string;
+			error?: string;
+			message?: string;
+		} | null;
+		if (!data) {
+			throw new Error(
+				res.ok
+					? "音标服务返回了无法解析的内容，请重试"
+					: `音标请求失败（${res.status}）`,
+			);
+		}
+		if (!res.ok || data.error) {
+			throw new Error(
+				data.message || data.error || `音标请求失败（${res.status}）`,
+			);
+		}
+		return {
+			phonetics: data.phonetics ?? {},
+			...(data.missing ? { missing: data.missing } : {}),
+			...(data.warning ? { warning: data.warning } : {}),
+		};
+	} catch (err) {
+		if (err instanceof Error) throw err;
+		throw new Error("音标请求失败");
+	}
+}
+
 /** 一次请求获取全部单词的常用中文对应词 */
 export async function requestChineseWords(
 	words: string[],
@@ -356,6 +411,11 @@ export interface PlayOptions {
 	onAudioState: (playing: boolean) => void;
 	/** 媒体或播放失败一发生就通知；调用方可在快速推进前淘汰损坏缓存 */
 	onPlaybackFailure?: (failure: PlaybackFailure, failedUrl?: string) => void;
+	/**
+	 * 从序列的哪一项开始播（默认 0）。看音标表/音素试听后从「当前这一遍」恢复，
+	 * onPlay 仍回报绝对下标，状态行不会错位。
+	 */
+	startIndex?: number;
 }
 
 /**
@@ -382,7 +442,15 @@ export type PlaybackFailure = Extract<
  * 序列里可以是不同音频（短句轮：目标词 + 整句 ×2），失败时回调会带上出错的 URL
  */
 export function playWithIntervals(opts: PlayOptions): Promise<PlayOutcome> {
-	const { items, gapsMs, signal, onPlay, onAudioState, onPlaybackFailure } = opts;
+	const {
+		items,
+		gapsMs,
+		signal,
+		onPlay,
+		onAudioState,
+		onPlaybackFailure,
+		startIndex = 0,
+	} = opts;
 	return new Promise((resolve) => {
 		const audio = new Audio();
 		let stopped = false;
@@ -436,7 +504,7 @@ export function playWithIntervals(opts: PlayOptions): Promise<PlayOutcome> {
 				});
 			});
 		void (async () => {
-			for (let i = 0; i < items.length && !stopped; i++) {
+			for (let i = Math.max(0, startIndex); i < items.length && !stopped; i++) {
 				const item = items[i];
 				if (!item) continue;
 				onPlay(i);

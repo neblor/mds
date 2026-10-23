@@ -28,6 +28,12 @@ describe("准备完成文案", () => {
 		).toBe("6 个单词 · 语音已就绪 · 顺序已打乱 · 含释义");
 	});
 
+	it("音标：说看词拼音标", () => {
+		expect(
+			readyOverlaySummary({ count: 8, contentMode: "phonetic" }),
+		).toBe("8 个单词 · 语音已就绪 · 顺序已打乱 · 看单词拼音标");
+	});
+
 	it("组句：说题数与候选词，不提语音", () => {
 		const text = readyOverlaySummary({ count: 5, contentMode: "cloze" });
 		expect(text).toBe("5 道题 · 候选词已就绪 · 题序已打乱");

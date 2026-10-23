@@ -8181,8 +8181,8 @@
     {
       "type": "frame",
       "id": "U3MI6H",
-      "x": 0,
-      "y": 5900,
+      "x": 1240,
+      "y": 4920,
       "name": "18 · 词库页（词表模式）",
       "clip": true,
       "width": 1120,
@@ -8231,8 +8231,8 @@
     {
       "type": "frame",
       "id": "aJBVi",
-      "x": 1240,
-      "y": 5900,
+      "x": 2480,
+      "y": 4920,
       "name": "19 · 词库页（词表模式·无词表）",
       "clip": true,
       "width": 1120,
@@ -8302,8 +8302,8 @@
     {
       "type": "frame",
       "id": "SstHH",
-      "x": 2480,
-      "y": 5900,
+      "x": 3720,
+      "y": 4920,
       "name": "20 · 选择词表",
       "clip": true,
       "width": 1120,
@@ -9147,7 +9147,7 @@
     {
       "type": "frame",
       "id": "Baz1l",
-      "x": 3720,
+      "x": 0,
       "y": 5900,
       "name": "21 · 新建词表",
       "clip": true,
@@ -9414,8 +9414,8 @@
     {
       "type": "frame",
       "id": "I3tDdh",
-      "x": 0,
-      "y": 6880,
+      "x": 1240,
+      "y": 5900,
       "name": "22 · 自建词表详情",
       "clip": true,
       "width": 1120,
@@ -10408,8 +10408,8 @@
     {
       "type": "frame",
       "id": "PHD1I",
-      "x": 1240,
-      "y": 6880,
+      "x": 2480,
+      "y": 5900,
       "name": "23 · 资源词表详情",
       "clip": true,
       "width": 1120,
@@ -11069,8 +11069,8 @@
     {
       "type": "frame",
       "id": "lBuZr",
-      "x": 0,
-      "y": 7780,
+      "x": 3720,
+      "y": 5900,
       "name": "24 · 词库页（组句模式）",
       "clip": true,
       "width": 1120,
@@ -11146,7 +11146,7 @@
       "type": "frame",
       "id": "ztLId",
       "x": 0,
-      "y": 8680,
+      "y": 6880,
       "name": "25 · 默写准备中（组句·正在出题）",
       "clip": true,
       "width": 1120,
@@ -11306,8 +11306,8 @@
     {
       "type": "frame",
       "id": "A1hjzP",
-      "x": 0,
-      "y": 9580,
+      "x": 1240,
+      "y": 6880,
       "name": "26 · 准备失败（组句·AI 当前不可用）",
       "clip": true,
       "width": 1120,
@@ -11442,8 +11442,8 @@
     {
       "type": "frame",
       "id": "p4qVu",
-      "x": 0,
-      "y": 10480,
+      "x": 2480,
+      "y": 6880,
       "name": "27 · 默写中（组句轮）",
       "clip": true,
       "width": 1120,
@@ -12486,8 +12486,8 @@
     {
       "type": "frame",
       "id": "ujuPO",
-      "x": 0,
-      "y": 11380,
+      "x": 3720,
+      "y": 6880,
       "name": "28 · 默写结果（组句）",
       "clip": true,
       "width": 1120,
@@ -13267,7 +13267,7 @@
       "type": "frame",
       "id": "Z8UfY5",
       "x": 0,
-      "y": 12280,
+      "y": 7780,
       "name": "29 · 检查清单更新",
       "clip": true,
       "width": 1120,
@@ -13764,8 +13764,8 @@
     {
       "type": "frame",
       "id": "YCmTd",
-      "x": 0,
-      "y": 13200,
+      "x": 1240,
+      "y": 7780,
       "name": "30 · 学习档案（有数据）",
       "clip": true,
       "width": 1120,
@@ -17524,8 +17524,8 @@
     {
       "type": "frame",
       "id": "ceLlA",
-      "x": 0,
-      "y": 14120,
+      "x": 2480,
+      "y": 7780,
       "name": "31 · 学习档案（新库空态）",
       "clip": true,
       "width": 1120,
@@ -18161,8 +18161,8 @@
     {
       "type": "frame",
       "id": "Otroy",
-      "x": 0,
-      "y": 15040,
+      "x": 3720,
+      "y": 7780,
       "name": "32 · 学习档案（旧数据·无场次）",
       "clip": true,
       "width": 1120,
@@ -21729,8 +21729,8 @@
     {
       "type": "frame",
       "id": "tUUw8",
-      "x": 1240,
-      "y": 13280,
+      "x": 0,
+      "y": 8680,
       "name": "30a · 书本图标按钮态",
       "width": 480,
       "height": 240,
@@ -21960,6 +21960,3030 @@
           "fontFamily": "$font-body",
           "fontSize": 11,
           "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "id": "nCDeC",
+      "type": "ref",
+      "ref": "zae8o",
+      "name": "33 · 词库页（音标模式）",
+      "x": 1240,
+      "y": 8680,
+      "descendants": {
+        "Y93IAW": {
+          "type": "frame",
+          "id": "ijo04",
+          "name": "Controls",
+          "width": 1064,
+          "height": 43,
+          "gap": 12,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "N3X4NE",
+              "name": "Speed Selector",
+              "fill": "$surface",
+              "cornerRadius": 999,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#2E353B1F",
+                "offset": {
+                  "x": 0,
+                  "y": 1
+                },
+                "blur": 3
+              },
+              "gap": 4,
+              "padding": 4,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "N4kPjy",
+                  "name": "Speed 快",
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "padding": [
+                    8,
+                    16
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "D2HZj",
+                      "name": "Label",
+                      "fill": "$text-muted",
+                      "content": "快",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "o71my",
+                  "name": "Speed 中",
+                  "fill": "$primary",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "padding": [
+                    8,
+                    16
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "s8u3G",
+                      "name": "Label",
+                      "fill": "$text-inverse",
+                      "content": "中",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ckFGY",
+                  "name": "Speed 慢",
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "padding": [
+                    8,
+                    16
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "y3oeDR",
+                      "name": "Label",
+                      "fill": "$text-muted",
+                      "content": "慢",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "r25JA7",
+              "name": "Content Mode Slider",
+              "width": 430,
+              "height": 38,
+              "fill": "$surface-inverse",
+              "cornerRadius": 999,
+              "gap": 4,
+              "padding": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "YKvCD",
+                  "name": "Mode 单词",
+                  "width": "fill_container",
+                  "height": 30,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "iHIyS",
+                      "name": "Mode Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "type",
+                      "library": "lucide",
+                      "fill": "$text-muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "P4cwFS",
+                      "name": "Mode Label",
+                      "fill": "$text-muted",
+                      "content": "单词",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "M4FODc",
+                  "name": "Mode 释义",
+                  "width": "fill_container",
+                  "height": 30,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "PvNtm",
+                      "name": "Mode Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "book-open",
+                      "library": "lucide",
+                      "fill": "$text-muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "D9nDK",
+                      "name": "Mode Label",
+                      "fill": "$text-muted",
+                      "content": "释义",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "piQHn",
+                  "name": "Mode 中文词",
+                  "width": "fill_container",
+                  "height": 30,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "ANOXv",
+                      "name": "Mode Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "languages",
+                      "library": "lucide",
+                      "fill": "$text-muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "O07KLq",
+                      "name": "Mode Label",
+                      "fill": "$text-muted",
+                      "content": "中文词",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "J1mwZs",
+                  "name": "Mode 短句",
+                  "width": "fill_container",
+                  "height": 30,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "Ag6Qz",
+                      "name": "Mode Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "message-square-quote",
+                      "library": "lucide",
+                      "fill": "$text-muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Di5or",
+                      "name": "Mode Label",
+                      "fill": "$text-muted",
+                      "content": "短句",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "pYO4P",
+                  "name": "Mode 音标",
+                  "width": "fill_container",
+                  "height": 30,
+                  "fill": "$primary",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "I9IqaH",
+                      "name": "Mode Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "audio-lines",
+                      "library": "lucide",
+                      "fill": "$text-inverse"
+                    },
+                    {
+                      "type": "text",
+                      "id": "YtEtz",
+                      "name": "Mode Label",
+                      "fill": "$text-inverse",
+                      "content": "音标",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "e1uL1",
+                  "name": "Mode 组句",
+                  "width": "fill_container",
+                  "height": 30,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "F3fwnA",
+                      "name": "Mode Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "text-cursor-input",
+                      "library": "lucide",
+                      "fill": "$text-muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "qU891",
+                      "name": "Mode Label",
+                      "fill": "$text-muted",
+                      "content": "组句",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Nm3PW",
+              "name": "Mode Actions",
+              "width": 118,
+              "height": 35,
+              "fill": "$surface",
+              "cornerRadius": 12,
+              "stroke": "$surface-inverse",
+              "strokeWidth": 1.5,
+              "gap": 6,
+              "padding": [
+                0,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "ZeorX",
+                  "name": "Chart Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "layout-grid",
+                  "library": "lucide",
+                  "fill": "$primary"
+                },
+                {
+                  "type": "text",
+                  "id": "LVTKw",
+                  "name": "Chart Label",
+                  "fill": "$text-secondary",
+                  "content": "音标表",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "W3VhuF",
+                  "name": "F1 Badge",
+                  "fill": "$surface-inverse",
+                  "cornerRadius": 6,
+                  "padding": [
+                    2,
+                    6
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "U84Lvu",
+                      "name": "F1 Label",
+                      "fill": "$text-muted",
+                      "content": "F1",
+                      "fontFamily": "$font-data",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "sO7mD": {
+          "fill": "$brand-tint"
+        },
+        "Zy9hV": {
+          "fill": "$primary",
+          "content": "音标模式请用赛博默写：点选音标需要在屏幕上完成"
+        },
+        "aKfMy": {
+          "opacity": 0.45
+        }
+      }
+    },
+    {
+      "type": "frame",
+      "id": "kP3sq",
+      "x": 2480,
+      "y": 8680,
+      "name": "34 · 默写中（音标轮·空）",
+      "clip": true,
+      "width": 1120,
+      "height": 820,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 16,
+      "padding": 28,
+      "children": [
+        {
+          "type": "frame",
+          "id": "UZ4Sx",
+          "name": "Top Bar",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "Duuao",
+              "name": "Progress Pill",
+              "fill": "$surface",
+              "cornerRadius": 999,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#2E353B1F",
+                "offset": {
+                  "x": 0,
+                  "y": 1
+                },
+                "blur": 3
+              },
+              "gap": 8,
+              "padding": [
+                10,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "N1niAk",
+                  "name": "Progress Text",
+                  "fill": "$text-secondary",
+                  "content": "第 1 / 6 个",
+                  "fontFamily": "$font-data",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "MtTEK",
+              "name": "Speech Pill",
+              "fill": "$surface",
+              "cornerRadius": 999,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#2E353B1F",
+                "offset": {
+                  "x": 0,
+                  "y": 1
+                },
+                "blur": 3
+              },
+              "gap": 8,
+              "padding": [
+                10,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "i0pgLb",
+                  "name": "Volume Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "volume-2",
+                  "library": "lucide",
+                  "fill": "$primary"
+                },
+                {
+                  "type": "text",
+                  "id": "cV3YU",
+                  "name": "Speech Text",
+                  "fill": "$text-primary",
+                  "content": "播报 1/3",
+                  "fontFamily": "$font-data",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Z3Rpr6",
+              "name": "Chart Button",
+              "width": 118,
+              "height": 35,
+              "fill": "$surface",
+              "cornerRadius": 999,
+              "gap": 6,
+              "padding": [
+                0,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "cDEIm",
+                  "name": "Chart Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "layout-grid",
+                  "library": "lucide",
+                  "fill": "$primary"
+                },
+                {
+                  "type": "text",
+                  "id": "kj4in",
+                  "name": "Chart Label",
+                  "fill": "$text-secondary",
+                  "content": "音标表",
+                  "fontFamily": "$font-body",
+                  "fontSize": 12,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "aLmNA",
+                  "name": "F1 Badge",
+                  "fill": "$surface-inverse",
+                  "cornerRadius": 6,
+                  "padding": [
+                    2,
+                    6
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "y736O",
+                      "name": "F1 Label",
+                      "fill": "$text-muted",
+                      "content": "F1",
+                      "fontFamily": "$font-data",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "r3fo6",
+          "name": "Countdown Row",
+          "width": "fill_container",
+          "gap": 12,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "l4a2L",
+              "name": "Countdown Track",
+              "width": "fill_container",
+              "height": 10,
+              "fill": "$surface-inverse",
+              "cornerRadius": 999,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "Yvwv0",
+                  "name": "Countdown Fill",
+                  "width": 640,
+                  "height": 10,
+                  "fill": "$primary",
+                  "cornerRadius": 999
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "U85ws",
+              "name": "Countdown Number",
+              "fill": "$text-primary",
+              "textGrowth": "fixed-width-height",
+              "width": 60,
+              "height": 24,
+              "content": "12.6",
+              "textAlign": "right",
+              "fontFamily": "$font-data",
+              "fontSize": 17,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "xwTnZ",
+          "name": "Center",
+          "width": 1064,
+          "height": 179,
+          "layout": "vertical",
+          "gap": 12,
+          "children": [
+            {
+              "type": "frame",
+              "id": "eOiEO",
+              "name": "Word Card",
+              "width": "fill_container",
+              "height": 70,
+              "fill": "$surface",
+              "cornerRadius": 16,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#2E353B14",
+                "offset": {
+                  "x": 0,
+                  "y": 1
+                },
+                "blur": 4
+              },
+              "padding": [
+                12,
+                20
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "TttxA",
+                  "name": "Word Left",
+                  "layout": "vertical",
+                  "gap": 2,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "z69meB",
+                      "name": "Word Hint",
+                      "fill": "$text-muted",
+                      "content": "看单词，点选音标",
+                      "fontFamily": "$font-body",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "a9tij",
+                      "name": "Word",
+                      "fill": "$text-primary",
+                      "content": "apple",
+                      "fontFamily": "$font-heading",
+                      "fontSize": 30,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "nUaru",
+                  "name": "British Tag",
+                  "fill": "$brand-tint",
+                  "cornerRadius": 999,
+                  "padding": [
+                    4,
+                    12
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "k07XuL",
+                      "name": "British Label",
+                      "fill": "$primary",
+                      "content": "英式",
+                      "fontFamily": "$font-body",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "ua2gO",
+              "name": "Answer Strip",
+              "width": "fill_container",
+              "height": 62,
+              "fill": "$surface",
+              "cornerRadius": 16,
+              "stroke": "$surface-inverse",
+              "strokeWidth": 1.5,
+              "gap": 6,
+              "padding": [
+                8,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "LGonh",
+                  "name": "Answer Hint",
+                  "fill": "$text-muted",
+                  "content": "从下面点选音标，按顺序拼出这个词…",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "msMlj",
+              "name": "Pool Header",
+              "width": "fill_container",
+              "height": 20,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "hPA2Q",
+                  "name": "Pool Title",
+                  "fill": "$text-muted",
+                  "content": "音标池 · 左放入 / 右试听",
+                  "fontFamily": "$font-body",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "mxj4e",
+                  "name": "Pool Hint",
+                  "fill": "$text-muted",
+                  "content": "Enter 选取",
+                  "fontFamily": "$font-data",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "GO7yA",
+          "name": "Pool",
+          "width": 1064,
+          "height": 232,
+          "layout": "vertical",
+          "gap": 8,
+          "children": [
+            {
+              "type": "frame",
+              "id": "a5xkvO",
+              "name": "Pool Row 1",
+              "width": "fill_container",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "KThMB",
+                  "name": "Pool Tile r",
+                  "width": 125,
+                  "height": 44,
+                  "fill": "$surface",
+                  "cornerRadius": 12,
+                  "stroke": "$surface-inverse",
+                  "strokeWidth": 1.5,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Wn2dS",
+                      "name": "Tile Token",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "N8FVD",
+                          "name": "Token",
+                          "fill": "$text-primary",
+                          "content": "r",
+                          "fontFamily": "$font-data",
+                          "fontSize": 19,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Y4SyN",
+                      "name": "Tile Speaker",
+                      "width": 26,
+                      "height": "fill_container",
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": {
+                        "left": 1
+                      },
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "x9uXNS",
+                          "name": "Speaker",
+                          "width": 12,
+                          "height": 12,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Oh44K",
+                  "name": "Pool Tile ʌ",
+                  "width": 125,
+                  "height": 44,
+                  "fill": "$surface",
+                  "cornerRadius": 12,
+                  "stroke": "$surface-inverse",
+                  "strokeWidth": 1.5,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "MtKAC",
+                      "name": "Tile Token",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "YoQc6",
+                          "name": "Token",
+                          "fill": "$text-primary",
+                          "content": "ʌ",
+                          "fontFamily": "$font-data",
+                          "fontSize": 19,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "xkqMi",
+                      "name": "Tile Speaker",
+                      "width": 26,
+                      "height": "fill_container",
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": {
+                        "left": 1
+                      },
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "ZMa5T",
+                          "name": "Speaker",
+                          "width": 12,
+                          "height": 12,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "krUdo",
+                  "name": "Pool Tile ˈ",
+                  "width": 125,
+                  "height": 44,
+                  "fill": "$surface",
+                  "cornerRadius": 12,
+                  "stroke": "$surface-inverse",
+                  "strokeWidth": 1.5,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "b2SBIv",
+                      "name": "Tile Token",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "uq9S8",
+                          "name": "Token",
+                          "fill": "$text-primary",
+                          "content": "ˈ",
+                          "fontFamily": "$font-data",
+                          "fontSize": 19,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Hy3e4",
+                      "name": "Stress Dot",
+                      "width": 26,
+                      "height": "fill_container",
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": {
+                        "left": 1
+                      },
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "ZP24H",
+                          "name": "Dot",
+                          "fill": "$text-muted",
+                          "content": "·",
+                          "fontFamily": "$font-body",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "t6VIZ",
+                  "name": "Pool Tile p",
+                  "width": 125,
+                  "height": 44,
+                  "fill": "$surface",
+                  "cornerRadius": 12,
+                  "stroke": "$surface-inverse",
+                  "strokeWidth": 1.5,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "R0GbXW",
+                      "name": "Tile Token",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "zo8Hn",
+                          "name": "Token",
+                          "fill": "$text-primary",
+                          "content": "p",
+                          "fontFamily": "$font-data",
+                          "fontSize": 19,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "U4YMU",
+                      "name": "Tile Speaker",
+                      "width": 26,
+                      "height": "fill_container",
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": {
+                        "left": 1
+                      },
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "s8gEai",
+                          "name": "Speaker",
+                          "width": 12,
+                          "height": 12,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "d5h3Mm",
+                  "name": "Pool Tile l",
+                  "width": 125,
+                  "height": 44,
+                  "fill": "$surface",
+                  "cornerRadius": 12,
+                  "stroke": "$surface-inverse",
+                  "strokeWidth": 1.5,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "CIQnC",
+                      "name": "Tile Token",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "lz1Jb",
+                          "name": "Token",
+                          "fill": "$text-primary",
+                          "content": "l",
+                          "fontFamily": "$font-data",
+                          "fontSize": 19,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "e4czC",
+                      "name": "Tile Speaker",
+                      "width": 26,
+                      "height": "fill_container",
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": {
+                        "left": 1
+                      },
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "zxxrX",
+                          "name": "Speaker",
+                          "width": 12,
+                          "height": 12,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "uxSBx",
+                  "name": "Pool Tile ə",
+                  "width": 125,
+                  "height": 44,
+                  "fill": "$surface",
+                  "cornerRadius": 12,
+                  "stroke": "$surface-inverse",
+                  "strokeWidth": 1.5,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "aMr6K",
+                      "name": "Tile Token",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "u0Krod",
+                          "name": "Token",
+                          "fill": "$text-primary",
+                          "content": "ə",
+                          "fontFamily": "$font-data",
+                          "fontSize": 19,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "c4YhE",
+                      "name": "Tile Speaker",
+                      "width": 26,
+                      "height": "fill_container",
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": {
+                        "left": 1
+                      },
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "S3DHum",
+                          "name": "Speaker",
+                          "width": 12,
+                          "height": 12,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "munil",
+                  "name": "Pool Tile e",
+                  "width": 125,
+                  "height": 44,
+                  "fill": "$surface",
+                  "cornerRadius": 12,
+                  "stroke": "$surface-inverse",
+                  "strokeWidth": 1.5,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "gO5xg",
+                      "name": "Tile Token",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "JftF5",
+                          "name": "Token",
+                          "fill": "$text-primary",
+                          "content": "e",
+                          "fontFamily": "$font-data",
+                          "fontSize": 19,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "B55bg",
+                      "name": "Tile Speaker",
+                      "width": 26,
+                      "height": "fill_container",
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": {
+                        "left": 1
+                      },
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "xEqro",
+                          "name": "Speaker",
+                          "width": 12,
+                          "height": 12,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "GJA29",
+                  "name": "Pool Tile ɜː",
+                  "width": 125,
+                  "height": 44,
+                  "fill": "$surface",
+                  "cornerRadius": 12,
+                  "stroke": "$surface-inverse",
+                  "strokeWidth": 1.5,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "EHTnP",
+                      "name": "Tile Token",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n1oGU",
+                          "name": "Token",
+                          "fill": "$text-primary",
+                          "content": "ɜː",
+                          "fontFamily": "$font-data",
+                          "fontSize": 19,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Nww9g",
+                      "name": "Tile Speaker",
+                      "width": 26,
+                      "height": "fill_container",
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": {
+                        "left": 1
+                      },
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "mqFTe",
+                          "name": "Speaker",
+                          "width": 12,
+                          "height": 12,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "h2fDR",
+              "name": "Pool Row 2",
+              "width": "fill_container",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "tfZP8",
+                  "name": "Pool Tile æ",
+                  "width": 125,
+                  "height": 44,
+                  "fill": "$surface",
+                  "cornerRadius": 12,
+                  "stroke": "$surface-inverse",
+                  "strokeWidth": 1.5,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "V7xL6",
+                      "name": "Tile Token",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "qu6LC",
+                          "name": "Token",
+                          "fill": "$text-primary",
+                          "content": "æ",
+                          "fontFamily": "$font-data",
+                          "fontSize": 19,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "r13RtL",
+                      "name": "Tile Speaker",
+                      "width": 26,
+                      "height": "fill_container",
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": {
+                        "left": 1
+                      },
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "Gw9T3",
+                          "name": "Speaker",
+                          "width": 12,
+                          "height": 12,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "s7FKB",
+          "name": "Status Line",
+          "width": 1064,
+          "height": 24,
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "oeOtG",
+              "name": "Status Text",
+              "fill": "$text-muted",
+              "content": "点选音标 · Enter 选取 · Shift+Enter 试听 · Backspace 撤销 · Ctrl+Enter 提交",
+              "fontFamily": "$font-body",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "j2Eh1Y",
+          "name": "Phonetic Actions",
+          "width": 1064,
+          "height": 56,
+          "fill": "$bg",
+          "gap": 12,
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "Pp8Th",
+              "name": "Clear Button",
+              "width": 100,
+              "height": 44,
+              "fill": "$surface",
+              "cornerRadius": 12,
+              "stroke": "$surface-inverse",
+              "strokeWidth": 1.5,
+              "gap": 6,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "k4wLb",
+                  "name": "Clear Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "trash-2",
+                  "library": "lucide",
+                  "fill": "$text-secondary"
+                },
+                {
+                  "type": "text",
+                  "id": "mecY6",
+                  "name": "Clear Label",
+                  "fill": "$text-secondary",
+                  "content": "清空",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "t7cO1",
+              "name": "Submit Button",
+              "width": 150,
+              "height": 44,
+              "fill": "$primary",
+              "cornerRadius": 12,
+              "gap": 6,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "TQxuk",
+                  "name": "Submit Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "check",
+                  "library": "lucide",
+                  "fill": "$text-inverse"
+                },
+                {
+                  "type": "text",
+                  "id": "S5XIW",
+                  "name": "Submit Label",
+                  "fill": "$text-inverse",
+                  "content": "提交",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "nDgqy",
+                  "name": "Submit Hint",
+                  "fill": "#FFFFFFB3",
+                  "content": "Ctrl+Enter",
+                  "fontFamily": "$font-data",
+                  "fontSize": 10,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "dShmu",
+      "x": 3720,
+      "y": 8680,
+      "name": "35 · 默写结果（音标）",
+      "clip": true,
+      "width": 1120,
+      "height": 820,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 16,
+      "padding": 28,
+      "children": [
+        {
+          "type": "frame",
+          "id": "D7nQU8",
+          "name": "Results Head",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "s88gS",
+              "name": "Title Group",
+              "gap": 14,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "mpFDh",
+                  "name": "Title",
+                  "fill": "$text-primary",
+                  "content": "默写结果",
+                  "fontFamily": "$font-heading",
+                  "fontSize": 24,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "gMZHt",
+                  "name": "Score Pill",
+                  "fill": "$surface-inverse",
+                  "cornerRadius": 999,
+                  "padding": [
+                    10,
+                    16
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Ahk4l",
+                      "name": "Score",
+                      "fill": "$text-primary",
+                      "content": "1 / 2",
+                      "fontFamily": "$font-data",
+                      "fontSize": 20,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "hGfJ9",
+              "name": "Chart Button",
+              "width": 118,
+              "height": 35,
+              "fill": "$surface",
+              "cornerRadius": 999,
+              "gap": 6,
+              "padding": [
+                0,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "I4FsX",
+                  "name": "Chart Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "layout-grid",
+                  "library": "lucide",
+                  "fill": "$primary"
+                },
+                {
+                  "type": "text",
+                  "id": "nrn1Y",
+                  "name": "Chart Label",
+                  "fill": "$text-secondary",
+                  "content": "音标表",
+                  "fontFamily": "$font-body",
+                  "fontSize": 12,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "J7AsAh",
+                  "name": "F1 Badge",
+                  "fill": "$surface-inverse",
+                  "cornerRadius": 6,
+                  "padding": [
+                    2,
+                    6
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "mTCkp",
+                      "name": "F1 Label",
+                      "fill": "$text-muted",
+                      "content": "F1",
+                      "fontFamily": "$font-data",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "EY9cQ",
+              "name": "Close Button",
+              "fill": "$surface",
+              "cornerRadius": 999,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#2E353B1F",
+                "offset": {
+                  "x": 0,
+                  "y": 1
+                },
+                "blur": 3
+              },
+              "gap": 6,
+              "padding": [
+                10,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "w9wbR",
+                  "name": "Close Label",
+                  "fill": "$text-secondary",
+                  "content": "关闭",
+                  "fontFamily": "$font-body",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "icon",
+                  "id": "PdyrV",
+                  "name": "Close Icon",
+                  "width": 18,
+                  "height": 18,
+                  "icon": "x",
+                  "library": "lucide",
+                  "fill": "$text-secondary"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "PE7iF",
+          "name": "Answer List",
+          "width": 1064,
+          "height": 470,
+          "layout": "vertical",
+          "gap": 8,
+          "children": [
+            {
+              "type": "frame",
+              "id": "G2WvY",
+              "name": "Phonetic Row apple",
+              "width": "fill_container",
+              "fill": "$success-bg",
+              "cornerRadius": 8,
+              "layout": "vertical",
+              "gap": 8,
+              "padding": [
+                12,
+                16
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "PaNph",
+                  "name": "Row Header",
+                  "width": "fill_container",
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "qjLZg",
+                      "name": "Status",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "check",
+                      "library": "lucide",
+                      "fill": "$success"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Vt7Xm",
+                      "name": "Word",
+                      "fill": "$text-primary",
+                      "content": "apple",
+                      "fontFamily": "$font-body",
+                      "fontSize": 16,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "flF1r",
+                      "name": "Kind",
+                      "fill": "$text-muted",
+                      "content": "音标",
+                      "fontFamily": "$font-body",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "vEMF2",
+                      "name": "Word Speaker",
+                      "width": 28,
+                      "height": 28,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "qwH5q",
+                          "name": "Speaker",
+                          "width": 15,
+                          "height": 15,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "nLMDd",
+                  "name": "Standard Row",
+                  "width": "fill_container",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "MQWIp",
+                      "name": "Standard Label",
+                      "fill": "$text-muted",
+                      "content": "标准",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "YrLQg",
+                      "name": "Token ˈ",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "UV5v0",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "M65fY",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "ˈ",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "OreYO",
+                          "name": "Stress Dot",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "g0d36",
+                              "name": "Dot",
+                              "fill": "$text-muted",
+                              "content": "·",
+                              "fontFamily": "$font-body",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "JPvbb",
+                      "name": "Token æ",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "RjA0Z",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "f4a5eY",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "æ",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Q8MG4W",
+                          "name": "Token Speaker",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "Ozmts",
+                              "name": "Speaker",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$text-muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "pxCsu",
+                      "name": "Token p",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "YNhR9",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "sh136",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "p",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "kWfSJ",
+                          "name": "Token Speaker",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "M1LNo6",
+                              "name": "Speaker",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$text-muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "R5xzpy",
+                      "name": "Token ə",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "XMmO8",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "OGWIe",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "ə",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "SRviE",
+                          "name": "Token Speaker",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "kVJ4R",
+                              "name": "Speaker",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$text-muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "a0rNw",
+                      "name": "Token l",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "EsKG2",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "yRdkL",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "l",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "WG6tw",
+                          "name": "Token Speaker",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "GiHQ7",
+                              "name": "Speaker",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$text-muted"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "M6yqWk",
+                  "name": "User Row",
+                  "width": "fill_container",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "juwTZ",
+                      "name": "User Label",
+                      "fill": "$text-muted",
+                      "content": "我的",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Q2VNeL",
+                      "name": "Token ˈ",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Xth3p",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "VLwBL",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "ˈ",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "qXwWu",
+                          "name": "Stress Dot",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "U2zpWE",
+                              "name": "Dot",
+                              "fill": "$text-muted",
+                              "content": "·",
+                              "fontFamily": "$font-body",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "GZhHp",
+                      "name": "Token æ",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "JHwDA",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "GMY6c",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "æ",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "BY3Bm",
+                          "name": "Token Speaker",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "k3aOYe",
+                              "name": "Speaker",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$text-muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "TZOZc",
+                      "name": "Token p",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "fsAlc",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "tJCPn",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "p",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "ykIwV",
+                          "name": "Token Speaker",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "LrPmJ",
+                              "name": "Speaker",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$text-muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Tx5TV",
+                      "name": "Token ə",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "asP4l",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "XcZAV",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "ə",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Tz7UP",
+                          "name": "Token Speaker",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "l2cDDa",
+                              "name": "Speaker",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$text-muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "VUom9",
+                      "name": "Token l",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "GAqls",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "nvPRU",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "l",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "YqqIE",
+                          "name": "Token Speaker",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "YcY4W",
+                              "name": "Speaker",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$text-muted"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "qH1mg",
+              "name": "Phonetic Row water",
+              "width": "fill_container",
+              "fill": "$error-bg",
+              "cornerRadius": 8,
+              "layout": "vertical",
+              "gap": 8,
+              "padding": [
+                12,
+                16
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "G51BK",
+                  "name": "Row Header",
+                  "width": "fill_container",
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "B3md2q",
+                      "name": "Status",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "x",
+                      "library": "lucide",
+                      "fill": "$error"
+                    },
+                    {
+                      "type": "text",
+                      "id": "L9fA3",
+                      "name": "Word",
+                      "fill": "$text-primary",
+                      "content": "water",
+                      "fontFamily": "$font-body",
+                      "fontSize": 16,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "j8k7x",
+                      "name": "Kind",
+                      "fill": "$text-muted",
+                      "content": "音标",
+                      "fontFamily": "$font-body",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "BoVD1",
+                      "name": "Word Speaker",
+                      "width": 28,
+                      "height": 28,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "k4Gxm",
+                          "name": "Speaker",
+                          "width": 15,
+                          "height": 15,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "q4wzl",
+                      "x": 146,
+                      "y": 6,
+                      "name": "AI Note",
+                      "enabled": false,
+                      "fill": "$text-muted",
+                      "content": "本词没有可用音标，按单词默写",
+                      "fontFamily": "$font-body",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "I96KD",
+                  "name": "Standard Row",
+                  "width": "fill_container",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "mUTYZ",
+                      "name": "Standard Label",
+                      "fill": "$text-muted",
+                      "content": "标准",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "SqUUo",
+                      "name": "Token ˈ",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "UC3oN",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "x8cSCT",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "ˈ",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "TDGw5",
+                          "name": "Stress Dot",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "pwXNz",
+                              "name": "Dot",
+                              "fill": "$text-muted",
+                              "content": "·",
+                              "fontFamily": "$font-body",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "qgHLw",
+                      "name": "Token w",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "aKUir",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "gMc1i",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "w",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "kPNKo",
+                          "name": "Token Speaker",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "dyTRl",
+                              "name": "Speaker",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$text-muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "dHSaz",
+                      "name": "Token ɔː",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "S07oC0",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "C6DJW",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "ɔː",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "C81GG",
+                          "name": "Token Speaker",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "JfDTg",
+                              "name": "Speaker",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$text-muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "DnmpO",
+                      "name": "Token t",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "HtNPg",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "nOIPX",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "t",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "oh8YU",
+                          "name": "Token Speaker",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "nmrUT",
+                              "name": "Speaker",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$text-muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "PEMfP",
+                      "name": "Token ə",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "lJc8W",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "wzAhJ",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "ə",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "JruH7",
+                          "name": "Token Speaker",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "rnY6s",
+                              "name": "Speaker",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$text-muted"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "YZ1Fn",
+                  "name": "User Row",
+                  "width": "fill_container",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "S95ix",
+                      "name": "User Label",
+                      "fill": "$text-muted",
+                      "content": "我的",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "XEnjt",
+                      "name": "Token ˈ",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "jM7Sj",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "mrVT7",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "ˈ",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Sifes",
+                          "name": "Stress Dot",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "s6EOv",
+                              "name": "Dot",
+                              "fill": "$text-muted",
+                              "content": "·",
+                              "fontFamily": "$font-body",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "zrVm9",
+                      "name": "Token w",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "YUm7K",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "DriHU",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "w",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "RLahI",
+                          "name": "Token Speaker",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "aejAv",
+                              "name": "Speaker",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$text-muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "CUaRx",
+                      "name": "Token ɔː",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "O9rGVB",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Y0pqCb",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "ɔː",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "WAmht",
+                          "name": "Token Speaker",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "H167h",
+                              "name": "Speaker",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$text-muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "xTkzL",
+                      "name": "Token t",
+                      "height": 28,
+                      "fill": "$surface",
+                      "cornerRadius": 6,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "WCAyO",
+                          "name": "Token Label",
+                          "padding": [
+                            0,
+                            6
+                          ],
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Gs379",
+                              "name": "Token Text",
+                              "fill": "$text-primary",
+                              "content": "t",
+                              "fontFamily": "$font-data",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "AG9hq",
+                          "name": "Token Speaker",
+                          "width": 22,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "Zuj2c",
+                              "name": "Speaker",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$text-muted"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "CEhbT",
+          "name": "Spacer",
+          "width": "fill_container",
+          "height": "fill_container"
+        },
+        {
+          "type": "frame",
+          "id": "DfS5y",
+          "name": "Judgement Notes",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 2,
+          "alignItems": "end",
+          "children": [
+            {
+              "type": "text",
+              "id": "oO1BU",
+              "name": "Note",
+              "fill": "$text-muted",
+              "content": "音标判定：按音素序列比对，主重音必须正确，次重音不参与判定；同词多读音任一匹配即算对",
+              "fontFamily": "$font-body",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "FFoQh",
+              "name": "Schedule Note",
+              "fill": "$primary",
+              "content": "已更新复习计划 · 2 个词明天再见",
+              "fontFamily": "$font-body",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "aBf1k",
+          "name": "Footer Hint",
+          "fill": "$text-muted",
+          "textGrowth": "fixed-width",
+          "width": "fill_container",
+          "content": "关闭后回到词库，单词保留；要重默直接点开始，要清空点清空",
+          "textAlign": "center",
+          "fontFamily": "$font-body",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "O0ve9y",
+      "x": 3720,
+      "y": 9600,
+      "name": "36 · 全屏音标表",
+      "clip": true,
+      "width": 1280,
+      "height": 800,
+      "fill": [
+        "#0b1220",
+        {
+          "type": "image",
+          "enabled": true,
+          "url": "../public/ipa/phonetic-symbols.png",
+          "mode": "contain"
+        }
+      ],
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "Qwj3J",
+          "x": 470,
+          "y": 744,
+          "name": "Close Hint",
+          "width": 340,
+          "height": 32,
+          "fill": "#FFFFFF1A",
+          "cornerRadius": 999,
+          "padding": [
+            6,
+            16
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "s7IKGe",
+              "name": "Hint Text",
+              "fill": "#FFFFFFB3",
+              "content": "默写已暂停 · 按任意键或点击关闭",
+              "fontFamily": "$font-body",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
         }
       ]
     }

@@ -463,3 +463,80 @@
   若要真实逐空耗时，需要在 `ClozeView` 里记录每个空提交时刻。
 - **触发条件**：`review_log.elapsed_ms` 被用于「按空耗时」分析时（FUTURE §八.6）。
 - **代价/前置**：客户端新增逐空计时（纯 UI 状态，不改表）。
+
+## 十、音标模式（Agent 记录，2026-10-23 实施后）
+
+### 1. Pencil 第六批画板（`.pen`）**已完成 2026-10-23**
+
+- **已完成**：Pencil MCP 恢复后，第六批 **33–36** 已切进 `.design/mds.pen`：
+  33 词库页（音标模式）、34 默写中（音标轮·空）、35 默写结果（音标 1/2）、36 全屏音标表。
+  四张 Web 截图仍保留在 `.design/` 对照真实交互。
+- **2026-10-23 评审修复**：方向键上下步长改为按实际列数（`columnsForWidth` + DOM 实测），
+  修掉「放入后 tile 变 disabled → 焦点掉到 body → 键盘流第一块就断」的缺陷
+  （焦点顺延到下一个可用块，全放完落根容器仍可 Ctrl+Enter）。
+- **2026-10-23 反馈已处理**：① 不加重听，app 把单词/答案/池子整体顶部对齐；
+  ② 池子 125px 固定宽度 tile 自动换行（8 列）、min-height 232、底部操作条贴底/背景/z 高于池子；
+  ③ 结果行保持现状；④ Web 标题不改（独立窗口）。`.pen` 34 的 8 列/125 固定 tile 保留示意；
+  `.pen` 的 flex 自动排布使组节点 x/y 无效，组位置以 app 为准。
+- **相关落点**：`.design/mds.pen` 33–36、`.design/phonetic-mode.md`、`.design/mds.md` 第六批。
+
+### 1b. 池子被底部操作条遮挡时的可达性（2026-10-23 评审记录）
+
+- **现状**：按崔总要求，池子行数超出可视高度时藏到底部操作条后面被遮挡（不顶坏页面结构）。
+  池子上限 `PHONETIC_POOL_MAX = 20`，1120 窗口 8 列 = 3 行 148px、最小窗口 5 列 = 4 行 200px，
+  都小于 `min-height 232`，当前实际到不了遮挡状态。
+- **待办**：若以后放宽池子上限、或窗口更矮，被遮挡的 tile 虽然点不到但仍能被 Tab 聚焦（焦点落在
+  不可见区域）。届时应改成池子内部滚动（`overflow-y-auto` + 底部留白 = 操作条高度）或分页。
+- **触发条件**：池子上限提高 / 出现「键盘 Tab 到看不见的音标块」的反馈。
+- **相关落点**：`src/components/PhoneticView.tsx`（池子与底部操作条）、`src/lib/phonetic-pool.ts`。
+
+### 2. 音素音频质量复核 / 备选音源
+
+- **做什么**：Commons 辅音源多为「辅音 + 元音」示范，8 个双元音是拼接的，说话人口音不全是 RP。
+  当前以「音素示范」标注交付；若用户觉得听感不够干净，可换 eSpeak-ng（机器音、许可简单）、
+  Piper en_GB（神经音、需模型/许可核对）或自录/委托英式发音。
+- **触发条件**：崔总试听 `public/ipa/audio/v1/preview.html` 后认为音质不可接受，或用户反馈「听不清某个音」。
+- **代价/前置**：换源要重跑 `pnpm build:phoneme-audio`、更新 `scripts/data/phoneme-audio-sources.json`、
+  `public/ipa/audio/v1/LICENSE.md` 与 `THIRD_PARTY_NOTICES.md`；播放器/池子不用改。
+- **相关落点**：`plans/phonetic-audio-research.md`、`scripts/build-phoneme-audio.mjs`。
+
+### 3. AI 音标真实 20 词回归/人工抽检
+
+- **做什么**：provider/service 单测已覆盖合法/非法 token、缺失不写负缓存、model 失效、写后复读，
+  但都是合成响应；再用真实 AI 跑至少 20 个词典未收录词（可用 `pnpm get:phonetics`），人工抽检
+  RP 准确性/主重音/多读音，记录通过率与典型错误，必要时调提示词（promptVersion +1）。
+- **触发条件**：首次真实使用 AI 兜底，或用户反馈某个 AI 音标明显错误。
+- **代价/前置**：需要 `.env` 的 AI 配置；不写业务缓存；提示词版本变化会让 `phonetics.json` 失效重取。
+- **相关落点**：`src/lib/phonetic-provider.ts`、`phonetic-service.ts`、`scripts/get-phonetics.mjs`。
+
+### 4. 历史结果页的音标表按钮
+
+- **做什么**：主结果页有「音标表」按钮；历史回看的 `ResultsView` 只依赖全局 F1（且只在当前内容模式为音标时）。
+  若希望历史音标场次也能点按钮开表，需要给 `HistoryScreen` 传 `onOpenChart`。
+- **触发条件**：用户反馈「历史里想对照音标表但找不到入口」。
+- **代价/前置**：`ResultsView` 已支持 `onOpenChart`，只差 HistoryScreen 传参；注意历史打开时 `phase` 不是 dictating，不暂停。
+- **相关落点**：`src/components/HistoryScreen.tsx`。
+
+### 5. IPA 字形回退（尤其 θ）
+
+- **做什么**：本机 Sarasa 字体对 IPA 覆盖除 `θ`（U+03B8）外齐全；当前依赖系统回退。
+  若要完全可控，可随包带一个只含 IPA 子集的小字体，或把 θ 映射到 U+0278（ɸ）等不推荐做法。
+- **触发条件**：换字体/跨平台打包后发现 θ 或其它音标显示为豆腐块/风格不一致。
+- **代价/前置**：字体子集化与许可；不能直接改音标 token（会破坏词典/判定）。
+- **相关落点**：`src/app.css` 字体变量、`public/ipa`。
+
+### 6. Electron 全屏窗口的平台验证
+
+- **做什么**：`setWindowOpenHandler` + `overrideBrowserWindowOptions` 已在主进程实现并有纯函数测试；
+  但本轮只在 Web 验证了弹窗/暂停/关闭，Electron 的无边框全屏、Alt+F4 关闭、焦点返回需要在 Windows 包上人工过一遍。
+- **触发条件**：下一次 `pnpm client:package test` 或正式发布前。
+- **代价/前置**：需要 Wine/Windows 环境；若 override 不生效，已 `did-create-window` 兜底 `setFullScreen(true)`。
+- **相关落点**：`electron/main.mjs`、`electron/window-options.mjs`、`plans/phonetic-mode.md` §3.6.2。
+
+### 7. 音标轮组件键盘 E2E
+
+- **做什么**：纯逻辑（池子/解析/判定/计时/播放器）已单测，面板键盘流本轮用 Playwright 人工跑通；
+  若以后频繁改键盘，可补一条轻量 E2E：roving tabindex、Shift+Enter、Backspace、Ctrl+Enter、F1 暂停/恢复。
+- **触发条件**：键盘交互改动频繁或出现回归。
+- **代价/前置**：项目无组件测试库；需保持浏览器自动化稳定，不能把时间耗在不稳定 E2E 上（AGENTS 口径）。
+- **相关落点**：`src/components/PhoneticView.tsx`、`.design/phonetic-mode.md`。

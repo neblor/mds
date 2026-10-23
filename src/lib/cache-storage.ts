@@ -32,6 +32,9 @@ export interface RuntimeCacheStorage {
 	/** 短句模式的「英文单词 → 短句」（与释义分开文件，格式演进互不牵连） */
 	readSentences(): unknown | undefined;
 	writeSentences(value: unknown): void;
+	/** 音标模式 AI 兜底的「英文单词 → 音素 token 变体」缓存 */
+	readPhonetics(): unknown | undefined;
+	writePhonetics(value: unknown): void;
 	/**
 	 * 失效若干词的短句缓存（大小写不敏感），返回真正删掉的条数。
 	 * 文件缺失/损坏/结构不认识时返回 0（不抛错），其余词与 model/contentLevel 原样保留。
@@ -53,6 +56,7 @@ export class FileSystemRuntimeCacheStorage implements RuntimeCacheStorage {
 	readonly definitionsPath: string;
 	readonly chineseWordsPath: string;
 	readonly sentencesPath: string;
+	readonly phoneticsPath: string;
 
 	constructor(
 		readonly mode: RuntimeMode,
@@ -62,6 +66,7 @@ export class FileSystemRuntimeCacheStorage implements RuntimeCacheStorage {
 		this.definitionsPath = join(rootDir, "definitions.json");
 		this.chineseWordsPath = join(rootDir, "chinese-words.json");
 		this.sentencesPath = join(rootDir, "sentences.json");
+		this.phoneticsPath = join(rootDir, "phonetics.json");
 	}
 
 	private audioPath(name: string): string {
@@ -130,6 +135,14 @@ export class FileSystemRuntimeCacheStorage implements RuntimeCacheStorage {
 
 	writeSentences(value: unknown): void {
 		writeJsonAtomic(this.sentencesPath, value);
+	}
+
+	readPhonetics(): unknown | undefined {
+		return readJsonFile(this.phoneticsPath);
+	}
+
+	writePhonetics(value: unknown): void {
+		writeJsonAtomic(this.phoneticsPath, value);
 	}
 
 	removeSentences(words: string[]): number {

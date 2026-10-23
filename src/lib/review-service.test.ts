@@ -717,3 +717,52 @@ describe("commitReviews", () => {
 		expect(run(high, 0.97)).toBeLessThanOrEqual(run(low, 0.7));
 	});
 });
+
+describe("音标写回", () => {
+	it("音标轮记 phonetic，降级单词轮记 word", () => {
+		const rows = buildResultRows(
+			[
+				{
+					kind: "phonetic",
+					word: "apple",
+					audioName: "apple.mp3",
+					expected: "ˈ æ p ə l",
+					variants: ["ˈ æ p ə l"],
+					source: "dict",
+					answerTokens: ["ˈ", "æ", "p", "ə", "l"],
+				},
+				{
+					kind: "word",
+					word: "banana",
+					audioName: "banana.mp3",
+					variant: "word",
+					answer: "banana",
+				},
+			],
+			"cyber",
+			"phonetic",
+		);
+		const items = buildCommitItems({
+			rows,
+			mode: "phonetic",
+			genMode: "cyber",
+			elapsedMs: [4000, 2000],
+		});
+		expect(items).toEqual([
+			{
+				word: "apple",
+				correct: true,
+				mode: "phonetic",
+				genMode: "cyber",
+				elapsedMs: 4000,
+			},
+			{
+				word: "banana",
+				correct: true,
+				mode: "word",
+				genMode: "cyber",
+				elapsedMs: 2000,
+			},
+		]);
+	});
+});

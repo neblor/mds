@@ -37,3 +37,38 @@ export function createMainWindowOptions(appPath, version) {
 		},
 	};
 }
+
+/** 只允许同源、路径精确为 /phonetic-symbols 的窗口请求 */
+export function isPhoneticChartUrl(url, mainUrl) {
+	try {
+		const target = new URL(url, mainUrl);
+		const main = new URL(mainUrl);
+		return (
+			target.origin === main.origin && target.pathname === "/phonetic-symbols"
+		);
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * 音标表独立窗口：无边框全屏，不继承主窗口 1120×820 的限制；
+ * 不引入 preload/IPC，子窗口只负责显示图片与自行关闭。
+ */
+export function createPhoneticWindowOptions() {
+	return {
+		width: 1280,
+		height: 800,
+		title: "音标表 · 默点啥",
+		frame: false,
+		fullscreen: true,
+		fullscreenable: true,
+		resizable: false,
+		skipTaskbar: true,
+		backgroundColor: "#0b1220",
+		webPreferences: {
+			contextIsolation: true,
+			nodeIntegration: false,
+		},
+	};
+}

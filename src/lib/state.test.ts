@@ -133,8 +133,15 @@ describe("state 边界用例", () => {
 });
 
 describe("内容模式的持久化恢复", () => {
-	it("isContentMode 收全部四种模式，其余一律不合格", () => {
-		for (const mode of ["word", "definition", "chinese", "cloze"] as const) {
+	it("isContentMode 收全部内容模式，其余一律不合格", () => {
+		for (const mode of [
+			"word",
+			"definition",
+			"chinese",
+			"sentence",
+			"phonetic",
+			"cloze",
+		] as const) {
 			expect(isContentMode(mode)).toBe(true);
 		}
 		for (const bad of [null, undefined, "", "Cloze", "nonsense", 3]) {
@@ -142,8 +149,10 @@ describe("内容模式的持久化恢复", () => {
 		}
 	});
 
-	it("四种模式都能恢复——组句（cloze）曾经被白名单漏掉，重启后静默掉回单词", () => {
+	it("全部模式都能恢复——组句/短句/音标都曾经有白名单漏项风险", () => {
 		expect(resolveStoredContentMode("cloze", null)).toBe("cloze");
+		expect(resolveStoredContentMode("sentence", null)).toBe("sentence");
+		expect(resolveStoredContentMode("phonetic", null)).toBe("phonetic");
 		expect(resolveStoredContentMode("chinese", null)).toBe("chinese");
 		expect(resolveStoredContentMode("definition", null)).toBe("definition");
 		expect(resolveStoredContentMode("word", null)).toBe("word");

@@ -12,7 +12,11 @@ import {
 	clientDataDirCandidates,
 	ensureWritableDataDir,
 } from "./runtime-paths.mjs";
-import { createMainWindowOptions } from "./window-options.mjs";
+import {
+	createMainWindowOptions,
+	createPhoneticWindowOptions,
+	isPhoneticChartUrl,
+} from "./window-options.mjs";
 import { acquireServerPort } from "./port-picker.mjs";
 
 let mainWindow;
@@ -106,6 +110,23 @@ app.whenReady().then(async () => {
 	mainWindow = new BrowserWindow(
 		createMainWindowOptions(app.getAppPath(), app.getVersion()),
 	);
+	// 音标表：只允许同源 /phonetic-symbols 打开独立全屏子窗口；
+	// 主窗口的 fullscreenable=false 不受影响。
+	mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+		if (!isPhoneticChartUrl(url, mainWindow.webContents.getURL())) {
+			return { action: "deny" };
+		}
+		return {
+			action: "allow",
+			overrideBrowserWindowOptions: createPhoneticWindowOptions(),
+		};
+	});
+	mainWindow.webContents.on("did-create-window", (child) => {
+		// override 在个别平台上可能不生效，这里兜底
+		child.setFullScreen(true);
+		child.setMenuBarVisibility(false);
+		child.on("closed", () => mainWindow?.focus());
+	});
 	// 阻止页面 <title>（SSR 的「默点啥」）覆盖窗口标题，保持「默点啥 v版本号」。
 	mainWindow.on("page-title-updated", (event) => event.preventDefault());
 	// 再通过实例 API 明确关闭最大化/全屏，避免平台窗口管理器忽略构造选项。

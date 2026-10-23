@@ -35,6 +35,17 @@ describe("cyber dictation timed-out input", () => {
 		).toEqual({ answer: "app" });
 	});
 
+	it("音标模式只提交音素串（提前/超时同口径）", () => {
+		expect(
+			timedOutInputPatch({
+				round: {},
+				contentMode: "phonetic",
+				wordInput: "  ˈ æ p  ",
+				definitionInput: "unused",
+			}),
+		).toEqual({ answer: "ˈ æ p" });
+	});
+
 	it("中文词模式两步封口：单词 + 中文词都提交", () => {
 		expect(
 			timedOutInputPatch({

@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { Volume2, OctagonX } from "lucide-solid";
+import { LayoutGrid, Volume2, OctagonX } from "lucide-solid";
 
 interface Props {
 	/** 0..1；不确定态时忽略 */
@@ -10,6 +10,9 @@ interface Props {
 	status: string;
 	error: string | null;
 	onAbort: () => void;
+	/** 音标模式：准备中也能打开全屏音标表（不暂停准备） */
+	showChart?: boolean;
+	onOpenChart?: () => void;
 }
 
 /** 默写准备中：全屏毛玻璃遮罩 + 进度 + 中止 */
@@ -58,6 +61,17 @@ export default function PreparingOverlay(props: Props) {
 						<OctagonX class="h-[15px] w-[15px]" />
 						中止
 					</button>
+					<Show when={props.showChart}>
+						<button
+							type="button"
+							class="flex items-center gap-1.5 rounded-full bg-soft px-4 py-2 text-[12px] text-ink-soft transition hover:bg-brand/10 hover:text-brand"
+							onClick={() => props.onOpenChart?.()}
+							title="全屏查看音标表（F1）"
+						>
+							<LayoutGrid class="h-4 w-4" />
+							音标表（F1）
+						</button>
+					</Show>
 				</Show>
 			</div>
 		</div>

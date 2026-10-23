@@ -104,6 +104,26 @@ describe("playWithIntervals", () => {
 		expect(await p).toBe("completed");
 	});
 
+	it("startIndex 从当前遍恢复，onPlay 回报绝对下标", async () => {
+		const p = playWithIntervals({
+			items: Array.from({ length: 3 }, () => ({
+				url: "/api/audio?name=test.mp3",
+			})),
+			gapsMs: [1000, 1000, 1000],
+			signal: abort.signal,
+			startIndex: 1,
+			onPlay: (i) => plays.push(i),
+			onAudioState: (v) => audioStates.push(v),
+		});
+		await flush();
+		expect(plays).toEqual([1]);
+		await vi.advanceTimersByTimeAsync(1000);
+		await flush();
+		expect(plays).toEqual([1, 2]);
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(await p).toBe("completed");
+	});
+
 	it("中途中止 resolve(false)，不再播报后续遍", async () => {
 		const p = run(3, [2000, 4700, 2700]);
 		await flush(); // 第 1 遍后进入间隔

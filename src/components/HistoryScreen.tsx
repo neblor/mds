@@ -202,6 +202,7 @@ export default function HistoryScreen(props: Props) {
 							gradeNote={entry().gradeNote}
 							playingAudioName={audio.playingName()}
 							onPlayAudio={audio.play}
+							onStopAudio={audio.stop}
 							onClose={back}
 							title={`默写结果 · ${entry().mode === "writing" ? "书写" : "赛博"} · ${CONTENT_MODE_LABELS[entry().contentMode]}`}
 							footerHint="Esc 或关闭按钮返回默写记录"

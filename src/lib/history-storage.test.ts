@@ -254,3 +254,37 @@ describe("buildHistoryEntry", () => {
 		expect(e.rows[1].fields[0].correct).toBe(false);
 	});
 });
+
+describe("音标条目", () => {
+	it("接受 contentMode=phonetic，并保留 phonetic 判定字段", () => {
+		const entry = buildHistoryEntry({
+			rows: [
+				{
+					word: "apple",
+					audioName: "apple.mp3",
+					fields: [
+						{
+							kind: "phonetic",
+							expected: "ˈ æ p ə l",
+							userValue: "ˈ æ p ə l",
+							graded: true,
+							correct: true,
+						},
+					],
+				},
+			],
+			mode: "cyber",
+			contentMode: "phonetic",
+			finishedAt: 1000,
+			gradeNote: null,
+		});
+		const [loaded] = normalizeHistory([entry]);
+		expect(loaded?.contentMode).toBe("phonetic");
+		expect(loaded?.correctCount).toBe(1);
+		expect(loaded?.rows[0]?.fields[0]).toMatchObject({
+			kind: "phonetic",
+			expected: "ˈ æ p ə l",
+			correct: true,
+		});
+	});
+});

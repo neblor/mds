@@ -6,7 +6,7 @@
  * 以后哪个模式要加操作，就在这里加分支，不要再往控制条上堆按钮。
  */
 import { Show, createEffect, createSignal } from "solid-js";
-import { Loader2, RefreshCw } from "lucide-solid";
+import { LayoutGrid, Loader2, RefreshCw } from "lucide-solid";
 import { refreshSentences } from "~/lib/api";
 import { sentenceRefreshMessage } from "~/lib/mode-actions";
 import type { ContentMode } from "~/lib/state";
@@ -15,6 +15,8 @@ interface Props {
 	contentMode: ContentMode;
 	/** 本次默写要用的词（词表模式 = 今日队列）；为空表示还没有可更新的词 */
 	queueWords: string[];
+	/** 音标模式：打开全屏音标表 */
+	onOpenChart?: () => void;
 }
 
 export default function ModeActions(props: Props) {
@@ -53,8 +55,25 @@ export default function ModeActions(props: Props) {
 	};
 
 	return (
-		<Show when={props.contentMode === "sentence"}>
-			<div class="flex min-w-0 flex-1 items-center gap-3">
+		<>
+			<Show when={props.contentMode === "phonetic"}>
+				<div class="flex min-w-0 flex-1 items-center gap-2">
+					<button
+						type="button"
+						class="flex shrink-0 items-center gap-1.5 rounded-xl border-[1.5px] border-soft bg-surface px-3 py-2 text-[13px] font-semibold text-ink-soft shadow-sm transition hover:border-brand/40 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+						onClick={() => props.onOpenChart?.()}
+						title="全屏查看音标表（F1）"
+					>
+						<LayoutGrid class="h-4 w-4" />
+						音标表
+					</button>
+					<span class="shrink-0 rounded-md bg-soft px-1.5 py-0.5 font-data text-[11px] text-ink-faint">
+						F1
+					</span>
+				</div>
+			</Show>
+			<Show when={props.contentMode === "sentence"}>
+				<div class="flex min-w-0 flex-1 items-center gap-3">
 				<button
 					type="button"
 					class="flex shrink-0 items-center gap-1.5 rounded-xl border-[1.5px] border-soft bg-surface px-3 py-2 text-[13px] font-semibold text-ink-soft shadow-sm transition hover:border-brand/40 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-45"
@@ -83,7 +102,8 @@ export default function ModeActions(props: Props) {
 						</span>
 					)}
 				</Show>
-			</div>
-		</Show>
+				</div>
+			</Show>
+		</>
 	);
 }

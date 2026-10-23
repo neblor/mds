@@ -19,6 +19,10 @@ import {
 	sentenceCharCount,
 	sentenceSpeechIntervals,
 	sentenceCountdownDuration,
+	phoneticCountdownDuration,
+	IPA_THINK_SECONDS,
+	IPA_TOKEN_SECONDS,
+	IPA_AUDIO_TAIL_SECONDS,
 	SENTENCE_REPEATS,
 	SENTENCE_THINK_SECONDS,
 	SENTENCE_CHAR_SECONDS,
@@ -470,5 +474,54 @@ describe("短句模式计时（只念整句 3 遍，基础公式按整句重设�
 		fast.forEach((gap, index) => {
 			expect(gap).toBe(round1((base[index] as number) * SPEED_RATE.fast * 1.5));
 		});
+	});
+});
+
+describe("phoneticCountdownDuration", () => {
+	const round1 = (v: number) => Math.round(v * 10) / 10;
+	const base = (tokens: string[], gapSec: number[], repeatCount: number) =>
+		phoneticCountdownDuration({
+			tokens,
+			gapSec,
+			repeatCount,
+			level: "normal",
+			multiplier: 1,
+		});
+
+	it("思考 + 点击时间 + 播报间隔 + 音频余量", () => {
+		const think = IPA_THINK_SECONDS + IPA_TOKEN_SECONDS * 2;
+		expect(base(["ˈ", "æ"], [2], 1)).toBe(
+			round1(think + 2 + IPA_AUDIO_TAIL_SECONDS),
+		);
+		// 长词/多遍更久
+		expect(
+			base(
+				["ˈ", "s", "t", "r", "ʌ", "k", "t", "ʃ", "ə", "n"],
+				[2, 3, 2],
+				3,
+			),
+		).toBeGreaterThan(base(["ˈ", "æ"], [2], 1));
+	});
+
+	it("次重音不计入点击时间，但主重音计入", () => {
+		expect(base(["ˈ", "æ", "ˌ", "p", "ə", "l"], [2], 1)).toBe(
+			base(["ˈ", "æ", "p", "ə", "l"], [2], 1),
+		);
+		expect(base(["æ", "p", "ə", "l"], [2], 1)).toBeLessThan(
+			base(["ˈ", "æ", "p", "ə", "l"], [2], 1),
+		);
+	});
+
+	it("档位×倍率只缩放思考部分，音频余量不缩放", () => {
+		const think = IPA_THINK_SECONDS + IPA_TOKEN_SECONDS * 2;
+		expect(
+			phoneticCountdownDuration({
+				tokens: ["ˈ", "æ"],
+				gapSec: [2],
+				repeatCount: 1,
+				level: "fast",
+				multiplier: 1.5,
+			}),
+		).toBe(round1(think * SPEED_RATE.fast * 1.5 + 2 + IPA_AUDIO_TAIL_SECONDS));
 	});
 });

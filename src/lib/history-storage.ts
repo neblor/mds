@@ -33,6 +33,7 @@ const FIELD_KINDS: readonly ResultField["kind"][] = [
 	"definition",
 	"chinese",
 	"sentence",
+	"phonetic",
 ];
 
 function normalizeField(value: unknown): ResultField | null {

@@ -1,0 +1,668 @@
+{
+  "version": 1,
+  "basePath": "/ipa/audio/v1/",
+  "license": "CC BY-SA 4.0 (see LICENSE.md)",
+  "tokens": {
+    "iː": {
+      "file": "i-long.mp3",
+      "kind": "vowel",
+      "durationMs": 627,
+      "sourceIds": [
+        "close-front"
+      ]
+    },
+    "i": {
+      "file": "happy-i.mp3",
+      "kind": "vowel",
+      "durationMs": 366,
+      "sourceIds": [
+        "close-front"
+      ]
+    },
+    "ɪ": {
+      "file": "i-short.mp3",
+      "kind": "vowel",
+      "durationMs": 366,
+      "sourceIds": [
+        "near-close-near-front"
+      ]
+    },
+    "e": {
+      "file": "e.mp3",
+      "kind": "vowel",
+      "durationMs": 418,
+      "sourceIds": [
+        "close-mid-front"
+      ]
+    },
+    "æ": {
+      "file": "ae.mp3",
+      "kind": "vowel",
+      "durationMs": 418,
+      "sourceIds": [
+        "near-open-front"
+      ]
+    },
+    "ɑː": {
+      "file": "aa.mp3",
+      "kind": "vowel",
+      "durationMs": 627,
+      "sourceIds": [
+        "open-back-unrounded"
+      ]
+    },
+    "ɒ": {
+      "file": "o-short.mp3",
+      "kind": "vowel",
+      "durationMs": 366,
+      "sourceIds": [
+        "open-back-rounded"
+      ]
+    },
+    "ɔː": {
+      "file": "oo-long.mp3",
+      "kind": "vowel",
+      "durationMs": 601,
+      "sourceIds": [
+        "open-mid-back-rounded"
+      ]
+    },
+    "ʊ": {
+      "file": "u-short.mp3",
+      "kind": "vowel",
+      "durationMs": 366,
+      "sourceIds": [
+        "near-close-near-back"
+      ]
+    },
+    "uː": {
+      "file": "u-long.mp3",
+      "kind": "vowel",
+      "durationMs": 627,
+      "sourceIds": [
+        "close-back-rounded"
+      ]
+    },
+    "ʌ": {
+      "file": "uh.mp3",
+      "kind": "vowel",
+      "durationMs": 366,
+      "sourceIds": [
+        "open-mid-back-unrounded"
+      ]
+    },
+    "ɜː": {
+      "file": "er.mp3",
+      "kind": "vowel",
+      "durationMs": 601,
+      "sourceIds": [
+        "open-mid-central-unrounded"
+      ]
+    },
+    "ə": {
+      "file": "schwa.mp3",
+      "kind": "vowel",
+      "durationMs": 418,
+      "sourceIds": [
+        "mid-central"
+      ]
+    },
+    "eɪ": {
+      "file": "ei.mp3",
+      "kind": "diphthong",
+      "durationMs": 653,
+      "sourceIds": [
+        "close-mid-front",
+        "near-close-near-front"
+      ],
+      "components": [
+        "e",
+        "ɪ"
+      ]
+    },
+    "aɪ": {
+      "file": "ai.mp3",
+      "kind": "diphthong",
+      "durationMs": 653,
+      "sourceIds": [
+        "open-front",
+        "near-close-near-front"
+      ],
+      "components": [
+        "a",
+        "ɪ"
+      ]
+    },
+    "ɔɪ": {
+      "file": "oi.mp3",
+      "kind": "diphthong",
+      "durationMs": 653,
+      "sourceIds": [
+        "open-mid-back-rounded",
+        "near-close-near-front"
+      ],
+      "components": [
+        "ɔː",
+        "ɪ"
+      ]
+    },
+    "əʊ": {
+      "file": "ou.mp3",
+      "kind": "diphthong",
+      "durationMs": 653,
+      "sourceIds": [
+        "mid-central",
+        "near-close-near-back"
+      ],
+      "components": [
+        "ə",
+        "ʊ"
+      ]
+    },
+    "aʊ": {
+      "file": "au.mp3",
+      "kind": "diphthong",
+      "durationMs": 653,
+      "sourceIds": [
+        "open-front",
+        "near-close-near-back"
+      ],
+      "components": [
+        "a",
+        "ʊ"
+      ]
+    },
+    "ɪə": {
+      "file": "ia.mp3",
+      "kind": "diphthong",
+      "durationMs": 653,
+      "sourceIds": [
+        "near-close-near-front",
+        "mid-central"
+      ],
+      "components": [
+        "ɪ",
+        "ə"
+      ]
+    },
+    "eə": {
+      "file": "ea.mp3",
+      "kind": "diphthong",
+      "durationMs": 653,
+      "sourceIds": [
+        "close-mid-front",
+        "mid-central"
+      ],
+      "components": [
+        "e",
+        "ə"
+      ]
+    },
+    "ʊə": {
+      "file": "ua.mp3",
+      "kind": "diphthong",
+      "durationMs": 653,
+      "sourceIds": [
+        "near-close-near-back",
+        "mid-central"
+      ],
+      "components": [
+        "ʊ",
+        "ə"
+      ]
+    },
+    "p": {
+      "file": "p.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "p"
+      ]
+    },
+    "b": {
+      "file": "b.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "b"
+      ]
+    },
+    "t": {
+      "file": "t.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "t"
+      ]
+    },
+    "d": {
+      "file": "d.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "d"
+      ]
+    },
+    "k": {
+      "file": "k.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "k"
+      ]
+    },
+    "ɡ": {
+      "file": "g.mp3",
+      "kind": "consonant",
+      "durationMs": 758,
+      "sourceIds": [
+        "g"
+      ]
+    },
+    "tʃ": {
+      "file": "ch.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "ch"
+      ]
+    },
+    "dʒ": {
+      "file": "j.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "dzh"
+      ]
+    },
+    "f": {
+      "file": "f.mp3",
+      "kind": "consonant",
+      "durationMs": 731,
+      "sourceIds": [
+        "f"
+      ]
+    },
+    "v": {
+      "file": "v.mp3",
+      "kind": "consonant",
+      "durationMs": 731,
+      "sourceIds": [
+        "v"
+      ]
+    },
+    "θ": {
+      "file": "th.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "th"
+      ]
+    },
+    "ð": {
+      "file": "dh.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "dh"
+      ]
+    },
+    "s": {
+      "file": "s.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "s"
+      ]
+    },
+    "z": {
+      "file": "z.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "z"
+      ]
+    },
+    "ʃ": {
+      "file": "sh.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "sh"
+      ]
+    },
+    "ʒ": {
+      "file": "zh.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "zh"
+      ]
+    },
+    "h": {
+      "file": "h.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "h"
+      ]
+    },
+    "m": {
+      "file": "m.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "m"
+      ]
+    },
+    "n": {
+      "file": "n.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "n"
+      ]
+    },
+    "ŋ": {
+      "file": "ng.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "ng"
+      ]
+    },
+    "l": {
+      "file": "l.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "l"
+      ]
+    },
+    "r": {
+      "file": "r.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "r"
+      ]
+    },
+    "w": {
+      "file": "w.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "w"
+      ]
+    },
+    "j": {
+      "file": "y.mp3",
+      "kind": "consonant",
+      "durationMs": 1254,
+      "sourceIds": [
+        "y"
+      ]
+    }
+  },
+  "sources": {
+    "close-front": {
+      "title": "Close front unrounded vowel.ogg",
+      "author": "Denelson83",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Close_front_unrounded_vowel.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Close_front_unrounded_vowel.ogg"
+    },
+    "near-close-near-front": {
+      "title": "Near-close near-front unrounded vowel.ogg",
+      "author": "Denelson83",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Near-close_near-front_unrounded_vowel.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Near-close_near-front_unrounded_vowel.ogg"
+    },
+    "close-mid-front": {
+      "title": "Close-mid front unrounded vowel.ogg",
+      "author": "Denelson83",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Close-mid_front_unrounded_vowel.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Close-mid_front_unrounded_vowel.ogg"
+    },
+    "near-open-front": {
+      "title": "Near-open front unrounded vowel.ogg",
+      "author": "Denelson83",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Near-open_front_unrounded_vowel.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Near-open_front_unrounded_vowel.ogg"
+    },
+    "open-back-unrounded": {
+      "title": "Open back unrounded vowel.ogg",
+      "author": "Denelson83",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Open_back_unrounded_vowel.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Open_back_unrounded_vowel.ogg"
+    },
+    "open-back-rounded": {
+      "title": "Open back rounded vowel.ogg",
+      "author": "Denelson83",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Open_back_rounded_vowel.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Open_back_rounded_vowel.ogg"
+    },
+    "open-mid-back-rounded": {
+      "title": "Open-mid back rounded vowel.ogg",
+      "author": "Denelson83",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Open-mid_back_rounded_vowel.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Open-mid_back_rounded_vowel.ogg"
+    },
+    "near-close-near-back": {
+      "title": "Near-close near-back rounded vowel.ogg",
+      "author": "Denelson83",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Near-close_near-back_rounded_vowel.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Near-close_near-back_rounded_vowel.ogg"
+    },
+    "close-back-rounded": {
+      "title": "Close back rounded vowel.ogg",
+      "author": "Denelson83",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Close_back_rounded_vowel.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Close_back_rounded_vowel.ogg"
+    },
+    "open-mid-back-unrounded": {
+      "title": "Open-mid back unrounded vowel.ogg",
+      "author": "Denelson83",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Open-mid_back_unrounded_vowel.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Open-mid_back_unrounded_vowel.ogg"
+    },
+    "open-mid-central-unrounded": {
+      "title": "Open-mid central unrounded vowel.ogg",
+      "author": "Denelson83",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Open-mid_central_unrounded_vowel.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Open-mid_central_unrounded_vowel.ogg"
+    },
+    "mid-central": {
+      "title": "Mid-central vowel.ogg",
+      "author": "Denelson83",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Mid-central_vowel.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Mid-central_vowel.ogg"
+    },
+    "open-front": {
+      "title": "Open front unrounded vowel.ogg",
+      "author": "Denelson83",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Open_front_unrounded_vowel.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Open_front_unrounded_vowel.ogg"
+    },
+    "p": {
+      "title": "Voiceless bilabial plosive.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiceless_bilabial_plosive.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiceless_bilabial_plosive.ogg"
+    },
+    "b": {
+      "title": "Voiced bilabial plosive.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiced_bilabial_plosive.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiced_bilabial_plosive.ogg"
+    },
+    "t": {
+      "title": "Voiceless alveolar plosive.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiceless_alveolar_plosive.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiceless_alveolar_plosive.ogg"
+    },
+    "d": {
+      "title": "Voiced alveolar plosive.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiced_alveolar_plosive.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiced_alveolar_plosive.ogg"
+    },
+    "k": {
+      "title": "Voiceless velar plosive.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiceless_velar_plosive.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiceless_velar_plosive.ogg"
+    },
+    "g": {
+      "title": "Voiced velar plosive.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiced_velar_plosive.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiced_velar_plosive.ogg"
+    },
+    "ch": {
+      "title": "Voiceless palato-alveolar affricate.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiceless_palato-alveolar_affricate.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiceless_palato-alveolar_affricate.ogg"
+    },
+    "dzh": {
+      "title": "Voiced palato-alveolar affricate.ogg",
+      "author": "Octane",
+      "license": "Public domain",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiced_palato-alveolar_affricate.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiced_palato-alveolar_affricate.ogg"
+    },
+    "f": {
+      "title": "Voiceless labiodental fricative.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiceless_labiodental_fricative.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiceless_labiodental_fricative.ogg"
+    },
+    "v": {
+      "title": "Voiced labiodental fricative.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiced_labiodental_fricative.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiced_labiodental_fricative.ogg"
+    },
+    "th": {
+      "title": "Voiceless dental fricative.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiceless_dental_fricative.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiceless_dental_fricative.ogg"
+    },
+    "dh": {
+      "title": "Voiced dental fricative.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiced_dental_fricative.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiced_dental_fricative.ogg"
+    },
+    "s": {
+      "title": "Voiceless alveolar sibilant.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiceless_alveolar_sibilant.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiceless_alveolar_sibilant.ogg"
+    },
+    "z": {
+      "title": "Voiced alveolar sibilant.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiced_alveolar_sibilant.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiced_alveolar_sibilant.ogg"
+    },
+    "sh": {
+      "title": "Voiceless palato-alveolar sibilant.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiceless_palato-alveolar_sibilant.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiceless_palato-alveolar_sibilant.ogg"
+    },
+    "zh": {
+      "title": "Voiced palato-alveolar sibilant.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiced_palato-alveolar_sibilant.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiced_palato-alveolar_sibilant.ogg"
+    },
+    "h": {
+      "title": "Voiceless glottal fricative.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiceless_glottal_fricative.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiceless_glottal_fricative.ogg"
+    },
+    "m": {
+      "title": "Bilabial nasal.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Bilabial_nasal.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Bilabial_nasal.ogg"
+    },
+    "n": {
+      "title": "Alveolar nasal.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Alveolar_nasal.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Alveolar_nasal.ogg"
+    },
+    "ng": {
+      "title": "Velar nasal.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Velar_nasal.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Velar_nasal.ogg"
+    },
+    "l": {
+      "title": "Alveolar lateral approximant.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Alveolar_lateral_approximant.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Alveolar_lateral_approximant.ogg"
+    },
+    "r": {
+      "title": "Postalveolar approximant.ogg",
+      "author": "Nardog",
+      "license": "CC0",
+      "page": "https://commons.wikimedia.org/wiki/File:Postalveolar_approximant.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Postalveolar_approximant.ogg"
+    },
+    "w": {
+      "title": "Voiced labio-velar approximant.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Voiced_labio-velar_approximant.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Voiced_labio-velar_approximant.ogg"
+    },
+    "y": {
+      "title": "Palatal approximant.ogg",
+      "author": "Peter Isotalo",
+      "license": "CC BY-SA 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Palatal_approximant.ogg",
+      "download": "https://commons.wikimedia.org/wiki/Special:FilePath/Palatal_approximant.ogg"
+    }
+  }
+}

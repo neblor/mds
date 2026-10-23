@@ -8,6 +8,7 @@ import {
 	JUDGEMENT_NOTES,
 	CONTENT_MODE_LABELS,
 	type WordRoundLike,
+	type PhoneticRoundLike,
 } from "./results";
 
 function round(overrides: Partial<WordRoundLike> = {}): WordRoundLike {
@@ -316,12 +317,13 @@ describe("统计与庆祝判定", () => {
 });
 
 describe("模式文案", () => {
-	it("五种模式的判定说明与标签齐全", () => {
+	it("六种模式的判定说明与标签齐全", () => {
 		expect(JUDGEMENT_NOTES).toMatchObject({
 			word: expect.stringContaining("单词判定"),
 			definition: expect.stringContaining("AI 批改"),
 			chinese: expect.stringContaining("AI 批改"),
 			sentence: expect.stringContaining("忽略大小写与标点"),
+			phonetic: expect.stringContaining("重音"),
 			cloze: expect.stringContaining("每个空独立比对"),
 		});
 		expect(CONTENT_MODE_LABELS).toEqual({
@@ -329,6 +331,7 @@ describe("模式文案", () => {
 			definition: "释义",
 			chinese: "中文词",
 			sentence: "短句",
+			phonetic: "音标",
 			cloze: "组句",
 		});
 	});
@@ -518,6 +521,110 @@ describe("buildResultRows 短句模式", () => {
 		expect(row.context).toBeUndefined();
 		expect(row.fields.map((f) => f.kind)).toEqual(["word"]);
 		expect(rowJudgement(row)).toBe(true);
+	});
+});
+
+describe("buildResultRows 音标模式", () => {
+	function phoneticRound(
+		overrides: Partial<PhoneticRoundLike> = {},
+	): PhoneticRoundLike {
+		return {
+			kind: "phonetic",
+			word: "apple",
+			audioName: "apple.mp3",
+			expected: "ˈ æ p ə l",
+			variants: ["ˈ æ p ə l"],
+			source: "dict",
+			answerTokens: ["ˈ", "æ", "p", "ə", "l"],
+			...overrides,
+		};
+	}
+
+	it("正确/错误判定与 userValue 归位", () => {
+		const [correct] = buildResultRows(
+			[phoneticRound()],
+			"cyber",
+			"phonetic",
+		);
+		expect(correct.fields).toEqual([
+			{
+				kind: "phonetic",
+				expected: "ˈ æ p ə l",
+				userValue: "ˈ æ p ə l",
+				graded: true,
+				correct: true,
+			},
+		]);
+		expect(rowJudgement(correct)).toBe(true);
+
+		const [wrong] = buildResultRows(
+			[
+				phoneticRound({
+					answerTokens: ["ˈ", "æ", "b", "ə", "l"],
+				}),
+			],
+			"cyber",
+			"phonetic",
+		);
+		expect(wrong.fields[0]?.correct).toBe(false);
+		expect(wrong.fields[0]?.userValue).toBe("ˈ æ b ə l");
+		expect(correctCount([wrong])).toBe(0);
+	});
+
+	it("重音归位后等价；多读音命中时 expected 取命中的变体", () => {
+		const [row] = buildResultRows(
+			[
+				phoneticRound({
+					word: "water",
+					expected: "ˈ w ɔː t ə",
+					variants: ["ˈ w ɔː t ə"],
+					answerTokens: ["w", "ˈ", "ɔː", "t", "ə"],
+				}),
+			],
+			"cyber",
+			"phonetic",
+		);
+		expect(row.fields[0]).toMatchObject({
+			expected: "ˈ w ɔː t ə",
+			userValue: "ˈ w ɔː t ə",
+			correct: true,
+		});
+
+		const [alternative] = buildResultRows(
+			[
+				phoneticRound({
+					expected: "ˈ eɪ p ə l",
+					variants: ["ˈ eɪ p ə l", "ˈ æ p ə l"],
+					answerTokens: ["ˈ", "æ", "p", "ə", "l"],
+				}),
+			],
+			"cyber",
+			"phonetic",
+		);
+		expect(alternative.fields[0]).toMatchObject({
+			expected: "ˈ æ p ə l",
+			correct: true,
+		});
+	});
+
+	it("AI 来源标注；降级单词轮带 note 并走 word 字段", () => {
+		const rows = buildResultRows(
+			[
+				phoneticRound({ source: "ai" }),
+				round({
+					word: "banana",
+					audioName: "banana.mp3",
+					answer: "banana",
+				}),
+			],
+			"cyber",
+			"phonetic",
+		);
+		expect(rows[0].fields[0]?.note).toBe("AI 生成，仅供参考");
+		expect(rows[1].note).toBe("本词没有可用音标，按单词默写");
+		expect(rows[1].fields.map((field) => field.kind)).toEqual(["word"]);
+		expect(rowJudgement(rows[1])).toBe(true);
+		expect(correctCount(rows)).toBe(2);
 	});
 });
 

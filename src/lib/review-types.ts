@@ -15,6 +15,7 @@ export const REVIEW_MODES = [
 	"definition",
 	"chinese",
 	"sentence",
+	"phonetic",
 	"cloze",
 ] as const;
 export type ReviewMode = (typeof REVIEW_MODES)[number];

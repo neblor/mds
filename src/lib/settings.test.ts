@@ -5,6 +5,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	loadSettings,
+	phoneticVoice,
+	PHONETIC_DEFAULT_VOICE,
 	saveSettings,
 	clampMultiplier,
 	isAiConfigured,
@@ -186,5 +188,13 @@ describe("isAiConfigured", () => {
 		expect(
 			isAiConfigured({ ...DEFAULT_SETTINGS, aiBaseUrl: "  ", aiApiKey: "  " }),
 		).toBe(false);
+	});
+});
+
+describe("phoneticVoice", () => {
+	it("已是 en-GB 时尊重用户选择，否则用英式默认", () => {
+		expect(phoneticVoice("en-GB-RyanNeural")).toBe("en-GB-RyanNeural");
+		expect(phoneticVoice("en-US-AvaNeural")).toBe(PHONETIC_DEFAULT_VOICE);
+		expect(phoneticVoice("")).toBe(PHONETIC_DEFAULT_VOICE);
 	});
 });

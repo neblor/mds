@@ -36,7 +36,22 @@ export const VOICES: { id: string; label: string }[] = [
 	{ id: "en-US-GuyNeural", label: "Guy（男声，阳光）" },
 	{ id: "en-US-ChristopherNeural", label: "Christopher（男声，浑厚）" },
 	{ id: "en-US-MichelleNeural", label: "Michelle（女声，亲切）" },
+	// 音标模式是英式音标：优先 en-GB；这里也允许用户主动全局切英式
+	{ id: "en-GB-SoniaNeural", label: "Sonia（女声，英式）" },
+	{ id: "en-GB-RyanNeural", label: "Ryan（男声，英式）" },
+	{ id: "en-GB-LibbyNeural", label: "Libby（女声，英式）" },
 ];
+
+/** 音标轮的默认英式音色；音标数据是 RP，用美式音色会与答案不一致 */
+export const PHONETIC_DEFAULT_VOICE = "en-GB-SoniaNeural";
+
+/**
+ * 音标模式选音色：用户当前本来就是 en-GB 就尊重；否则固定用英式默认。
+ * 其它模式完全不动用户的选择。
+ */
+export function phoneticVoice(voice: string): string {
+	return voice.startsWith("en-GB-") ? voice : PHONETIC_DEFAULT_VOICE;
+}
 
 export const DEFAULT_SETTINGS: AppSettings = {
 	aiBaseUrl: "",

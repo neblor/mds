@@ -14,6 +14,7 @@ import {
 	MessageSquareQuote,
 	History,
 	Undo2,
+	AudioLines,
 } from "lucide-solid";
 import BatchImportDialog from "~/components/BatchImportDialog";
 import BankPickerDialog from "~/components/BankPickerDialog";
@@ -50,6 +51,8 @@ interface Props {
 	onStartCyber: () => void;
 	/** 档案页「专练薄弱词」：由上层开始一场单词 + 赛博 */
 	onStartDrill: (bankId: string, words: string[]) => void;
+	/** 音标模式：打开全屏音标表（F1 同入口） */
+	onOpenChart: () => void;
 	onOpenSettings: () => void;
 	onOpenHistory: () => void;
 	/** 暂存词表数量（再次默写覆盖前存的当前词表）；>0 时显示「恢复词汇」按钮 */
@@ -68,6 +71,7 @@ const CONTENT_MODES: SliderOption<ContentMode>[] = [
 	{ value: "definition", label: "释义", icon: BookOpen },
 	{ value: "chinese", label: "中文词", icon: Languages },
 	{ value: "sentence", label: "短句", icon: MessageSquareQuote },
+	{ value: "phonetic", label: "音标", icon: AudioLines },
 	{ value: "cloze", label: "组句", icon: TextCursorInput },
 ];
 
@@ -90,8 +94,12 @@ export default function WordBank(props: Props) {
 
 	const isEntry = () => props.vocab.mode() === "entry";
 	const bannerError = () => props.error ?? props.vocab.error();
-	/** 组句只允许赛博作答：书写按钮置灰 + 信息条说明原因 */
-	const clozeOnly = () => props.contentMode === "cloze";
+	/** 组句/音标只允许赛博作答：书写按钮置灰 + 信息条说明原因 */
+	const cyberOnly = () => props.contentMode === "cloze" || props.contentMode === "phonetic";
+	const cyberOnlyHint = () =>
+		props.contentMode === "phonetic"
+			? "音标模式请用赛博默写：点选音标需要在屏幕上完成"
+			: "组句模式请用赛博默写：选词作答需要在屏幕上完成";
 	/** 本次默写要用的词（模式操作区用；录入模式没有队列） */
 	const queueWords = () => props.vocab.queue()?.queue.words ?? [];
 
@@ -269,7 +277,7 @@ export default function WordBank(props: Props) {
 					</For>
 				</div>
 				<SegmentedSlider
-					class="w-[366px]"
+					class="w-[430px]"
 					options={CONTENT_MODES}
 					value={props.contentMode}
 					onChange={props.onContentMode}
@@ -279,15 +287,16 @@ export default function WordBank(props: Props) {
 				<ModeActions
 					contentMode={props.contentMode}
 					queueWords={queueWords()}
+					onOpenChart={props.onOpenChart}
 				/>
 			</div>
 
 			<Show
 				when={bannerError()}
 				fallback={
-					<Show when={clozeOnly()}>
+					<Show when={cyberOnly()}>
 						<div class="flex items-center gap-2 rounded-xl bg-brand/10 px-4 py-3 text-sm text-brand">
-							组句模式请用赛博默写：选词作答需要在屏幕上完成
+							{cyberOnlyHint()}
 						</div>
 					</Show>
 				}
@@ -302,12 +311,12 @@ export default function WordBank(props: Props) {
 				<button
 					type="button"
 					class={`flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3.5 text-base text-white shadow-sm transition ${
-						clozeOnly()
+						cyberOnly()
 							? "cursor-not-allowed opacity-45"
 							: "hover:brightness-105 active:scale-[0.99]"
 					}`}
-					disabled={clozeOnly()}
-					title={clozeOnly() ? "组句模式请用赛博默写" : undefined}
+					disabled={cyberOnly()}
+					title={cyberOnly() ? cyberOnlyHint() : undefined}
 					onClick={props.onStartWriting}
 				>
 					<PenLine class="h-[18px] w-[18px]" />

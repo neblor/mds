@@ -1,5 +1,5 @@
-import { CircleCheckBig, Play } from "lucide-solid";
-import { onMount } from "solid-js";
+import { CircleCheckBig, LayoutGrid, Play } from "lucide-solid";
+import { Show, onMount } from "solid-js";
 import { isReadyOverlayConfirmKey, readyOverlaySummary } from "~/lib/ready-overlay";
 import { CONTENT_MODE_LABELS } from "~/lib/results";
 import type { ContentMode } from "~/lib/state";
@@ -8,6 +8,9 @@ interface Props {
 	count: number;
 	contentMode: ContentMode;
 	onGo: () => void;
+	/** 音标模式：准备完成也能打开全屏音标表（不暂停） */
+	showChart?: boolean;
+	onOpenChart?: () => void;
 }
 
 /** 准备完成：Let's Go */
@@ -42,6 +45,17 @@ export default function ReadyOverlay(props: Props) {
 					<Play class="h-[18px] w-[18px]" fill="currentColor" />
 					Let's Go!
 				</button>
+				<Show when={props.showChart}>
+					<button
+						type="button"
+						class="flex items-center gap-1.5 rounded-full bg-soft px-4 py-2 text-[12px] text-ink-soft transition hover:bg-brand/10 hover:text-brand"
+						onClick={() => props.onOpenChart?.()}
+						title="全屏查看音标表（F1）"
+					>
+						<LayoutGrid class="h-4 w-4" />
+						音标表（F1）
+					</button>
+				</Show>
 			</div>
 		</div>
 	);

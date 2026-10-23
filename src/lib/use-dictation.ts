@@ -9,6 +9,7 @@ import {
 	loadSettings,
 	saveSettings,
 	isAiConfigured,
+	phoneticVoice,
 	type AppSettings,
 } from "./settings";
 import {
@@ -18,6 +19,7 @@ import {
 	repeatCount,
 	sentenceCountdownDuration,
 	sentenceSpeechIntervals,
+	phoneticCountdownDuration,
 	SENTENCE_REPEATS,
 	scaleTime,
 	type SpeedLevel,
@@ -29,6 +31,7 @@ import {
 	requestClozeQuestions,
 	requestSentences,
 	requestAnswerGrades,
+	requestPhonetics,
 	audioUrl,
 	playWithIntervals,
 	invalidateCacheFile,
@@ -60,6 +63,17 @@ import {
 } from "./results";
 import { createResultAudioPlayer } from "./result-audio";
 import { appendHistory, buildHistoryEntry } from "./history-storage";
+import {
+	loadPhoneticDictionary,
+	lookupPhonetic,
+} from "./phonetic-dictionary";
+import { buildPhoneticPool, type PhoneticPoolItem } from "./phonetic-pool";
+import { phoneticToString } from "./phonetic-parse";
+import { createPhonemeAudio } from "./use-phoneme-audio";
+import {
+	openPhoneticChartWindow,
+	watchPhoneticChartWindow,
+} from "./phonetic-chart";
 
 export type Phase =
 	| "idle"
@@ -76,6 +90,8 @@ export interface WordRound {
 	definition?: string;
 	/** 中文词模式：AI 抓取的常用中文对应词 */
 	chineseWord?: string;
+	/** 音标模式：这一轮要拼音标时携带标准读音、可接受变体与池子 */
+	phonetic?: PhoneticRoundData;
 	/**
 	 * 短句模式的作答形态：
 	 * - "sentence"：播报「词 1 遍 + 整句 2 遍」，作答整句
@@ -124,6 +140,14 @@ export interface ClozeRound {
 }
 
 export type DictRound = WordRound | ClozeRound;
+
+/** 音标轮：标准读音 + 池子 + 来源（词典/AI 兜底） */
+export interface PhoneticRoundData {
+	expected: string;
+	variants: string[];
+	source: "dict" | "ai";
+	pool: PhoneticPoolItem[];
+}
 
 interface PrepData {
 	words: string[];
@@ -326,6 +350,27 @@ export function useDictation() {
 	let roundSeq = 0;
 	// 结果发音试听（结算页限定 results 阶段）
 	const resultAudio = createResultAudioPlayer(() => phase() === "results");
+	/** 音素试听（默写中 chip/pool；结果页有自己的实例） */
+	const phonemeAudio = createPhonemeAudio({
+		onPlayingChange: (key) => {
+			if (key === null) schedulePhonemeResume();
+		},
+	});
+	/** 音标表暂停：暂停期间所有推进/提交 no-op，倒计时与音频都冻结 */
+	const [paused, setPaused] = createSignal(false);
+	let chartWindow: Window | null = null;
+	let stopChartWatch: (() => void) | null = null;
+	let chartPaused = false;
+	/** 点音素打断了单词音频：音素自然播完后从当前这一遍恢复 */
+	let phonemeResumePending = false;
+	let phonemeResumeSeq = 0;
+	let phonemeResumeTimer: ReturnType<typeof setTimeout> | null = null;
+	/** 倒计时暂停用：本次运行的结束时刻与暂停时剩余毫秒 */
+	let countdownEndsAt = 0;
+	let countdownRemainingMs = 0;
+	/** 本轮实际耗时扣除看音标表的时间（session 的 wallMs 仍含暂停） */
+	let roundPausedMs = 0;
+	let roundPauseStartedAt = 0;
 
 	// —— AI 批改（中文词赛博模式）——
 	let gradeAbort: AbortController | null = null;
@@ -463,8 +508,19 @@ export function useDictation() {
 	onCleanup(() => gradeAbort?.abort());
 
 	const recordRoundElapsed = (index: number) => {
-		const elapsed = roundStartedAt > 0 ? Date.now() - roundStartedAt : 0;
+		const now = Date.now();
+		const currentlyPaused =
+			roundPauseStartedAt > 0 ? now - roundPauseStartedAt : 0;
+		const elapsed =
+			roundStartedAt > 0
+				? Math.max(
+						0,
+						now - roundStartedAt - roundPausedMs - currentlyPaused,
+					)
+				: 0;
 		roundStartedAt = 0;
+		roundPausedMs = 0;
+		roundPauseStartedAt = 0;
 		setRoundElapsed((previous) => {
 			const next = [...previous];
 			next[index] = Math.max(0, elapsed);
@@ -477,7 +533,12 @@ export function useDictation() {
 	 * 所有异步回调（音频状态、倒计时、提交）都经由这里，重入被忽略。
 	 */
 	const runStep = (event: EngineEvent) => {
-		if (stepping || phase() !== "dictating") return;
+		// 看音标表期间一律不推进：abort 音频会触发 audio-state(false)，
+		// 若此时 inputDone 已为 true，状态机会误判「间隔区」直接跳下一轮。
+		if (stepping || phase() !== "dictating" || paused()) return;
+		// 音素试听打断单词音频时，abort 的 audio-state(false) 不能触发「间隔区推进」；
+		// 其它事件（提交/倒计时）照常处理，音素播完再从当前遍恢复语音。
+		if (phonemeResumePending && event.type === "audio-state") return;
 		stepping = true;
 		try {
 			const { state, action } = stepEngine(engine, event);
@@ -504,6 +565,10 @@ export function useDictation() {
 		}
 		audioAbort?.abort();
 		audioAbort = null;
+		// 换轮/结束：音素试听也要停止，不能把上一轮的声音带到下一轮
+		phonemeResumePending = false;
+		cancelPhonemeResume();
+		phonemeAudio.stop();
 		setSounding(false);
 	};
 	onCleanup(clearRoundRuntime);
@@ -601,7 +666,8 @@ export function useDictation() {
 		setResultNote(null);
 		setRoundElapsed([]);
 		const content = contentOverride ?? contentMode();
-		if (content !== "word" && !isAiConfigured(settings())) {
+		// 音标模式优先用内置词典，未配置 AI 也能开始；缺词降级为单词轮
+		if (content !== "word" && content !== "phonetic" && !isAiConfigured(settings())) {
 			setError(
 				content === "cloze"
 					? "组句模式需要先配置 AI 服务（右上角设置里填写）"
@@ -611,9 +677,9 @@ export function useDictation() {
 			);
 			return;
 		}
-		// 组句只能赛博作答（选词必须在屏幕上完成）
+		// 组句/音标只能赛博作答（选词/点选必须在屏幕上完成）
 		setRunContentMode(content);
-		setMode(content === "cloze" ? "cyber" : m);
+		setMode(content === "cloze" || content === "phonetic" ? "cyber" : m);
 		setPhase("preparing");
 		setPrepError(null);
 		setPrepProgress(0);
@@ -623,14 +689,18 @@ export function useDictation() {
 				? "正在出题…"
 				: content === "sentence"
 					? "正在生成短句…"
-					: "正在生成语音…",
+					: content === "phonetic"
+						? "正在加载音标词典…"
+						: "正在生成语音…",
 		);
 		prepAbort = new AbortController();
 		const seq = ++prepSeq;
 		void runPreparation(
 			ws,
 			content,
-			settings().voice,
+			content === "phonetic"
+				? phoneticVoice(settings().voice)
+				: settings().voice,
 			prepAbort.signal,
 			seq,
 			definitions ?? {},
@@ -815,6 +885,134 @@ export function useDictation() {
 		setPhase("ready");
 	};
 
+	/**
+	 * 音标准备：内置 Britfone 词典 → 逐词取读音/建池子 → 单词语音。
+	 *
+	 * 词典是随包静态文件，不依赖 AI；未收录的词降级为普通单词轮（不中止本场）。
+	 * 语音仍走现有 TTS，但音标场次优先英式音色（见 settings.phoneticVoice）。
+	 */
+	const preparePhonetic = async (
+		ws: string[],
+		voice: string,
+		signal: AbortSignal,
+		alive: () => boolean,
+	) => {
+		const shuffled = shuffle(ws);
+		setPrepProgress(0);
+		setPrepIndeterminate(true);
+		setPrepStatus("正在加载音标词典…");
+
+		let dictionary: Awaited<ReturnType<typeof loadPhoneticDictionary>> | null =
+			null;
+		let dictionaryError: string | null = null;
+		try {
+			dictionary = await loadPhoneticDictionary();
+		} catch (error) {
+			// 静态词典缺失/损坏不阻塞整场：能 AI 补就补，补不到就降级单词轮
+			dictionaryError =
+				error instanceof Error ? error.message : "音标词典加载失败";
+		}
+		if (!alive()) return;
+
+		const found = new Map<
+			string,
+			{ variants: string[][]; source: "dict" | "ai" }
+		>();
+		let missing: string[] = [];
+		for (const word of shuffled) {
+			const variants = dictionary ? lookupPhonetic(dictionary, word) : null;
+			if (variants) found.set(word, { variants, source: "dict" });
+			else missing.push(word);
+		}
+
+		// 只补词典缺失的词；未配置 AI 时直接降级，不阻塞准备
+		let aiWarning: string | undefined;
+		if (missing.length > 0 && isAiConfigured(settings())) {
+			setPrepStatus("正在用 AI 补全音标…");
+			setPrepIndeterminate(true);
+			try {
+				const ai = await requestPhonetics(missing, settings(), signal);
+				for (const [word, variants] of Object.entries(ai.phonetics)) {
+					if (variants.length > 0) {
+						found.set(word, { variants, source: "ai" });
+					}
+				}
+				missing = missing.filter((word) => !found.has(word));
+				aiWarning = ai.warning;
+			} catch (error) {
+				if (signal.aborted) throw error;
+				aiWarning = "AI 补全音标失败，缺失词已降级为单词默写";
+			}
+		}
+		if (!alive()) return;
+
+		setPrepIndeterminate(false);
+		setPrepProgress(0);
+		setPrepStatus(`正在生成语音 0/${shuffled.length}`);
+		const items = await requestTtsAll(
+			shuffled,
+			voice,
+			signal,
+			(done, total) => {
+				if (!alive()) return;
+				setPrepProgress(done / total);
+				setPrepStatus(`正在生成语音 ${done}/${total}`);
+			},
+		);
+		if (!alive()) return;
+
+		lastPrep = {
+			words: shuffled,
+			nameMap: new Map(items.map((item) => [item.word, item.name])),
+			defs: {},
+			chinese: {},
+			sentences: {},
+			sentenceAudio: new Map(),
+		};
+		const base = buildRounds({
+			words: shuffled,
+			data: lastPrep,
+			level: speed(),
+			contentMode: "word",
+			multiplier: settings().multiplier,
+		});
+		const rounds = base.map((round): WordRound => {
+			const entry = found.get(round.word);
+			if (!entry) return round;
+			const canonical = entry.variants[0];
+			if (!canonical) return round;
+			const phonetic: PhoneticRoundData = {
+				expected: phoneticToString(canonical),
+				variants: entry.variants.map(phoneticToString),
+				source: entry.source,
+				pool: buildPhoneticPool(entry.variants),
+			};
+			return {
+				...round,
+				phonetic,
+				countdownSec: phoneticCountdownDuration({
+					tokens: canonical,
+					gapSec: round.gapSec,
+					repeatCount: round.repeatCount,
+					level: speed(),
+					multiplier: settings().multiplier,
+				}),
+			};
+		});
+
+		const notes: string[] = [];
+		if (dictionaryError) {
+			notes.push(`音标词典加载失败（${dictionaryError}）`);
+		}
+		if (aiWarning) notes.push(aiWarning);
+		if (missing.length > 0) {
+			notes.push(`${missing.length} 个词没有可用音标，已降级为单词默写`);
+		}
+		if (notes.length > 0) setResultNote(notes.join("；"));
+		setRounds(rounds);
+		setPhase("ready");
+	};
+
 	const runPreparation = async (
 		ws: string[],
 		content: ContentMode,
@@ -838,6 +1036,10 @@ export function useDictation() {
 			}
 			if (content === "sentence") {
 				await prepareSentence(ws, voice, signal, alive);
+				return;
+			}
+			if (content === "phonetic") {
+				await preparePhonetic(ws, voice, signal, alive);
 				return;
 			}
 			const shuffled = shuffle(ws);
@@ -955,6 +1157,7 @@ export function useDictation() {
 	};
 
 	const commitCurrentInputs = (i: number) => {
+		if (paused()) return;
 		const r = rounds()[i];
 		if (mode() !== "cyber" || !r) return;
 		if (r.kind === "cloze") {
@@ -978,33 +1181,23 @@ export function useDictation() {
 		engine = { ...engine, inputDone: inputDone() };
 	};
 
-	const startRound = (i: number) => {
-		clearRoundRuntime();
-		roundSeq++;
+	/** 计数轨：只负责倒计时与到点自动提交，不碰音频 */
+	const startCountdown = (
+		r: DictRound,
+		i: number,
+		remainingMs = r.countdownSec * 1000,
+	) => {
 		const seq = roundSeq;
-		const r = rounds()[i];
-		roundStartedAt = Date.now();
-		setCurrentIndex(i);
-		engine = {
-			...engine,
-			currentIndex: i,
-			speechDone: false,
-			countdownDone: false,
-			sounding: false,
-			inputDone: false,
-		};
-		syncEngineSignals();
-		setRepeatIndex(-1);
-		setWordInput("");
-		setDefInput("");
-
-		// —— 计数轨：进度条（与音频无关）——
-		const durMs = r.countdownSec * 1000;
-		const startedAt = Date.now();
-		setRemaining(r.countdownSec);
-			timerId = setInterval(() => {
-				if (seq !== roundSeq || phase() !== "dictating") return;
-				const rem = Math.max(0, durMs - (Date.now() - startedAt)) / 1000;
+		countdownRemainingMs = Math.max(0, remainingMs);
+		countdownEndsAt = Date.now() + countdownRemainingMs;
+		setRemaining(countdownRemainingMs / 1000);
+		if (timerId !== null) {
+			clearInterval(timerId);
+			timerId = null;
+		}
+		timerId = setInterval(() => {
+			if (seq !== roundSeq || phase() !== "dictating" || paused()) return;
+			const rem = Math.max(0, countdownEndsAt - Date.now()) / 1000;
 			setRemaining(rem);
 			if (rem <= 0) {
 				if (timerId !== null) {
@@ -1019,25 +1212,25 @@ export function useDictation() {
 				runStep({ type: "countdown-end" });
 			}
 		}, 100);
+	};
 
-		// —— 播音轨：自然播报 + 每遍间隔（不干涉音频）——
-		// 组句轮不播语音：直接标记语音轨完成（此时 inputDone 还是 false，状态机会等作答）
-		if (r.kind === "cloze") {
-			runStep({ type: "speech-end" });
-			return;
-		}
+	/** 语音轨：自然播报 + 每遍间隔；startIndex 用于看表/音素试听后从当前遍恢复 */
+	const startSpeech = (r: WordRound, startIndex = 0) => {
+		const seq = roundSeq;
+		audioAbort?.abort();
 		audioAbort = new AbortController();
 		const signal = audioAbort.signal;
 		void playWithIntervals({
 			items: playItemsOf(r),
 			gapsMs: r.gapSec.map((g) => g * 1000),
 			signal,
+			startIndex: Math.max(0, startIndex),
 			onPlay: (i2) => {
-				if (seq !== roundSeq || phase() !== "dictating") return;
+				if (seq !== roundSeq || phase() !== "dictating" || paused()) return;
 				setRepeatIndex(i2);
 			},
 			onAudioState: (playing) => {
-				if (seq !== roundSeq || phase() !== "dictating") return;
+				if (seq !== roundSeq || phase() !== "dictating" || paused()) return;
 				runStep({ type: "audio-state", playing });
 			},
 			// 错误必须在 onAudioState(false) 触发快速推进前启动缓存淘汰；
@@ -1051,10 +1244,148 @@ export function useDictation() {
 				if (name) void invalidateCacheFile(name);
 			},
 		}).then((outcome) => {
-			if (seq !== roundSeq) return;
+			if (seq !== roundSeq || paused()) return;
 			if (outcome === "aborted") return;
 			runStep({ type: "speech-end" });
 		});
+	};
+
+	const startRound = (i: number) => {
+		clearRoundRuntime();
+		roundSeq++;
+		const r = rounds()[i];
+		roundStartedAt = Date.now();
+		roundPausedMs = 0;
+		roundPauseStartedAt = 0;
+		setCurrentIndex(i);
+		engine = {
+			...engine,
+			currentIndex: i,
+			speechDone: false,
+			countdownDone: false,
+			sounding: false,
+			inputDone: false,
+		};
+		syncEngineSignals();
+		setRepeatIndex(-1);
+		setWordInput("");
+		setDefInput("");
+
+		startCountdown(r, i);
+		// 组句轮不播语音：直接标记语音轨完成（此时 inputDone 还是 false，状态机会等作答）
+		if (r.kind === "cloze") {
+			runStep({ type: "speech-end" });
+			return;
+		}
+		startSpeech(r, 0);
+	};
+
+	/* ---------- 音素试听 / 音标表暂停 ---------- */
+	const cancelPhonemeResume = () => {
+		phonemeResumeSeq++;
+		if (phonemeResumeTimer !== null) {
+			clearTimeout(phonemeResumeTimer);
+			phonemeResumeTimer = null;
+		}
+	};
+
+	/**
+	 * 音素自然播完后恢复本轮单词音频（从当前这一遍开始）。
+	 * 120ms 去抖：连续点多个 chip 时，只有最后一个播完才恢复，避免每次点击都插播单词。
+	 */
+	function schedulePhonemeResume() {
+		if (!phonemeResumePending || paused()) return;
+		cancelPhonemeResume();
+		const seq = phonemeResumeSeq;
+		phonemeResumeTimer = setTimeout(() => {
+			phonemeResumeTimer = null;
+			if (seq !== phonemeResumeSeq || !phonemeResumePending) return;
+			phonemeResumePending = false;
+			if (phase() !== "dictating" || paused()) return;
+			const r = currentRound();
+			if (!r || r.kind !== "word" || speechDone()) return;
+			startSpeech(r, Math.max(0, repeatIndex()));
+		}, 120);
+	}
+
+	/**
+	 * 点音素发音：如果本轮单词音频在播（或还在播报间隔），先中止它；
+	 * 音素播完从当前这一遍恢复。倒计时不停，暂停看表时直接忽略。
+	 */
+	const playPhoneme = (token: string, key?: string) => {
+		if (paused()) return;
+		const r = currentRound();
+		if (phase() === "dictating" && r?.kind === "word" && !speechDone()) {
+			phonemeResumePending = true;
+			audioAbort?.abort();
+			audioAbort = null;
+			setSounding(false);
+		}
+		cancelPhonemeResume();
+		resultAudio.stop();
+		phonemeAudio.play(token, key ?? `phoneme-${token}`);
+	};
+
+	/** 打开音标表：默写中暂停倒计时与音频；其它阶段只开窗口 */
+	const openPhoneticChart = () => {
+		if (chartWindow && !chartWindow.closed) {
+			chartWindow.focus();
+			return;
+		}
+		const shouldPause = phase() === "dictating" && !paused();
+		const win = openPhoneticChartWindow(shouldPause);
+		if (!win) {
+			setError("音标表窗口被浏览器拦截了，请允许本站弹出窗口后重试");
+			return;
+		}
+		chartWindow = win;
+		chartPaused = shouldPause && pauseForChart();
+		stopChartWatch = watchPhoneticChartWindow(win, () => {
+			chartWindow = null;
+			stopChartWatch = null;
+			if (chartPaused) {
+				chartPaused = false;
+				resumeFromChart();
+			}
+		});
+	};
+
+	const pauseForChart = (): boolean => {
+		if (phase() !== "dictating" || paused()) return false;
+		setPaused(true);
+		roundPauseStartedAt = Date.now();
+		if (timerId !== null) {
+			countdownRemainingMs = Math.max(0, countdownEndsAt - Date.now());
+			clearInterval(timerId);
+			timerId = null;
+		} else {
+			countdownRemainingMs = 0;
+		}
+		cancelPhonemeResume();
+		phonemeResumePending = false;
+		phonemeAudio.stop();
+		audioAbort?.abort();
+		audioAbort = null;
+		setSounding(false);
+		return true;
+	};
+
+	const resumeFromChart = () => {
+		if (!paused()) return;
+		if (roundPauseStartedAt > 0) {
+			roundPausedMs += Date.now() - roundPauseStartedAt;
+			roundPauseStartedAt = 0;
+		}
+		setPaused(false);
+		if (phase() !== "dictating") return;
+		const r = currentRound();
+		if (!r) return;
+		if (!engine.countdownDone) {
+			startCountdown(r, currentIndex(), countdownRemainingMs);
+		}
+		if (r.kind === "word" && !speechDone()) {
+			startSpeech(r, Math.max(0, repeatIndex()));
+		}
 	};
 
 	/* ---------- 赛博输入 ---------- */
@@ -1078,7 +1409,7 @@ export function useDictation() {
 	 * 状态机判定由 runStep 负责，这里只改数据。
 	 */
 	const chooseClozeWord = (blankIndex: number, word: string) => {
-		if (mode() !== "cyber" || activeContentMode() !== "cloze") return;
+		if (paused() || mode() !== "cyber" || activeContentMode() !== "cloze") return;
 		const i = currentIndex();
 		const r = rounds()[i];
 		if (!r || r.kind !== "cloze") return;
@@ -1092,19 +1423,19 @@ export function useDictation() {
 
 	/** 组句轮清除某个空的所选词（Backspace） */
 	const clearClozeWord = (blankIndex: number) => {
-		if (mode() !== "cyber" || activeContentMode() !== "cloze") return;
+		if (paused() || mode() !== "cyber" || activeContentMode() !== "cloze") return;
 		patchClozeBlank(currentIndex(), blankIndex, undefined);
 		refreshInputDone();
 	};
 	const submitWord = () => {
-		if (step() !== "word") return;
+		if (paused() || step() !== "word") return;
 		patchRound(currentIndex(), { answer: wordInput().trim() });
 		setWordInput("");
 		refreshInputDone();
 		runStep({ type: "submit" });
 	};
 	const submitDef = () => {
-		if (step() !== "def") return;
+		if (paused() || step() !== "def") return;
 		patchRound(currentIndex(), { answerDef: defInput().trim() });
 		setDefInput("");
 		refreshInputDone();
@@ -1123,9 +1454,17 @@ export function useDictation() {
 
 	const closeResults = () => {
 		resultAudio.stop();
+		phonemeAudio.stop();
 		setRunContentMode(null);
 		setPhase("idle");
 	};
+
+	/** 结果页单词发音：先停掉音素试听，保证同一时间只有一条声音 */
+	const playResultAudio = (audioName: string) => {
+		phonemeAudio.stop();
+		resultAudio.play(audioName);
+	};
+	const stopResultAudio = () => resultAudio.stop();
 
 	/** 档案页「专练薄弱词」：固定单词 + 赛博，不依赖 AI */
 	const startWeakDrill = (weakWords: string[]) => {
@@ -1146,6 +1485,14 @@ export function useDictation() {
 		setSettingsOpen(false);
 	};
 
+	// 组件卸载（页面关闭/热更新）时收掉音标表窗口与监听，避免留下孤儿窗口
+	onCleanup(() => {
+		stopChartWatch?.();
+		stopChartWatch = null;
+		chartWindow?.close();
+		chartWindow = null;
+	});
+
 	// 当前轮直接由 rounds 派生（与 resultRows 同理：memo 在非追踪上下文里会读不到新值）
 	const currentRound = (): DictRound | undefined =>
 		rounds()[currentIndex()];
@@ -1153,6 +1500,13 @@ export function useDictation() {
 	/* ---------- 键盘流 ---------- */
 	/** 键盘流：结果页回车/Escape 关闭；书写模式音频未发声时空格直接跳下一轮 */
 	const onRootKeyDown = (e: KeyboardEvent) => {
+		if (e.key === "F1" && activeContentMode() === "phonetic") {
+			e.preventDefault();
+			openPhoneticChart();
+			return;
+		}
+		// 看音标表期间：主窗口不处理任何提交/跳轮/关闭，避免在另一个窗口看表时误操作
+		if (paused()) return;
 		if (e.key === "Enter") {
 			if (phase() === "results") {
 				// 最后一个输入框的提交事件会在 phase 切到 results 后继续冒泡到 window；
@@ -1262,7 +1616,12 @@ export function useDictation() {
 		chooseClozeWord,
 		clearClozeWord,
 		closeResults,
-		playResultAudio: resultAudio.play,
+		playResultAudio,
+		stopResultAudio,
+		paused,
+		openPhoneticChart,
+		playPhoneme,
+		phonemePlayingKey: phonemeAudio.playingKey,
 		changeSettings,
 		closeSettings,
 		setSettingsOpen,

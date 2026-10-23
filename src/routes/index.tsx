@@ -3,6 +3,7 @@ import WordBank from "~/components/WordBank";
 import PreparingOverlay from "~/components/PreparingOverlay";
 import ReadyOverlay from "~/components/ReadyOverlay";
 import DictatingView from "~/components/DictatingView";
+import PhoneticView from "~/components/PhoneticView";
 import ClozeView from "~/components/ClozeView";
 import GradingOverlay from "~/components/GradingOverlay";
 import ResultsView from "~/components/ResultsView";
@@ -70,6 +71,18 @@ export default function Home() {
 	const clozeRound = () => {
 		const round = d.currentRound();
 		return round && round.kind === "cloze" ? round : undefined;
+	};
+	/** 音标场次里的降级单词轮要按普通单词输入渲染，不能仍显示音标面板 */
+	const displayContentMode = () => {
+		const round = d.currentRound();
+		if (
+			d.contentMode() === "phonetic" &&
+			round?.kind === "word" &&
+			!round.phonetic
+		) {
+			return "word" as const;
+		}
+		return d.contentMode();
 	};
 
 	// 结算时把这一场的判定写回复习计划（书写模式没有判定字段 → 底层会跳过）
@@ -153,6 +166,7 @@ export default function Home() {
 							onStartWriting={() => startDictation("writing")}
 							onStartCyber={() => startDictation("cyber")}
 							onStartDrill={startDrill}
+							onOpenChart={d.openPhoneticChart}
 							onOpenSettings={() => d.setSettingsOpen(true)}
 							onOpenHistory={() => setHistoryOpen(true)}
 							stashCount={stashedWords()?.length ?? 0}
@@ -168,6 +182,8 @@ export default function Home() {
 						status={d.prepStatus()}
 						error={d.prepError()}
 						onAbort={d.abortPreparation}
+						showChart={d.contentMode() === "phonetic"}
+						onOpenChart={d.openPhoneticChart}
 					/>
 				</Show>
 
@@ -176,6 +192,8 @@ export default function Home() {
 						count={d.rounds().length}
 						contentMode={d.contentMode()}
 						onGo={d.go}
+						showChart={d.contentMode() === "phonetic"}
+						onOpenChart={d.openPhoneticChart}
 					/>
 				</Show>
 
@@ -183,28 +201,56 @@ export default function Home() {
 					<Show
 						when={clozeRound()}
 						fallback={
-							<DictatingView
-								index={d.currentIndex()}
-								total={d.rounds().length}
-								remainingSec={d.remaining()}
-								durationSec={d.currentRound()?.countdownSec ?? 1}
-								showNumber={d.settings().showCountdownNumber}
-								repeatIndex={d.repeatIndex()}
-								repeatCount={d.currentRound()?.repeatCount ?? 1}
-								playLabels={wordRound()?.playLabels}
-								speechDone={d.speechDone()}
-								sounding={d.sounding()}
-								mode={d.mode()}
-								contentMode={d.contentMode()}
-								submittedWord={wordRound()?.answer}
-								submittedDef={wordRound()?.answerDef}
-								wordInput={d.wordInput()}
-								defInput={d.defInput()}
-								onWordInput={d.setWordInput}
-								onDefInput={d.setDefInput}
-								onWordSubmit={d.submitWord}
-								onDefSubmit={d.submitDef}
-							/>
+							<Show
+								when={wordRound()?.phonetic}
+								fallback={
+									<DictatingView
+										index={d.currentIndex()}
+										total={d.rounds().length}
+										remainingSec={d.remaining()}
+										durationSec={d.currentRound()?.countdownSec ?? 1}
+										showNumber={d.settings().showCountdownNumber}
+										repeatIndex={d.repeatIndex()}
+										repeatCount={d.currentRound()?.repeatCount ?? 1}
+										playLabels={wordRound()?.playLabels}
+										speechDone={d.speechDone()}
+										sounding={d.sounding()}
+										mode={d.mode()}
+										contentMode={displayContentMode()}
+										submittedWord={wordRound()?.answer}
+										submittedDef={wordRound()?.answerDef}
+										wordInput={d.wordInput()}
+										defInput={d.defInput()}
+										onWordInput={d.setWordInput}
+										onDefInput={d.setDefInput}
+										onWordSubmit={d.submitWord}
+										onDefSubmit={d.submitDef}
+									/>
+								}
+							>
+								{(phonetic) => (
+									<PhoneticView
+										index={d.currentIndex()}
+										total={d.rounds().length}
+										remainingSec={d.remaining()}
+										durationSec={wordRound()?.countdownSec ?? 1}
+										showNumber={d.settings().showCountdownNumber}
+										repeatIndex={d.repeatIndex()}
+										speechDone={d.speechDone()}
+										sounding={d.sounding()}
+										word={wordRound()?.word ?? ""}
+										phonetic={phonetic()}
+										tokenInput={d.wordInput()}
+										answer={wordRound()?.answer}
+										paused={d.paused()}
+										playingKey={d.phonemePlayingKey()}
+										onTokenInput={d.setWordInput}
+										onSubmit={d.submitWord}
+										onPlay={d.playPhoneme}
+										onOpenChart={d.openPhoneticChart}
+									/>
+								)}
+							</Show>
 						}
 					>
 						{(round) => (
@@ -238,6 +284,8 @@ export default function Home() {
 						reviewNote={reviewNote()}
 						playingAudioName={d.resultAudioName()}
 						onPlayAudio={d.playResultAudio}
+						onStopAudio={d.stopResultAudio}
+						onOpenChart={d.openPhoneticChart}
 						onClose={d.closeResults}
 					/>
 				</Show>

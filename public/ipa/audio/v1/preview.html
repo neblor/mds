@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>音素音频试听 · 默点啥</title>
+  <style>
+    :root { color-scheme: light; }
+    body {
+      margin: 0; padding: 32px;
+      font-family: "SarasaUiSC-Regular", "Segoe UI", "Microsoft YaHei", sans-serif;
+      background: #f5f7f8; color: #2e353b;
+    }
+    main { max-width: 980px; margin: 0 auto; }
+    h1 { margin: 0 0 6px; font-size: 24px; }
+    p { margin: 0 0 18px; color: #5b6470; font-size: 13px; line-height: 1.7; }
+    h2 { margin: 26px 0 10px; font-size: 16px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; }
+    th, td { padding: 8px 12px; border-bottom: 1px solid #e9edf1; text-align: left; font-size: 13px; }
+    th { color: #8a93a0; font-weight: 600; }
+    tr:last-child td { border-bottom: 0; }
+    code { font-family: "SarasaUiSC-Regular", "Segoe UI", serif; font-size: 20px; }
+    audio { width: 260px; height: 32px; }
+    a { color: #4ea3a0; }
+    .note { margin-top: 22px; padding: 12px 14px; background: #fff; border-radius: 10px; color: #5b6470; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>音素音频试听 v1</h1>
+    <p>
+      这是开发期试听页，不进入业务 UI。音频由 <code>pnpm build:phoneme-audio</code>
+      从 Wikimedia Commons 生成；辅助音源多为「辅音 + 元音」示范，8 个双元音由两个单元音拼接。
+      许可与逐文件来源见 <a href="./LICENSE.md">LICENSE.md</a>。
+    </p>
+    <div id="app">正在读取 manifest…</div>
+    <div class="note">
+      提示：重音符号 <code>ˈ</code>/<code>ˌ</code> 本身不发音，所以不在试听列表里。
+    </div>
+  </main>
+  <script>
+    const groups = [
+      ["元音", ["vowel"]],
+      ["双元音（拼接示范）", ["diphthong"]],
+      ["辅音", ["consonant"]],
+    ];
+    const order = ["iː", "i", "ɪ", "e", "æ", "ɑː", "ɒ", "ɔː", "ʊ", "uː", "ʌ", "ɜː", "ə",
+      "eɪ", "aɪ", "ɔɪ", "əʊ", "aʊ", "ɪə", "eə", "ʊə",
+      "p", "b", "t", "d", "k", "ɡ", "tʃ", "dʒ", "f", "v", "θ", "ð", "s", "z", "ʃ", "ʒ",
+      "h", "m", "n", "ŋ", "l", "r", "w", "j"];
+    fetch("./manifest.json")
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .then((manifest) => {
+        const app = document.getElementById("app");
+        app.textContent = "";
+        for (const [title, kinds] of groups) {
+          const tokens = order.filter((token) =>
+            kinds.includes(manifest.tokens[token]?.kind),
+          );
+          if (tokens.length === 0) continue;
+          const heading = document.createElement("h2");
+          heading.textContent = title;
+          app.appendChild(heading);
+          const table = document.createElement("table");
+          const thead = document.createElement("thead");
+          const headRow = document.createElement("tr");
+          for (const label of ["音素", "试听", "来源", "许可"]) {
+            const th = document.createElement("th");
+            th.textContent = label;
+            headRow.appendChild(th);
+          }
+          thead.appendChild(headRow);
+          table.appendChild(thead);
+          const body = document.createElement("tbody");
+          for (const token of tokens) {
+            const entry = manifest.tokens[token];
+            const sources = (entry.sourceIds ?? [])
+              .map((id) => manifest.sources[id])
+              .filter(Boolean);
+            const row = document.createElement("tr");
+            const symbol = document.createElement("td");
+            const code = document.createElement("code");
+            code.textContent = `/${token}/`;
+            symbol.appendChild(code);
+            const audioCell = document.createElement("td");
+            const audio = document.createElement("audio");
+            audio.controls = true;
+            audio.preload = "none";
+            audio.src = `./${entry.file}`;
+            audioCell.appendChild(audio);
+            const sourceCell = document.createElement("td");
+            sourceCell.textContent = sources.map((s) => s.title).join(" + ");
+            const licenseCell = document.createElement("td");
+            licenseCell.textContent = [...new Set(sources.map((s) => s.license))].join(", ");
+            row.append(symbol, audioCell, sourceCell, licenseCell);
+            body.appendChild(row);
+          }
+          table.appendChild(body);
+          app.appendChild(table);
+        }
+      })
+      .catch((error) => {
+        document.getElementById("app").textContent =
+          `读取失败：${error.message}（请通过 pnpm web:dev / 内置服务打开，而不是 file://）`;
+      });
+  </script>
+</body>
+</html>

@@ -7,6 +7,7 @@
  *   可用 grades 覆盖；无 AI 结果时回退本地归一化匹配；书写模式只展示参考）
  * - chinese 模式（赛博）：判定 = 英文单词（严格匹配）+ 中文词（AI 批改，同上）
  * - sentence 模式：判定 = **整句归一化后全等**（小写 + 去标点 + 压空白），不做 AI 批改
+ * - phonetic 模式：判定 = 音素序列（重音归位；主重音严格、次重音忽略；多读音任一）
  */
 import {
 	isChineseMatch,
@@ -16,9 +17,16 @@ import {
 } from "./match";
 import { inflectedForms } from "./sentence-provider";
 import { sentenceOfBlank } from "./cloze-parse";
+import { bestVariantIndex, matchVariant, normalizeForGrading } from "./phonetic-match";
+import { phoneticToString, tokensFromString } from "./phonetic-parse";
 import type { ContentMode } from "./state";
 
-export type ResultFieldKind = "word" | "definition" | "chinese" | "sentence";
+export type ResultFieldKind =
+	| "word"
+	| "definition"
+	| "chinese"
+	| "sentence"
+	| "phonetic";
 
 export interface ResultField {
 	kind: ResultFieldKind;
@@ -62,6 +70,12 @@ export interface WordRoundLike {
 	variant?: "word" | "sentence";
 	/** 短句模式：标准整句 */
 	sentence?: string;
+	/** 音标模式：该轮要拼音标时携带标准读音与池子来源 */
+	phonetic?: {
+		expected: string;
+		variants: string[];
+		source: "dict" | "ai";
+	};
 }
 
 /** 组句轮（一题一段短文 + 若干个空）的结果行所需数据 */
@@ -73,10 +87,27 @@ export interface ClozeRoundLike {
 	audioNames?: Record<string, string>;
 }
 
-export type RoundLike = WordRoundLike | ClozeRoundLike;
+/** 音标轮：看词拼音标，answerTokens 为提交后的 token 序列 */
+export interface PhoneticRoundLike {
+	kind: "phonetic";
+	word: string;
+	audioName: string;
+	/** 标准音标（token 字符串，空格分隔） */
+	expected: string;
+	/** 全部可接受读音（token 字符串） */
+	variants: string[];
+	source: "dict" | "ai";
+	answerTokens?: string[];
+}
+
+export type RoundLike = WordRoundLike | ClozeRoundLike | PhoneticRoundLike;
 
 function isClozeRound(round: RoundLike): round is ClozeRoundLike {
 	return round.kind === "cloze";
+}
+
+function isPhoneticRound(round: RoundLike): round is PhoneticRoundLike {
+	return round.kind === "phonetic";
 }
 
 /** AI 批改覆盖：按单词给出的中文词判定结果 */
@@ -98,6 +129,32 @@ export function buildResultRows(
 			rows.push(...buildClozeRows(round, mode, roundIndex));
 			continue;
 		}
+		if (isPhoneticRound(round)) {
+			rows.push(buildPhoneticRow(round, mode, roundIndex));
+			continue;
+		}
+		// 音标场次里的普通 WordRound：带了 phonetic 说明这一轮要拼音标；
+		// 没带就是词典未收录的降级轮，走下面的单词字段并标注。
+		if (round.phonetic) {
+			rows.push(
+				buildPhoneticRow(
+					{
+						kind: "phonetic",
+						word: round.word,
+						audioName: round.audioName,
+						expected: round.phonetic.expected,
+						variants: round.phonetic.variants,
+						source: round.phonetic.source,
+						...(round.answer !== undefined
+							? { answerTokens: tokensFromString(round.answer) }
+							: {}),
+					},
+					mode,
+					roundIndex,
+				),
+			);
+			continue;
+		}
 		const sentence = round.sentence?.trim();
 		rows.push({
 			word: round.word,
@@ -108,10 +165,52 @@ export function buildResultRows(
 			...(contentMode === "sentence" && !sentence
 				? { note: "本词没有合格短句，按单词默写" }
 				: {}),
+			...(contentMode === "phonetic"
+				? { note: "本词没有可用音标，按单词默写" }
+				: {}),
 			fields: buildFields(round, mode, contentMode, grades),
 		});
 	}
 	return rows;
+}
+
+/** 音标轮 → 结果行：expected 取匹配/最接近的变体，userValue 存归位后的序列 */
+function buildPhoneticRow(
+	round: PhoneticRoundLike,
+	mode: "writing" | "cyber",
+	roundIndex: number,
+): ResultRow {
+	const user = round.answerTokens ?? [];
+	const variants = round.variants.map((variant) => tokensFromString(variant));
+	const matched = matchVariant(user, variants);
+	const displayIndex = matched >= 0 ? matched : bestVariantIndex(user, variants);
+	const expected =
+		round.variants[displayIndex >= 0 ? displayIndex : 0] ?? round.expected;
+	const normalizedUser = normalizeForGrading(user);
+	const graded = mode === "cyber" && round.answerTokens !== undefined;
+	return {
+		word: round.word,
+		audioName: round.audioName,
+		roundIndex,
+		fields: [
+			{
+				kind: "phonetic",
+				expected,
+				...(round.answerTokens !== undefined
+					? {
+							userValue: normalizedUser
+								? phoneticToString(normalizedUser)
+								: phoneticToString(user),
+						}
+					: {}),
+				graded,
+				...(graded ? { correct: matched >= 0 } : {}),
+				...(round.source === "ai"
+					? { note: "AI 生成，仅供参考" }
+					: {}),
+			},
+		],
+	};
 }
 
 /** 组句轮 → 结果行：每空一行，带该空所在句（答案已填入） */
@@ -247,6 +346,8 @@ export const JUDGEMENT_NOTES: Record<ContentMode, string> = {
 	chinese:
 		"中文词由 AI 批改，常见同义词也算对 · 英文单词大小写与标点需完全一致",
 	sentence: "整句匹配：忽略大小写与标点，空格按单个空格比较（词序写错才算错）",
+	phonetic:
+		"音标判定：按音素序列比对，主重音必须正确，次重音不参与判定；同词多读音任一匹配即算对",
 	cloze: "组句判定：每个空独立比对，选中与正确词完全一致才算对（忽略首尾空格）",
 };
 
@@ -256,6 +357,7 @@ export const CONTENT_MODE_LABELS: Record<ContentMode, string> = {
 	definition: "释义",
 	chinese: "中文词",
 	sentence: "短句",
+	phonetic: "音标",
 	cloze: "组句",
 };
 

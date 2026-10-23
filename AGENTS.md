@@ -46,6 +46,9 @@
 | `pnpm get:explain word1 word2 ...` | 直接调用独立 AI 释义服务做人工诊断；读取项目`.env`中的`MDS_AI_BASE_URL`、`MDS_AI_API_KEY`、`MDS_AI_MODEL`，不读写业务缓存 |
 | `pnpm get:sentences word1 word2 ...` | 短句模式诊断：复用生产生句链路（含超长收紧重试），逐词输出句子/词数/是否偏长，并汇总长度分布（目标 3–6 词、硬上限 8 词），不写业务缓存 |
 | `pnpm get:tts word1 word2 ...` | 语音合成诊断：复用生产 Edge TTS provider，逐词输出命中端点/是否回退/耗时/字节数/mp3 头/失败原因，不写业务缓存。403 优先查系统时间（令牌按 5 分钟窗口），见`.implementation-report/2026-10-17-edge-tts-v2-and-hydration-crash.md`§六 |
+| `pnpm get:phonetics word1 word2 ...` | AI 音标兜底诊断：复用生产 phonetic provider，逐词输出 token 读音/缺失/耗时/兼容降级；不读写业务缓存，不打印 Key |
+| `pnpm build:phonetics` | 从 Britfone 3.0.1 生成`public/ipa/en-gb.v1.json`（MIT；重音归位/符号归一/白名单；默认下载到`.tmp`，可用`--csv`指定本地文件） |
+| `pnpm build:phoneme-audio` | 从 Wikimedia Commons 源生成`public/ipa/audio/v1/`的 45 个音素 MP3 + manifest + LICENSE（CC BY-SA；双元音为同源拼接） |
 | `pnpm db:status` | 只读查看复习 SQLite：schema v1、各库 cards/logs/sessions 条数、`migrated-v1/` 归档、WAL、`quick_check`；不启动服务、不触发迁移 |
 | `pnpm db:rollback -- --yes` | 回滚学习状态：先把 `review.sqlite*` 备份为 `review.sqlite.bak-<时间戳>`，再把 `review/migrated-v1/` 旧文件搬回 `review/`；执行前必须退出应用 |
 
@@ -208,7 +211,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
   - 要是单词全对可以做一个撒花或是其他的效果来庆祝，所有svg图形需求优先查lucide icon库中有没有能满足要求的
 - 显示出结果后，提供关闭按钮，点击后回到准备默写状态，不自动重置默认内容，由用户自行选择默同样的还是清空重填
   - 结果界面按 Escape 必须与点击关闭按钮完全等价：停止正在试听的结果发音并回到词库准备状态，保留当前词库
-- 内容模式除单词/释义/中文词/组句外，另有`短句`模式（滑块顺序：单词 · 释义 · 中文词 · 短句 · 组句）：
+- 内容模式除单词/释义/中文词/组句外，另有`短句`与`音标`模式（滑块顺序：单词 · 释义 · 中文词 · 短句 · 音标 · 组句）：
   - 准备阶段为每个目标词生成一句英文**短句或词组**，默写对象是整句；句子用词与句法难度由设置里的生成级别约束
   - **短句要短**：目标 3–6 词、**硬上限 8 词**，超过即判不合格并做一次「收紧到 ≤5 词」的重试，仍不合格的词**降级为单词轮**（不中止本场）；**允许不是完整句子**（短语/片段只要通顺即可）
   - 每轮播报：**只念整句 3 遍**，不再先念目标词（用户听到第一个音就开始写，念单词没有用）
@@ -228,6 +231,21 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
   - 每轮默写倒计时是否显示数字（精确到0.1秒），关掉的话只有倒计时条
 - 根据上面提供的要求和各个元素，设计界面排版，界面风格以浅色为主，高雅精致，设计一个好看的primary和辅色搭配整个界面
 - 为生成的windows应用程序提供一个图标，这个图标可以基于lucide中已经有的图标拼出来，比如可以有个漂亮的小黄星星这样
+
+### 音标模式（2026-10-23）
+
+- **入口与作答**：内容模式第 5 项「音标」（6 项滑块，宽约 430px）；只允许赛博默写，选中后书写按钮置灰并显示「音标模式请用赛博默写：点选音标需要在屏幕上完成」。音标场次里的词典缺失词降级为普通单词轮，按当前轮的 kind 渲染，不显示音标面板。
+- **数据**：`public/ipa/en-gb.v1.json`（Britfone 3.0.1，MIT；15,194 词 / 16,172 读音；PET 单条词覆盖 93.7%）；构建期归一 `ɹ→r`、`ɛ→e`、`ɐ→ʌ`、`g→ɡ`，并把 Britfone 挂在元音前的重音按「最大音节首」归位（`w ˈɔː t ə → ˈ w ɔː t ə`）。词典懒加载一次；词组/未收录词先尝试 AI 兜底，仍缺失才降级。
+- **AI 兜底**：只补词典缺失词；`POST /api/phonetics` → provider（严格 JSON token 数组 + `parsePhoneticVariants` 白名单/主重音校验）→ `phonetics.json` 缓存（model + promptVersion 身份；不写负缓存；写后复读）；结果标「AI 生成，仅供参考」。未配置 AI 不阻止音标模式，缺失词直接降级；AI 失败也不中止本场。
+- **音标轮**：单词始终可见；TTS 自动播 2–3 遍（沿用 `repeatCount(word,false)`），音标轮优先 en-GB 音色（用户当前是 `en-GB-*` 则尊重，否则 `en-GB-SoniaNeural`；设置里已补三个 en-GB 选项）。池子 = 答案 token 多重集合 + 4–6 个易混干扰项，按池内 index 记录使用/置灰；chip 左半移除、右半喇叭，重音 `ˈ`/`ˌ` 无音频（灰点）。答案条固定；池子 125px 固定宽度 tile 自动换行、min-height 232；底部操作条贴底、背景同默认、z 高于池子，池子行多时被遮挡；提示不顶动布局。方向键上下步长 = 实际列数（`columnsForWidth`，DOM 实测 tile 宽/gap + `ResizeObserver`）；放入/清空/关表后焦点自动回到可用块（禁用块无法聚焦，不能留焦点在原地）。
+- **判定**：用户与标准两端都做重音归位后按 token 序列严格比较；主重音 `ˈ` 必须正确，次重音 `ˌ` 忽略；同词多读音任一命中即算对；`i` / `iː` / `ɪ` 不互相宽容。倒计时结束一次性提交当前 picks（允许空）；赛博规则：提前提交后语音在间隔区立即推进，正在发声等这一遍播完。
+- **计时**：`phoneticCountdownDuration` = `(3s + 0.8s × 参与判定的 token 数) × 档位 × 倍率 + 播报间隔和 + 遍数 × 1.2s 音频余量`；倒计时必须覆盖音频，调时长改基础公式，不靠倍率硬拧。
+- **键盘铁律**：池子 roving tabindex（←/→/↑/↓ 的上下步长 = 实际换行列数；Enter/Space 放入、Shift+Enter 试听）；Backspace 撤销最后一块、Shift+Backspace 试听最后一块、Delete 清空、Ctrl/Cmd+Enter 提交、F1 开表；每轮自动聚焦池子第一块；放入后焦点顺延到下一个未用块（禁用块无法保持焦点），清空/关表后焦点回池子。
+- **音素试听**：点 chip/pool 喇叭时若本轮单词音频在播/间隔，先 abort；音素播完 120ms 去抖后从当前这一遍恢复（连续点多个只恢复最后一次）；提交/推进/进结果/开表不恢复；结果页单词发音与 token 发音互斥，同一时间只播一个音素。
+- **全屏音标表**：`/phonetic-symbols` 独立窗口；Electron 主进程 `setWindowOpenHandler` 只允许同源精确路径，用无边框全屏子窗口（主窗口 `fullscreenable:false` 不动）；Web 为普通弹窗。任意键/点击关闭，子窗口 `postMessage` + 父窗口轮询 `win.closed` 兜底。默写中打开：倒计时冻结、音频 abort；关闭后从当前这一遍恢复，暂停时长不计入本轮 `elapsedMs`；看表期间主窗口提交/跳轮 no-op。准备/就绪/结果阶段打开不暂停。
+- **结果与写回**：`ResultFieldKind` 增加 `phonetic`；结果行标准/我的 token 都带喇叭；AI 来源标「AI 生成，仅供参考」；降级词走普通单词行并标「本词没有可用音标，按单词默写」。写回按该行是否有 `phonetic` 字段决定 mode：音标轮记 `phonetic`，降级轮记 `word`；场次 `contentMode` 仍为 `phonetic`。`review-service` 的 `hasPhoneticField` 与 `results` 的 `WordRound.phonetic` 分支是生产路径，改这里必须同步测试。
+- **测试**：`phonetic-symbols/parse/match/pool`、`phonetic-dictionary`、`phoneme-audio`、`phonetic-provider/service`、`phonetic-chart`、`results`/`review-service`/`timing`/`history-storage`；AI provider/service 覆盖合法/非法 token、缺失不写负缓存、model 失效、写后复读。改这些必须跑 `pnpm test:run` 与 `pnpm check`。
+- **设计**：`.design/phonetic-mode.md` + 四张 Web 实机截图（音标轮空/已填、结果 1/1 与 0/1）；`.design/mds.pen` 第六批 **33–36** 已切（33 词库页、34 音标轮、35 结果、36 全屏表）；4 个待确认点见 `.design/phonetic-mode.md`。
 
 ### 词库 / 复习 / 学习档案（2026-10-18 更新）
 

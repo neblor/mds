@@ -205,6 +205,7 @@ export function buildCommitItems(options: {
 		const graded = gradedOf(row);
 		if (graded.length === 0) return;
 		const hasSentenceField = graded.some((field) => field.kind === "sentence");
+		const hasPhoneticField = graded.some((field) => field.kind === "phonetic");
 		const correct = graded.every((field) => field.correct === true);
 		const round = roundOfRow(row, index);
 		const roundElapsed = options.elapsedMs?.[round] ?? 0;
@@ -212,9 +213,13 @@ export function buildCommitItems(options: {
 		const elapsed = Number.isFinite(roundElapsed)
 			? Math.max(0, Math.round(roundElapsed / Math.max(1, share)))
 			: 0;
-		// 短句场次的降级轮：判定来自单词字段（本词没有合格短句）
+		// 短句/音标场次的降级轮：判定来自单词字段（本词没有合格短句/可用音标）
 		const rowMode: ReviewMode =
-			options.mode === "sentence" && !hasSentenceField ? "word" : options.mode;
+			options.mode === "sentence" && !hasSentenceField
+				? "word"
+				: options.mode === "phonetic" && !hasPhoneticField
+					? "word"
+					: options.mode;
 		items.push({
 			word,
 			correct,

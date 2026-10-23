@@ -200,3 +200,38 @@ export function sentenceCountdownDuration(opts: {
 		SENTENCE_THINK_SECONDS + SENTENCE_CHAR_SECONDS * sentenceCharCount(sentence);
 	return scaleTime(perRepeat * SENTENCE_REPEATS, level, multiplier);
 }
+
+/* ---------- 音标模式（phonetic） ---------- */
+
+/**
+ * 音标轮计时口径（崔总 2026-10-23 确认）：
+ * - 用户看到单词、听 2–3 遍发音，然后点选音素；
+ * - 倒计时 = 「思考 + 每音素点击时间」× 档位×倍率 + 播报间隔 + 每遍音频余量；
+ * - 倒计时必须覆盖音频，否则赛博的「倒计时到就自动提交」会抢在音频播完前。
+ * - 次重音不参与判定，也不计入每音素点击时间；主重音计入。
+ */
+export const IPA_THINK_SECONDS = 3;
+export const IPA_TOKEN_SECONDS = 0.8;
+/** 每遍音频本身的估算余量（音频时长不受倍率影响，故不乘倍率） */
+export const IPA_AUDIO_TAIL_SECONDS = 1.2;
+
+export function phoneticCountdownDuration(opts: {
+	/** canonical token（含 ˈ/ˌ） */
+	tokens: string[];
+	/** 已乘过档位×倍率的播报间隔 */
+	gapSec: number[];
+	repeatCount: number;
+	level: SpeedLevel;
+	multiplier?: number;
+}): number {
+	const graded = opts.tokens.filter((token) => token !== "ˌ").length;
+	const thinkAndClick = scaleTime(
+		IPA_THINK_SECONDS + IPA_TOKEN_SECONDS * graded,
+		opts.level,
+		opts.multiplier ?? 1,
+	);
+	const audioAllowance =
+		opts.gapSec.reduce((sum, gap) => sum + gap, 0) +
+		opts.repeatCount * IPA_AUDIO_TAIL_SECONDS;
+	return Math.round((thinkAndClick + audioAllowance) * 10) / 10;
+}
