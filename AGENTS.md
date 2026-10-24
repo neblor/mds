@@ -220,7 +220,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
   - 结果页只做三件事：这一句默的是哪个词、标准整句（目标词高亮）、用户输入的**原文**；对错由行首 ✓/✗ 与底色表达，不额外解释
   - 书写与赛博两种作答都支持（区别于只有赛博的组句模式）
 - 主界面模式滑块右侧是**模式操作区**（`ModeActions.tsx`，按选中模式显示不同操作，目前只短句模式有操作）：
-  - 短句模式的`更新短句`按**当前今日队列**的词清掉短句缓存（`sentences.json` 对应条目；`model`/`contentLevel` 与其它词保留，大小写不敏感），下次准备重新生句并各自写回缓存
+  - 短句模式的`更新短句`按**当前这批词**清掉短句缓存（`sentences.json` 对应条目；`model`/`contentLevel` 与其它词保留，大小写不敏感），下次准备重新生句并各自写回缓存
   - 队列为空/录入模式时按钮置灰并给出原因提示；结果提示分「已清掉 N 个」「本来就没缓存」「失败」三态，离开短句模式即清掉旧提示
   - 只清文本缓存，不清理旧句子音频（无引用清理，见 FUTURE.md）
 - 注意：释义只能英文释义，不支持中文释义
@@ -249,15 +249,22 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 
 ### 词库 / 复习 / 学习档案（2026-10-18 更新）
 
-- **词库模式**：词库本体仍是 `mds-data/banks/*.json`；每日队列由 FSRS-6 排期计算，不落盘；队列来源（新词/复习/重学）由服务端判定。
+- **词库模式**：词库本体仍是 `mds-data/banks/*.json`；**取词队列按 SRS 排期计算，不落盘、与「每日」无关**（due <= now 的复习 + 未学新词，取到 `size` 为止）；队列来源（新词/复习/重学）由服务端判定。
 - **复习状态（唯一事实来源）**：`mds-data/review/review.sqlite`。表：`cards`（每词 FSRS 快照）、`review_log`（逐题判定）、`session` + `session_word`（每场使用记录与词）。写入一场 = 一个事务；`session.id` 为幂等键，重放不重复。
 - **场次采集**：书写与赛博都写场次（书写 `correct` 为 `null`）；书写不进 SRS 调度，但计入使用频率。客户端在开始默写时生成 `session.id`/起始时间，结算时提交 `words/correct/activeMs/wallMs`。`session.correct` 以逐题日志重算（**按题/空计数**）；「最近练习」的分母用 `judged`（该场日志条数，`review_log.session_id` 索引子查询），所以组句一轮多空时会出现 `2 / 3`（2 词 3 空），不会再被夹成 `2 / 2`。书写场次 `judged = 0`，显示 `— / 词数`。
-- **今日进度**：不再有 `daily.json`；`readDayStats(bankId, day)` 由 `review_log` 聚合 `correct/total/elapsedMs`；`done` 仍由 `doneWordsToday` 从卡片 `last_review` 计算（自愈）。
+- **取词数量语义（2026-10-24 崔总更正，勿再理解成日目标）**：界面上只有一个数字 = **本次取几个词**。
+  客户端偏好字段 `batchSize`（旧字段 `todayTarget` 读时迁移），服务端 `size`。点`重新取词`就是按当前数字
+  **再取一批**，跨批次没有「今日额度」；已默词不会作为新词重复出现，只有到期学习/重学卡会作为复习词回来。
+  `progress.size` / `progress.done` 是**同一批**的两个数；跨批次累计看 `progress.todayWords`（统计侧，按场次词数求和，同一词多轮也累加）。
+- **今日统计**：不再有 `daily.json`；`readDayStats(bankId, day)` 由 `review_log` 聚合 `correct/total/elapsedMs`，
+  并由 `session.word_count` 求和得到 `words`（当天默了几次就累加几次，跨批次不去重）。**结算后不重取词**：
+  `commitSession` 只把写回的词并进本批已默集合（`applyCommitToQueue`），词面冻结到下一次`重新取词`。
+  `重新取词` 有刷新中/已刷新状态，不改卡片。
 - **迁移/兼容**：工厂 `createReviewStore(reviewDir)` 负责打开/建库/迁移；旧文件先导临时库、计数校验、`quick_check`、原子 rename，再归档。失败保留旧文件并返回 JSON 兼容 store（`mode="legacy"`，`stats=null`）；下次启动重试。`node:sqlite` 通过 `process.getBuiltinModule` 运行时获取，不得改成静态 import。
 - **学习档案**：词表模式当前词表左侧 `library` → 32×32 按钮打开档案（点词表名仍打开选择弹层）。档案 = 4 KPI + 学习进度 / 180 天热力 / 最近 3 场 + 14 天到期预测 / 薄弱·常练词；Esc 返回并恢复焦点。「已掌握」= 下次间隔 ≥ 21 天；正确率样本 < 10 显示「—」；旧数据无场次时场次类指标显示 `—` 并注明从本版开始。热力网格区**固定高度**（7 行 18px 格 ≈ 158px，容器 176px + `overflow-y` 显式取 `hidden`）且卡片不可被 flex 压缩：窗口变矮时整页滚动或网格横向滚动，**不允许内部出纵向滚动条**。
 - **写回判定字段**：结算写回（`buildCommitItems`）的对错 = **该行所有 `graded` 字段都对**：短句轮是 `sentence`（整句归一化比较），其余模式与短句降级轮是 `word`。只认 `word` 会让短句场次整场不写回（卡片不排期/日志不落盘/最近练习显示 `0 / N`）；只取 `word` 字段又会让「拼写对、释义错」进 FSRS 记成 Good（与结算页判错矛盾）——两处都是同一行错误（2026-10-18 修复）。耗时按 `roundIndex`（轮）取，组句一轮多空均分到各空。
 - **卡片按词聚合**：`review_log` 逐题（正确率/耗时按题看），但**每词一场只推进一次 FSRS**（`aggregateItemsByWord`：有一空错就记 Again）。原因：同一时刻对同一张卡连续评分两次会让它提前毕业（实测新卡同毫秒两次 Good 直接从 Learning 跳到 2 天后）。
-- **书写不推进队列**：书写场次不写卡，所以 `doneWordsToday`/「已默 x / N」不因书写而增长，队列词也不会打勾（既定口径，见 FUTURE）。
+- **书写不推进本批进度**：书写场次不写卡，所以本批「已默 x / N」不因书写增长、队列词不打勾；但每日统计 `todayWords` 按场次词数求和，**书写也计入当天统计**。队列仍按 SRS；书写过的词没有卡，下次仍会作为新词出现（既定口径，见 FUTURE §7）。
 - **改这里必须同时跑** `src/lib/review-service.test.ts` 的 store 级回归（短句写回、场次得分、同词多空）。
 - **专练**：薄弱词最多 5 个，一键「单词 + 赛博」；`runContentMode` 只覆盖本场，结果页/历史显示「单词」，关闭后恢复用户模式。
 - **代码边界**：`review-service.ts` 的 `buildCommitItems` 被浏览器端复用，该模块及其依赖**不得 import `node:*`**（曾因 `node:crypto` 导致 Vite dev 下整页 externalized 报错、水合失败）。

@@ -39,10 +39,27 @@ export interface BankDetail {
 	limit: number;
 }
 
+/**
+ * 取词队列进度：`size` = 本批实际词数（词表不足时小于请求值），
+ * `done` = 本批已默几个（不是今日累计）；请求数量见 `queue.size`。
+ * `correct/total/elapsedMs` 是今日逐题统计。
+ */
 export interface QueueProgressView {
 	date: string;
-	target: number;
+	size: number;
 	done: number;
+	/** 今日累计练过的词数（按场次词数求和） */
+	todayWords: number;
+	correct: number;
+	total: number;
+	elapsedMs: number;
+}
+
+/** 写回一场后的今日累计进度（与批次无关） */
+export interface CommitProgressView {
+	date: string;
+	/** 今日累计练过的词数（跨批次求和） */
+	words: number;
 	correct: number;
 	total: number;
 	elapsedMs: number;
@@ -55,12 +72,11 @@ export interface QueueView {
 		reviews: string[];
 		fresh: string[];
 		words: string[];
-		target: number;
+		/** 本批取几个词（= 本次取词数量） */
+		size: number;
 	};
 	/** 队列词的英文释义（组句出题用；词表里没有释义时缺省） */
 	definitions: Record<string, string>;
-	/** 今天已默过的词（队列胶囊上打勾用） */
-	doneWords: string[];
 	progress: QueueProgressView;
 }
 
@@ -73,7 +89,7 @@ export interface CommitView {
 		laterToday: boolean;
 		queueKind: "new" | "review" | "relearn";
 	}[];
-	progress: QueueProgressView;
+	progress: CommitProgressView;
 }
 
 export interface ReviewCommitItemInput {
@@ -253,9 +269,9 @@ export async function downloadRemoteBank(
 
 export function fetchReviewQueue(
 	bankId: string,
-	target: number,
+	size: number,
 ): Promise<QueueView> {
-	const params = new URLSearchParams({ bankId, target: String(target) });
+	const params = new URLSearchParams({ bankId, size: String(size) });
 	return requestJson<QueueView>(`/api/review-queue?${params.toString()}`);
 }
 

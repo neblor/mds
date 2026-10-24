@@ -650,7 +650,7 @@ export function useDictation() {
 		definitions?: Record<string, string>,
 		contentOverride?: ContentMode,
 	) => {
-		// 词表模式会用「今日队列」覆盖本次词表；录入模式仍然用手敲的那张表
+		// 词表模式会用「本次取的词」覆盖本次词表；录入模式仍然用手敲的那张表
 		const ws = wordsOverride && wordsOverride.length > 0 ? wordsOverride : words();
 		if (ws.length === 0) {
 			setError("先添加一些单词再开始吧");

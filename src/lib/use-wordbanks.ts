@@ -2,9 +2,12 @@
  * 词库/复习的前端状态层（浏览器）
  *
  * 职责：
- * - 词源模式（录入 / 词表）+ 当前词表 + 「今天默几个」的持久化（localStorage）
- * - 本地词表列表 + 内置资源清单 + 今日队列的拉取与重算
+ * - 词源模式（录入 / 词表）+ 当前词表 + 「本次取几个词」的持久化（localStorage）
+ * - 本地词表列表 + 内置资源清单 + 取词队列的拉取与重算
  * - 词表增删改、资源词表下载、默写结束后的复习写回
+ *
+ * 数字语义（2026-10-24 更正）：界面上只有一个数字 = **本次取几个词**。
+ * 「重新取词」= 按这个数字再取一批，不是「今天额度用完了就不能取」。
  *
  * 与 use-dictation 的分工：这里只决定「词从哪来」，默写流程与计时仍在 use-dictation。
  */
@@ -31,12 +34,13 @@ import {
 } from "./bank-api";
 import { mergeCatalog, type CatalogRow } from "./bank-catalog";
 import type { BankSummary, ManifestEntry } from "./bank-types";
-import { clampTodayTarget, DEFAULT_TODAY_TARGET } from "./daily-queue";
+import { clampBatchSize, DEFAULT_BATCH_SIZE } from "./round-queue";
 import {
 	buildCommitItems,
 	type ResultRowLike,
 	type ReviewCommitItem,
 } from "./review-service";
+import { wordKey } from "./bank-parse";
 import type { ReviewMode } from "./review-types";
 
 export type SourceMode = "entry" | "bank";
@@ -44,7 +48,8 @@ export type SourceMode = "entry" | "bank";
 export interface VocabPrefs {
 	mode: SourceMode;
 	bankId: string | null;
-	todayTarget: number;
+	/** 本次取几个词（不是今日总量） */
+	batchSize: number;
 }
 
 export const VOCAB_PREFS_KEY = "mds.vocab.v1";
@@ -52,7 +57,7 @@ export const VOCAB_PREFS_KEY = "mds.vocab.v1";
 const DEFAULT_PREFS: VocabPrefs = {
 	mode: "entry",
 	bankId: null,
-	todayTarget: DEFAULT_TODAY_TARGET,
+	batchSize: DEFAULT_BATCH_SIZE,
 };
 
 /** 场次幂等键；浏览器/Electron 都有 crypto.randomUUID，旧环境回退时间戳 */
@@ -63,7 +68,12 @@ function createSessionId(): string {
 	return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-/** 归一偏好设置：字段缺失/非法一律回落默认值 */
+/**
+ * 归一偏好设置：字段缺失/非法一律回落默认值。
+ *
+ * `todayTarget` 是 2026-10-24 之前的旧字段名（当时误当「今日总量」），
+ * 读取时按 `batchSize` 兼容迁移，下次保存即写新字段。
+ */
 export function normalizeVocabPrefs(raw: unknown): VocabPrefs {
 	const holder =
 		typeof raw === "object" && raw !== null
@@ -75,7 +85,7 @@ export function normalizeVocabPrefs(raw: unknown): VocabPrefs {
 			typeof holder.bankId === "string" && holder.bankId.trim()
 				? holder.bankId.trim()
 				: null,
-		todayTarget: clampTodayTarget(holder.todayTarget),
+		batchSize: clampBatchSize(holder.batchSize ?? holder.todayTarget),
 	};
 }
 
@@ -103,8 +113,9 @@ export interface WordBanksApi {
 	setMode: (mode: SourceMode) => void;
 	activeBankId: () => string | null;
 	activeBank: () => BankSummary | null;
-	todayTarget: () => number;
-	setTodayTarget: (value: number) => void;
+	batchSize: () => number;
+	/** 只改数字并持久化；不自动重新取词（下一次点「重新取词」才按新数字取） */
+	setBatchSize: (value: number) => void;
 	banks: () => BankSummary[];
 	/** 资源词表清单（内置 + 自定义远端）并带增量状态（下载/更新/已是最新） */
 	catalog: () => CatalogRow[];
@@ -114,6 +125,8 @@ export interface WordBanksApi {
 	/** 拉取指定的（或当前配置的）清单并返回带状态的条目，供「检查清单更新」展示 */
 	checkManifest: (url?: string) => Promise<CatalogRow[]>;
 	queue: () => QueueView | null;
+	/** 本批已默词（当前这批；与每日统计无关） */
+	batchDone: () => string[];
 	busy: () => boolean;
 	error: () => string | null;
 	setError: (message: string | null) => void;
@@ -166,6 +179,8 @@ export function useWordBanks(options: {
 	const [banks, setBanks] = createSignal<BankSummary[]>([]);
 	const [catalog, setCatalog] = createSignal<CatalogRow[]>([]);
 	const [queue, setQueue] = createSignal<QueueView | null>(null);
+	/** 本批已默词（仅当前这批；换批清零）；与 daily 统计无关 */
+	const [batchDone, setBatchDone] = createSignal<string[]>([]);
 	const [busy, setBusy] = createSignal(false);
 	const [error, setError] = createSignal<string | null>(null);
 	const [sessionBankId, setSessionBankId] = createSignal<string | null>(null);
@@ -201,15 +216,17 @@ export function useWordBanks(options: {
 			return;
 		}
 		try {
-			const view = await fetchReviewQueue(bankId, prefs().todayTarget);
-			// 服务端可能夹取过目标值（5–100），回写本地保持一致
-			if (view.progress.target !== prefs().todayTarget) {
-				patchPrefs({ todayTarget: view.progress.target });
+			const view = await fetchReviewQueue(bankId, prefs().batchSize);
+			// 服务端可能夹取过请求数量（5–100），回写本地保持一致；
+			// progress.size 是本批实际词数（词表不足时更小），不能拿来回写偏好。
+			if (view.queue.size !== prefs().batchSize) {
+				patchPrefs({ batchSize: view.queue.size });
 			}
 			setQueue(view);
+			setBatchDone([]);
 		} catch (err) {
 			setQueue(null);
-			setError(err instanceof Error ? err.message : "无法获取今日队列");
+			setError(err instanceof Error ? err.message : "无法取词");
 		}
 	};
 
@@ -245,7 +262,7 @@ export function useWordBanks(options: {
 		await refreshQueue();
 	};
 
-	// 挂载后恢复持久化偏好；词表模式下还要把词表列表与今日队列拉回来，
+	// 挂载后恢复持久化偏好；词表模式下还要把词表列表与当前这批词拉回来，
 	// 否则重启后只会看到「词表名空白 + 队列为空」的空壳界面。
 	onMount(() => {
 		const saved = loadVocabPrefs();
@@ -261,10 +278,10 @@ export function useWordBanks(options: {
 		},
 		activeBankId: () => prefs().bankId,
 		activeBank,
-		todayTarget: () => prefs().todayTarget,
-		setTodayTarget: (value) => {
-			patchPrefs({ todayTarget: clampTodayTarget(value) });
-			if (prefs().mode === "bank") void refreshQueue();
+		batchSize: () => prefs().batchSize,
+		setBatchSize: (value) => {
+			// 只存数字：当前这批词保持原样，避免调步进器时列表在脚下反复换批
+			patchPrefs({ batchSize: clampBatchSize(value) });
 		},
 		banks,
 		catalog,
@@ -283,6 +300,7 @@ export function useWordBanks(options: {
 			return rows;
 		},
 		queue,
+		batchDone,
 		busy,
 		error,
 		setError,
@@ -290,6 +308,7 @@ export function useWordBanks(options: {
 		selectBank: (bankId) => {
 			patchPrefs({ bankId });
 			setQueue(null);
+			setBatchDone([]);
 			setLastCommit(null);
 			if (bankId) void refreshQueue();
 		},
@@ -417,7 +436,10 @@ export function useWordBanks(options: {
 					session,
 				);
 				setLastCommit(view);
-				await refreshQueue();
+				// 结算后**不重新取词**：本批词面保持不动（进度变成 x / N），
+				// 用户点「重新取词」时才按当前数字取下一批。
+				// 否则列表会在结算瞬间自动换成下一批，看不出本批已经做完。
+				applyCommitToQueue(view);
 				return view;
 			} catch (err) {
 				setError(err instanceof Error ? err.message : "复习计划写回失败");
@@ -426,10 +448,47 @@ export function useWordBanks(options: {
 		},
 	};
 
+	/**
+	 * 把刚写回的一场合并进当前这批的已默集合（不重新请求队列）。
+	 * 只影响展示：`doneWords` 去重合并，`progress.done` 按本批重算。
+	 */
+	function applyCommitToQueue(view: CommitView): void {
+		setBatchDone((prev) => {
+			const merged = [...prev];
+			const seen = new Set(prev.map(wordKey));
+			for (const item of view.updated) {
+				const key = wordKey(item.word);
+				if (!key || seen.has(key)) continue;
+				seen.add(key);
+				merged.push(item.word);
+			}
+			return merged;
+		});
+		setQueue((prev) => {
+			if (!prev) return prev;
+			const doneKeys = new Set(
+				[...batchDone(), ...view.updated.map((item) => item.word)].map(wordKey),
+			);
+			return {
+				...prev,
+				progress: {
+					...prev.progress,
+					done: prev.queue.words.filter((word) => doneKeys.has(wordKey(word)))
+						.length,
+					todayWords: view.progress.words,
+					correct: view.progress.correct,
+					total: view.progress.total,
+					elapsedMs: view.progress.elapsedMs,
+				},
+			};
+		});
+	}
+
 	/** 内部：选中词表（createXxx/download 之后直接切过去） */
 	function selectBankById(bankId: string): void {
 		patchPrefs({ bankId, mode: "bank" });
 		setQueue(null);
+		setBatchDone([]);
 		void refreshQueue();
 	}
 }

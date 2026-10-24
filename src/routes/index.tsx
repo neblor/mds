@@ -27,7 +27,7 @@ export default function Home() {
 	const [stashedWords, setStashedWords] = createSignal<string[] | null>(null);
 
 	/**
-	 * 开始默写：词表模式用「今日队列」覆盖本次词表（录入模式仍用手敲的那张表）。
+	 * 开始默写：词表模式用「本次取的词」覆盖本次词表（录入模式仍用手敲的那张表）。
 	 * 队列为空时给出可执行的提示，而不是让用户点了没反应。
 	 */
 	const startDictation = (mode: "writing" | "cyber") => {
@@ -41,7 +41,7 @@ export default function Home() {
 			}
 			if (words.length === 0) {
 				vocab.setError(
-					"今天的队列是空的：换个词表，或把「今天默几个」调大一点",
+					"这批词是空的：换个词表，或把「本次默」的数量调大后重新取词",
 				);
 				return;
 			}
@@ -54,7 +54,7 @@ export default function Home() {
 		d.startDictation(mode);
 	};
 
-	/** 档案页专练：固定单词 + 赛博，写回当前词库，不占今日队列取词 */
+	/** 档案页专练：固定单词 + 赛博，写回当前词库，不占正常取词 */
 	const startDrill = (bankId: string, weakWords: string[]) => {
 		vocab.setError(null);
 		vocab.beginSession(bankId, weakWords);

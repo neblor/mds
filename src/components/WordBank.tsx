@@ -34,7 +34,7 @@ import type { ContentMode } from "~/lib/state";
 import type { WordBanksApi } from "~/lib/use-wordbanks";
 
 interface Props {
-	/** 词库/复习状态层（录入 / 词表 双模式与今日队列） */
+	/** 词库/复习状态层（录入 / 词表 双模式与取词队列） */
 	vocab: WordBanksApi;
 	/** 录入模式的单词表 */
 	words: string[];
@@ -141,17 +141,17 @@ export default function WordBank(props: Props) {
 				onChange={props.vocab.setMode}
 			/>
 
-			{/* 词源：录入模式是输入框，词表模式是「当前词表 + 今天默几个」 */}
+			{/* 词源：录入模式是输入框，词表模式是「当前词表 + 本次默几个」 */}
 			<Show
 				when={isEntry()}
 				fallback={
 					<BankSourceCard
 						bankName={props.vocab.activeBank()?.name ?? null}
 						hasBank={Boolean(props.vocab.activeBankId())}
-						todayTarget={props.vocab.todayTarget()}
+						batchSize={props.vocab.batchSize()}
 						busy={props.vocab.busy()}
 						onOpenPicker={() => setPickerOpen(true)}
-						onTodayTarget={props.vocab.setTodayTarget}
+						onBatchSize={props.vocab.setBatchSize}
 						onOpenArchive={() => {
 							const bankId = props.vocab.activeBankId();
 							if (bankId) setArchiveBankId(bankId);
@@ -195,16 +195,17 @@ export default function WordBank(props: Props) {
 				</div>
 			</Show>
 
-			{/* 唯一的弹性区：录入模式是单词表，词表模式是今日队列 */}
+			{/* 唯一的弹性区：录入模式是单词表，词表模式是本次取词 */}
 			<Show
 				when={isEntry()}
 				fallback={
 					<TodayQueueCard
 						queue={props.vocab.queue()}
 						progress={props.vocab.queue()?.progress ?? null}
+						batchDone={props.vocab.batchDone()}
 						hasBank={Boolean(props.vocab.activeBankId())}
 						busy={props.vocab.busy()}
-						onRefresh={() => void props.vocab.refreshQueue()}
+						onRefresh={() => props.vocab.refreshQueue()}
 						onOpenPicker={() => setPickerOpen(true)}
 						onNewBank={() => setNewBankOpen(true)}
 					/>

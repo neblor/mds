@@ -6,7 +6,7 @@
  */
 import type { BankEntry, BankSource } from "./bank-types";
 import { wordKey } from "./bank-parse";
-import { localDateKey } from "./daily-queue";
+import { localDateKey } from "./day";
 import type {
 	AccuracyWindows,
 	CardStatRow,

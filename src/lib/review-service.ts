@@ -2,7 +2,7 @@
  * 复习编排层（生产实际调用的实现，直接单测覆盖）
  *
  * 两件事：
- * 1. buildQueueForBank：按「今天默几个」算出今日队列 + 今日进度
+ * 1. buildQueueForBank：按「本次取几个」算出一批词 + 本批进度
  * 2. commitReviews：把一场默写写回卡片、日志、场次（一个事务）
  *
  * 原则：
@@ -14,13 +14,12 @@ import { State, type Card } from "ts-fsrs";
 import type { BankStore } from "./bank-store";
 import type { BankEntry } from "./bank-types";
 import { wordKey } from "./bank-parse";
+import { localDateKey } from "./day";
 import {
-	buildDailyQueue,
-	clampTodayTarget,
-	localDateKey,
-	doneWordsToday,
-	type DailyQueue,
-} from "./daily-queue";
+	buildRoundQueue,
+	clampBatchSize,
+	type RoundQueue,
+} from "./round-queue";
 import {
 	createScheduler,
 	intervalDaysOf,
@@ -39,12 +38,33 @@ import {
 	type StoredCard,
 } from "./review-types";
 
-export { clampTodayTarget, MAX_TODAY_TARGET, MIN_TODAY_TARGET } from "./daily-queue";
+export { clampBatchSize, MAX_BATCH_SIZE, MIN_BATCH_SIZE } from "./round-queue";
 
+/**
+ * 取词队列的进度
+ *
+ * `size` 是**本批实际取到的词数**（词表不足时可能小于请求值），`done` 是**本批里已经默过几个**（不是今日累计）：
+ * 界面上 `已默 x / N` 的两个数必须来自同一批，否则跨批次会再次出现 30/10 这种怪数字。
+ * `correct/total/elapsedMs` 是今日逐题统计（与批次无关，供统计/档案用）。
+ */
 export interface QueueProgress {
 	date: string;
-	target: number;
+	/** 本批取几个 */
+	size: number;
+	/** 本批已默几个（由客户端在本批结算后合并；新取的一批从 0 开始） */
 	done: number;
+	/** 今日累计练过的词数（跨批次求和，来自 session.word_count） */
+	todayWords: number;
+	correct: number;
+	total: number;
+	elapsedMs: number;
+}
+
+/** 写回一场后的今日累计进度（与批次无关） */
+export interface CommitProgress {
+	date: string;
+	/** 今日累计练过的词数（跨批次求和） */
+	words: number;
 	correct: number;
 	total: number;
 	elapsedMs: number;
@@ -52,12 +72,10 @@ export interface QueueProgress {
 
 export interface QueueResult {
 	bankId: string;
-	queue: DailyQueue;
+	queue: RoundQueue;
 	progress: QueueProgress;
 	/** 队列词的英文释义（组句出题用；词表里没有释义时缺省） */
 	definitions: Record<string, string>;
-	/** 今天已默过的词（界面用来在队列胶囊上打勾） */
-	doneWords: string[];
 }
 
 /**
@@ -83,26 +101,24 @@ function queueWordDefinitions(
 	return definitions;
 }
 
-/** 今日队列 + 今日进度；词库不存在返回 null */
+/** 取一批词 + 本批进度；词库不存在返回 null */
 export function buildQueueForBank(options: {
 	bankStore: BankStore;
 	reviewStore: ReviewStore;
 	bankId: string;
-	target: unknown;
+	size: unknown;
 	now: Date;
 }): QueueResult | null {
 	const { bankStore, reviewStore, bankId, now } = options;
 	const bank = bankStore.read(bankId);
 	if (!bank) return null;
-	const target = clampTodayTarget(options.target);
+	const size = clampBatchSize(options.size);
 	const cards = reviewStore.readCards(bankId);
-	const doneWords = doneWordsToday(bank.entries, cards, now);
-	const queue = buildDailyQueue({
+	const queue = buildRoundQueue({
 		entries: bank.entries,
 		cards,
 		now,
-		target,
-		doneToday: doneWords,
+		size,
 	});
 	const date = localDateKey(now);
 	const day = reviewStore.readDayStats(bankId, date);
@@ -110,12 +126,14 @@ export function buildQueueForBank(options: {
 	return {
 		bankId,
 		queue,
-		doneWords,
 		definitions: queueWordDefinitions(bank.entries, queue.words),
 		progress: {
 			date,
-			target,
-			done: doneWords.length,
+			// 本批实际取到的数量（请求数量见 queue.size）
+			size: queue.words.length,
+			// 新取的一批还没有本批作答；结算后由客户端 applyCommitToQueue 合并
+			done: 0,
+			todayWords: day.words,
 			correct: day.correct,
 			total: day.total,
 			elapsedMs: day.elapsedMs,
@@ -233,7 +251,7 @@ export function buildCommitItems(options: {
 
 export interface CommitResult {
 	updated: CommittedWord[];
-	progress: QueueProgress;
+	progress: CommitProgress;
 }
 
 function queueKindOf(stateBefore: number, hadCard: boolean): CommittedWord["queueKind"] {
@@ -430,14 +448,12 @@ export function commitReviews(options: {
 	const outcome = reviewStore.commit(bankId, payload);
 	const date = localDateKey(now);
 	const day = reviewStore.readDayStats(bankId, date);
-	const freshCards = outcome.duplicate ? reviewStore.readCards(bankId) : cards;
 	return {
 		updated: outcome.duplicate ? [] : updated,
 		progress: {
 			date,
-			// target 由队列/prefs 负责；commit 响应不作为进度条数据源
-			target: 0,
-			done: doneWordsToday(entries, freshCards, now).length,
+			// 今日累计（不涉及本批 size）；队列进度以 /api/review-queue 为准
+			words: day.words,
 			correct: day.correct,
 			total: day.total,
 			elapsedMs: day.elapsedMs,

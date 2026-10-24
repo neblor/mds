@@ -236,7 +236,7 @@ Web dev 首次启动略慢；不阻塞启动后的任何操作。
 
 - 删除 `ReviewStore.readDaily/writeDaily`；`buildQueueForBank` 的今日 `correct/total/elapsedMs`
   改为 `readDayStats(bankId, today)`（SQL 聚合）。
-- `done` 仍由 `doneWordsToday(entries, cards, now)` 从卡片计算（自愈口径不变）。
+- `words` 由 `session.word_count` 按本地日求和（当天多轮累加）；`correct/total/elapsedMs` 仍来自 `review_log`。
 - 主界面「已默 x / N」与复习写回文案不受影响；`daily.json` 只进归档。
 - 收益：今日进度从「全局混算缓存」变成「每库、每日、可回放」。
 
@@ -405,7 +405,7 @@ export const RECENT_SESSIONS = 3;
 ### 5.1 `POST /api/review-commit`
 
 - 请求见 §3.2；`session` 可选（旧客户端不传照常工作）。
-- 返回仍为 `{ updated, progress }`；`progress` 由 `readDayStats` + `doneWordsToday` 计算。
+- 返回仍为 `{ updated, progress }`；`progress.words` 由 `readDayStats` 的按日场次词数和计算。
 - 幂等：`session.id` 已存在 → 不重复写，返回当前 `progress`。
 
 ### 5.2 `GET /api/bank-stats?bankId=<id>&days=180`

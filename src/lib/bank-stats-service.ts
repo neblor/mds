@@ -6,7 +6,7 @@
 import type { BankStore } from "./bank-store";
 import { bankSummary } from "./bank-store";
 import { computeBankStats, RECENT_SESSIONS, type BankStatsView } from "./bank-stats";
-import { localDateKey } from "./daily-queue";
+import { localDateKey } from "./day";
 import type { ReviewStore } from "./review-types";
 
 function shiftDay(now: Date, offset: number): string {

@@ -20,7 +20,7 @@ import { basename, join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { isValidBankId } from "./bank-types";
 import { wordKey } from "./bank-parse";
-import { localDateKey } from "./daily-queue";
+import { localDateKey } from "./day";
 import { readJsonFile, readJsonl } from "./json-file";
 import { parseCard } from "./srs";
 import {

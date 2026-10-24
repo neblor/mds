@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createBankStore } from "./bank-store";
 import { buildBankStats } from "./bank-stats-service";
-import { localDateKey } from "./daily-queue";
+import { localDateKey } from "./day";
 import { createReviewStore } from "./review-store";
 import type { ReviewStore, StoredCard } from "./review-types";
 import type { BankEntry, WordBank } from "./bank-types";

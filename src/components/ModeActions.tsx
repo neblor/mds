@@ -1,7 +1,7 @@
 /**
  * 模式操作区：主界面「默写内容」滑块右侧，按当前模式显示对应的操作。
  *
- * 目前只有短句模式有操作——`更新短句`：清掉今日队列这些词的短句缓存
+ * 目前只有短句模式有操作——`更新短句`：清掉当前这批词的短句缓存
  * （`sentences.json` 里的对应条目），下次准备时重新向 AI 生句。
  * 以后哪个模式要加操作，就在这里加分支，不要再往控制条上堆按钮。
  */
@@ -13,7 +13,7 @@ import type { ContentMode } from "~/lib/state";
 
 interface Props {
 	contentMode: ContentMode;
-	/** 本次默写要用的词（词表模式 = 今日队列）；为空表示还没有可更新的词 */
+	/** 本次默写要用的词（词表模式 = 本次取的词）；为空表示还没有可更新的词 */
 	queueWords: string[];
 	/** 音标模式：打开全屏音标表 */
 	onOpenChart?: () => void;
@@ -80,7 +80,7 @@ export default function ModeActions(props: Props) {
 					disabled={!canRefresh()}
 					title={
 						props.queueWords.length === 0
-							? "今日队列里还没有词：先选好词表，或把「今天默几个」调大"
+							? "还没有可用的词：先选好词表，或把「本次默」的数量调大后重新取词"
 							: "清掉队列里这些词的短句缓存，下次准备时生成新短句"
 					}
 					onClick={() => void refresh()}

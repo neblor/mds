@@ -8,7 +8,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { isValidBankId } from "./bank-types";
 import { wordKey } from "./bank-parse";
-import { localDateKey } from "./daily-queue";
+import { localDateKey } from "./day";
 import { createSqliteBankStatsQuery } from "./review-stats-query";
 import type {
 	CommitPayload,
@@ -268,8 +268,17 @@ export function createSqliteReviewStore(
 				.get(bankId, date) as
 				| { total?: number; correct?: number; elapsed?: number }
 				| undefined;
+			// 统计侧按「每日练过的词数」求和：每场 session 的去重词数相加，
+			// 同一词当天默了两次会算两个，而不是被去重成 1 个。
+			const wordsRow = db
+				.prepare(
+					`SELECT COALESCE(SUM(word_count), 0) AS words
+					   FROM session WHERE bank_id = ? AND day = ?`,
+				)
+				.get(bankId, date) as { words?: number } | undefined;
 			return {
 				date,
+				words: Number(wordsRow?.words ?? 0),
 				correct: Number(row?.correct ?? 0),
 				total: Number(row?.total ?? 0),
 				elapsedMs: Number(row?.elapsed ?? 0),

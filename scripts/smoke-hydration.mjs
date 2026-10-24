@@ -186,7 +186,7 @@ try {
 		({ bankId, VOCAB_PREFS_KEY, SETTINGS_KEY }) => {
 			localStorage.setItem(
 				VOCAB_PREFS_KEY,
-				JSON.stringify({ mode: "bank", bankId, todayTarget: 10 }),
+				JSON.stringify({ mode: "bank", bankId, batchSize: 10 }),
 			);
 			localStorage.setItem(
 				SETTINGS_KEY,

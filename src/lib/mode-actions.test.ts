@@ -15,6 +15,6 @@ describe("更新短句的提示文案", () => {
 	});
 
 	it("队列为空时提示没有可更新的词", () => {
-		expect(sentenceRefreshMessage(0, 0)).toBe("今日队列里还没有词");
+		expect(sentenceRefreshMessage(0, 0)).toBe("还没有可用的词");
 	});
 });

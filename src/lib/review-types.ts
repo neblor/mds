@@ -74,6 +74,8 @@ export interface SessionLogRecord {
 /** 今日进度（由 review_log 聚合，不再有 daily.json 缓存） */
 export interface DayStats {
 	date: string;
+	/** 今日累计练过的词数（按 session.word_count 求和；同一词多轮会重复计） */
+	words: number;
 	correct: number;
 	total: number;
 	elapsedMs: number;
@@ -386,5 +388,5 @@ export function parseSessionRecord(
 
 /** 今日进度空值（readDayStats 无记录时） */
 export function emptyDayStats(date: string): DayStats {
-	return { date, correct: 0, total: 0, elapsedMs: 0 };
+	return { date, words: 0, correct: 0, total: 0, elapsedMs: 0 };
 }

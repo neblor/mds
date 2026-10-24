@@ -3,7 +3,7 @@
  *
  * 概念区分：
  * - 词库（WordBank）：长期资产，几千词，带释义/音标/词频/来源标签，落盘在 mds-data/banks/<id>.json
- * - 本次词表 / 今日队列：一场默写要用的词，由 FSRS 队列计算得出，不落盘（见 daily-queue）
+ * - 本次词表 / 取词队列：一批默写要用的词，由 SRS 排序计算得出，不落盘（见 round-queue）
  *
  * 来源三分：
  * - builtin：随包发布的考纲词库（构建期由 ECDICT 生成，见 scripts/build-banks.mts）

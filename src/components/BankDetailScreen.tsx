@@ -383,7 +383,7 @@ export default function BankDetailScreen(props: Props) {
 			<p class="text-[12px] text-ink-faint">
 				{editable()
 					? "自建词表里的词会进入每日复习队列（按 FSRS-6 算法排期）"
-					: "选定该词表后，默写内容由 FSRS-6 排期决定，你只需定「今天默几个」"}
+					: "选定该词表后，默写内容由 FSRS-6 排期决定，你只需定「本次默几个」"}
 			</p>
 
 			<Show when={historyOpen()}>

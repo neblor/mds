@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { localDateKey } from "./daily-queue";
+import { localDateKey } from "./day";
 import { createReviewStore, loadSqliteModule, parseLogRecord } from "./review-store";
 import { createLegacyReviewStore } from "./review-store-legacy";
 import { createSqliteReviewStore } from "./review-store-sqlite";
@@ -151,6 +151,7 @@ describe("SQLite store", () => {
 
 		expect(store.readDayStats("cet4", TODAY)).toEqual({
 			date: TODAY,
+			words: 2,
 			correct: 1,
 			total: 1,
 			elapsedMs: 4200,
@@ -216,6 +217,7 @@ describe("SQLite store", () => {
 		const store = openStore(tempDir());
 		expect(store.readDayStats("cet4", TODAY)).toEqual({
 			date: TODAY,
+			words: 0,
 			correct: 0,
 			total: 0,
 			elapsedMs: 0,
@@ -248,6 +250,7 @@ describe("兼容模式 store", () => {
 		expect(store.readLogs("cet4")[0].sessionId).toBe(session.id);
 		expect(store.readSessions("cet4")[0].words).toEqual(["apple", "banana"]);
 		expect(store.readDayStats("cet4", TODAY)).toMatchObject({
+			words: 2,
 			correct: 1,
 			total: 1,
 			elapsedMs: 4200,
@@ -318,6 +321,7 @@ describe("旧数据迁移", () => {
 		expect(sessions).toHaveLength(1);
 		expect(sessions[0].words).toEqual(["apple"]);
 		expect(store.readDayStats("cet4", TODAY)).toMatchObject({
+			words: 1,
 			correct: 1,
 			total: 2,
 			elapsedMs: 8400,

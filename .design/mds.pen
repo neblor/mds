@@ -405,7 +405,7 @@
               "id": "QzlCd",
               "name": "Today Label",
               "fill": "$text-secondary",
-              "content": "今天默",
+              "content": "本次默",
               "fontFamily": "$font-body",
               "fontSize": 13,
               "fontWeight": "normal"
@@ -8207,7 +8207,7 @@
               "enabled": true
             },
             "QufvX": {
-              "content": "今日队列 · 20 词"
+              "content": "本次取词 · 20 词"
             },
             "p4wUnw": {
               "enabled": true
@@ -11059,7 +11059,7 @@
           "id": "P9XItM",
           "name": "Footer Hint",
           "fill": "$text-muted",
-          "content": "选定该词表后，默写内容由 FSRS-6 排期决定，你只需定「今天默几个」",
+          "content": "选定该词表后，默写内容由 FSRS-6 排期决定，你只需定「本次默几个」",
           "fontFamily": "$font-body",
           "fontSize": 12,
           "fontWeight": "normal"

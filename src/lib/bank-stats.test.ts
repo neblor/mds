@@ -7,7 +7,7 @@ import {
 	computeBankStats,
 	type BankStatsInput,
 } from "./bank-stats";
-import { localDateKey } from "./daily-queue";
+import { localDateKey } from "./day";
 import type {
 	CardStatRow,
 	LogDayRow,

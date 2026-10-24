@@ -12,7 +12,7 @@
  */
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, it } from "vitest";
-import { DEFAULT_TODAY_TARGET } from "./daily-queue";
+import { DEFAULT_BATCH_SIZE } from "./round-queue";
 import {
 	VOCAB_PREFS_KEY,
 	type SourceMode,
@@ -61,17 +61,29 @@ describe("normalizeVocabPrefs", () => {
 		expect(normalizeVocabPrefs(null)).toEqual({
 			mode: "entry",
 			bankId: null,
-			todayTarget: DEFAULT_TODAY_TARGET,
+			batchSize: DEFAULT_BATCH_SIZE,
 		});
 		expect(
-			normalizeVocabPrefs({ mode: "nonsense", todayTarget: 9999 }),
+			normalizeVocabPrefs({ mode: "nonsense", batchSize: 9999 }),
 		).toMatchObject({ mode: "entry", bankId: null });
+	});
+
+	it("旧字段 todayTarget 迁移成 batchSize（2026-10-24 语义更正）", () => {
+		expect(normalizeVocabPrefs({ mode: "bank", todayTarget: 30 })).toEqual({
+			mode: "bank",
+			bankId: null,
+			batchSize: 30,
+		});
+		// 新字段优先于旧字段
+		expect(
+			normalizeVocabPrefs({ batchSize: 15, todayTarget: 30 }),
+		).toMatchObject({ batchSize: 15 });
 	});
 
 	it("合法值原样保留，bankId 去空白", () => {
 		expect(
-			normalizeVocabPrefs({ mode: "bank", bankId: "  pet  ", todayTarget: 20 }),
-		).toEqual({ mode: "bank", bankId: "pet", todayTarget: 20 });
+			normalizeVocabPrefs({ mode: "bank", bankId: "  pet  ", batchSize: 20 }),
+		).toEqual({ mode: "bank", bankId: "pet", batchSize: 20 });
 	});
 });
 
@@ -81,7 +93,7 @@ describe("useWordBanks 水合契约", () => {
 			[VOCAB_PREFS_KEY]: JSON.stringify({
 				mode: "bank",
 				bankId: "pet",
-				todayTarget: 20,
+				batchSize: 20,
 			}),
 		});
 		expect(firstPaint()).toEqual({ mode: "entry", bankId: null });

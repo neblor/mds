@@ -8,7 +8,7 @@
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { isValidBankId } from "./bank-types";
-import { localDateKey } from "./daily-queue";
+import { localDateKey } from "./day";
 import {
 	appendJsonl,
 	readJsonFile,
@@ -78,7 +78,12 @@ export function createLegacyReviewStore(rootDir: string): ReviewStore {
 				if (record.correct) correct += 1;
 				elapsedMs += Math.max(0, record.elapsedMs);
 			}
-			return { date, correct, total, elapsedMs };
+			let words = 0;
+			for (const session of readSessions(bankId)) {
+				if (localDateKey(new Date(session.at)) !== date) continue;
+				words += session.words.length;
+			}
+			return { date, words, correct, total, elapsedMs };
 		},
 
 		commit(bankId: string, payload: CommitPayload): { duplicate: boolean } {

@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createBankStore } from "./bank-store";
 import { createReviewStore } from "./review-store";
-import { buildQueueForBank, buildCommitItems, clampTodayTarget, commitReviews } from "./review-service";
+import { buildQueueForBank, buildCommitItems, clampBatchSize, commitReviews } from "./review-service";
 import { buildResultRows, rowJudgement, type WordRoundLike } from "./results";
-import { localDateKey } from "./daily-queue";
+import { localDateKey } from "./day";
 import type { BankEntry, WordBank } from "./bank-types";
 
 const dirs: string[] = [];
@@ -40,15 +40,15 @@ function makeBank(id: string, words: [string, number?][]): WordBank {
 	};
 }
 
-describe("clampTodayTarget", () => {
+describe("clampBatchSize", () => {
 	it("夹到 5–100，非法回落 20", () => {
-		expect(clampTodayTarget(20)).toBe(20);
-		expect(clampTodayTarget(1)).toBe(5);
-		expect(clampTodayTarget(999)).toBe(100);
-		expect(clampTodayTarget("30")).toBe(30);
-		expect(clampTodayTarget("x")).toBe(20);
-		expect(clampTodayTarget(undefined)).toBe(20);
-		expect(clampTodayTarget(20.6)).toBe(21);
+		expect(clampBatchSize(20)).toBe(20);
+		expect(clampBatchSize(1)).toBe(5);
+		expect(clampBatchSize(999)).toBe(100);
+		expect(clampBatchSize("30")).toBe(30);
+		expect(clampBatchSize("x")).toBe(20);
+		expect(clampBatchSize(undefined)).toBe(20);
+		expect(clampBatchSize(20.6)).toBe(21);
 	});
 });
 
@@ -56,7 +56,7 @@ describe("buildQueueForBank", () => {
 	it("词库不存在返回 null", () => {
 		const { bankStore, reviewStore } = tempStores();
 		expect(
-			buildQueueForBank({ bankStore, reviewStore, bankId: "nope", target: 10, now: NOW }),
+			buildQueueForBank({ bankStore, reviewStore, bankId: "nope", size: 10, now: NOW }),
 		).toBeNull();
 	});
 
@@ -74,19 +74,20 @@ describe("buildQueueForBank", () => {
 			bankStore,
 			reviewStore,
 			bankId: "b1",
-			target: 5,
+			size: 5,
 			now: NOW,
 		});
 		expect(result?.queue.fresh).toEqual(["high", "mid", "low"]);
 		expect(result?.queue.reviews).toEqual([]);
 		expect(result?.progress).toMatchObject({
 			date: localDateKey(NOW),
-			target: 5,
+			size: 3,
 			done: 0,
 			correct: 0,
 			total: 0,
 		});
-		expect(result?.progress.target).toBe(5);
+		expect(result?.queue.size).toBe(5);
+		expect(result?.progress.size).toBe(3);
 	});
 
 	it("目标越界时夹取后再回传", () => {
@@ -96,11 +97,11 @@ describe("buildQueueForBank", () => {
 			bankStore,
 			reviewStore,
 			bankId: "b1",
-			target: 9999,
+			size: 9999,
 			now: NOW,
 		});
-		expect(result?.queue.target).toBe(100);
-		expect(result?.progress.target).toBe(100);
+		expect(result?.queue.size).toBe(100);
+		expect(result?.progress.size).toBe(1);
 	});
 
 	it("队列返回词的英文释义（组句出题用），只含队列词且有释义的词", () => {
@@ -122,7 +123,7 @@ describe("buildQueueForBank", () => {
 			bankStore,
 			reviewStore,
 			bankId: "b1",
-			target: 5,
+			size: 5,
 			now: NOW,
 		});
 		expect(result?.queue.words).toEqual([
@@ -389,10 +390,19 @@ describe("组句写回", () => {
 				{ word: "apple", correct: true, mode: "cloze", genMode: "cyber", elapsedMs: 3000 },
 				{ word: "umbrella", correct: false, mode: "cloze", genMode: "cyber", elapsedMs: 2500 },
 			],
+			session: {
+				id: "s-cloze-progress",
+				genMode: "cyber",
+				contentMode: "cloze",
+				words: ["apple", "umbrella"],
+				correct: 1,
+				activeMs: 5500,
+				wallMs: 5500,
+			},
 			now: NOW,
 		});
 		expect(result.updated.map((entry) => entry.rating)).toEqual([3, 1]);
-		expect(result.progress).toMatchObject({ done: 2, correct: 1, total: 2, elapsedMs: 5500 });
+		expect(result.progress).toMatchObject({ words: 2, correct: 1, total: 2, elapsedMs: 5500 });
 		const logs = reviewStore.readLogs("b1");
 		expect(logs.map((log) => log.mode)).toEqual(["cloze", "cloze"]);
 		expect(logs.every((log) => log.genMode === "cyber")).toBe(true);
@@ -425,7 +435,7 @@ describe("场次写回", () => {
 		});
 		expect(result.updated).toEqual([]);
 		expect(result.progress).toMatchObject({
-			done: 0,
+			words: 2,
 			correct: 0,
 			total: 0,
 			elapsedMs: 0,
@@ -487,12 +497,21 @@ describe("commitReviews", () => {
 			items: [
 				{ word: "apple", correct: true, mode: "definition", genMode: "cyber", elapsedMs: 4200 },
 			],
+			session: {
+				id: "s-new-word-progress",
+				genMode: "cyber",
+				contentMode: "definition",
+				words: ["apple"],
+				correct: 1,
+				activeMs: 4200,
+				wallMs: 4200,
+			},
 			now: NOW,
 		});
 
 		expect(result.updated).toHaveLength(1);
 		expect(result.updated[0]).toMatchObject({ word: "apple", rating: 3, queueKind: "new" });
-		expect(result.progress).toMatchObject({ done: 1, correct: 1, total: 1, elapsedMs: 4200 });
+		expect(result.progress).toMatchObject({ words: 1, correct: 1, total: 1, elapsedMs: 4200 });
 
 		const cards = reviewStore.readCards("b1");
 		expect(Object.keys(cards)).toEqual(["apple"]);
@@ -535,18 +554,21 @@ describe("commitReviews", () => {
 			bankStore,
 			reviewStore,
 			bankId: "b1",
-			target: 10,
+			size: 10,
 			now: NOW,
 		});
 		expect(immediate?.queue.words).not.toContain("apple");
-		expect(immediate?.progress.done).toBe(1);
+		// 本批进度只数这一批：apple 不在新一批里，所以本批已默 = 0
+		expect(immediate?.progress.done).toBe(0);
+		// 每日词数来自 session；这次 commit 没有 session，所以仍是 0
+		expect(immediate?.progress.todayWords).toBe(0);
 
 		// 2 分钟后到点 → 回到队列
 		const later = buildQueueForBank({
 			bankStore,
 			reviewStore,
 			bankId: "b1",
-			target: 10,
+			size: 10,
 			now: new Date(NOW.getTime() + 2 * 60 * 1000),
 		});
 		expect(later?.queue.reviews).toContain("apple");
@@ -661,7 +683,7 @@ describe("commitReviews", () => {
 		});
 		expect(result.updated).toEqual([]);
 		expect(reviewStore.readLogs("b1")).toEqual([]);
-		expect(result.progress.done).toBe(0);
+		expect(result.progress.words).toBe(0);
 	});
 
 	it("词库里的词与卡片 key 大小写不一致也能对上（wordKey 归一）", () => {
@@ -674,9 +696,10 @@ describe("commitReviews", () => {
 		});
 		expect(Object.keys(reviewStore.readCards("b1"))).toEqual(["give up"]);
 		const queue = buildQueueForBank({
-			bankStore, reviewStore, bankId: "b1", target: 10, now: NOW,
+			bankStore, reviewStore, bankId: "b1", size: 10, now: NOW,
 		});
-		expect(queue?.progress.done).toBe(1);
+		// 本批已默 = 0（它今天练过了，不会再作为新词出现），但今日记账里是 1
+		expect(queue?.progress.done).toBe(0);
 	});
 
 	it("跨日：昨天的 done 不会算进今天", () => {
@@ -689,7 +712,7 @@ describe("commitReviews", () => {
 		});
 		const nextDay = new Date(2026, 9, 13, 9, 0, 0);
 		const result = buildQueueForBank({
-			bankStore, reviewStore, bankId: "b1", target: 10, now: nextDay,
+			bankStore, reviewStore, bankId: "b1", size: 10, now: nextDay,
 		});
 		expect(result?.progress.date).toBe("2026-10-13");
 		expect(result?.progress.done).toBe(0);

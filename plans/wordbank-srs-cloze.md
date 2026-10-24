@@ -24,7 +24,8 @@
 > 已定稿（崔总 2026-10-12）：
 > ① 组句是**独立模式**（第四种内容模式）、准备时**一次批量出题**、失败即「AI 当前不可用」结束，不降级；
 > ② 词源区做**「录入 / 词表」双模式**切换条，录入模式行为不变；
-> ③ 词表模式**不做选词**：选定词表后完全由 FSRS-6 排（到期优先 + 新词补足），用户只能定**「今天默几个」**；
+> ③ 词表模式**不做选词**：选定词表后完全由 FSRS-6 排（到期优先 + 新词补足），用户只能定**「本次默几个」**；
+> 　（2026-10-24 崔总更正：这个数字是**本次取几个**，不是「今天一共默几个」；点「重新取词」就再取一批）
 > ④ **SRS 含在 Phase 1** 内一起做。
 
 **R6 的两个数字含义**（我按此实现，若理解有偏差请纠正）：
@@ -141,7 +142,7 @@ Anki 要求用户自己点 Again/Hard/Good/Easy；我们**赛博默写有客观�
   - **自建词表**：可新建、可编辑、可增删词
   - 支持把**录入模式的词**加入自建词表（自动去重）
   - 支持把**历史默写记录**里的词加入自建词表
-- 选定词表后**不选词**：本场默哪些词完全由 FSRS-6 决定（到期复习优先，剩余名额配新词），用户只调**「今天默几个」**；下面的列表从「本次单词表」变成**今日队列**
+- 选定词表后**不选词**：本场默哪些词完全由 FSRS-6 决定（到期复习优先，剩余名额配新词），用户只调**「本次默几个」**；下面的列表从「本次单词表」变成**本次取的词**
 - 录入模式**不进调度**（它是「练一把」的临时路径）；想让词有复习计划，就先把它加进词表
 - 反向流动只有这一条：录入 / 历史的词 → 词表（靠显式动作，不自动同步）
 **取舍**：词表是「长期资产」，本次单词表是「本场要默的词」；不做隐式双向同步，避免用户不知道自己的词去了哪。
@@ -179,9 +180,9 @@ Anki 要求用户自己点 Again/Hard/Good/Easy；我们**赛博默写有客观�
 ### D8｜每日复习的任务组装
 
 **难点**：「今天该默什么」需要一个确定的、可测试的规则，否则每天结果都在变。
-**方案**：纯函数 `buildDailyQueue(cards, now, options)`，输入用户设的**总量 N**（「今天默几个」）：
+**方案**：纯函数 `buildRoundQueue(cards, now, options)`，输入用户设的**本次取词数量 N**（「本次默几个」）；**不引入每日边界**，due <= now 的复习 + 未学新词：
 1. 先取**到期复习卡**（`due <= 今天结束`），按逾期程度排序
-2. 入额未满时用**新词卡**补足到 N（来自当前词表的未学词，按词频 `frq` 升序 = 高频优先）
+2. 入额未满时用**新词卡**补足到 N（**已默词计入 N**；来自当前词表的未学词，按词频 `frq` 升序 = 高频优先）
 3. 结果按 **≤24 词/场** 切分成若干场（可一次跑一场）
 4. 同一词表内不重复；同日重进不重排（同日队列稳定）
 5. 日期边界用**本地时区当天 0 点**，存 `lastQueueDate` 用于「今日进度 x/y」
@@ -204,7 +205,7 @@ Anki 要求用户自己点 Again/Hard/Good/Easy；我们**赛博默写有客观�
 **难点**：这些新逻辑几乎都是「纯逻辑 + 时间 + 外部 AI」，最容易出一堆边界 bug。
 **方案**（沿用项目现有纪律）：
 - SRS：`srs.test.ts` 用注入的 `now` 断言「新卡→毕业→到期→失误→重学」的完整轨迹；跨时区/跨日边界单测
-- 队列：`daily-queue.test.ts` 覆盖 D8 的边界
+- 队列：`round-queue.test.ts` 覆盖 D8 的边界
 - 词库：`bank-parse.test.ts` 覆盖 CSV/JSON/txt 归一、去重、坏数据；`bank-manifest.test.ts` 覆盖增量与校验
 - 组句：`cloze-prompt.test.ts`（prompt 契约）、`cloze-validate.test.ts`（非法 JSON/空数错/答案不在范围/占用词泄漏）、`cloze-fallback.test.ts`（AI 失败退回单词默写）
 - 外部 AI 回归：沿用「≥20 词的批量回归」要求，新增「一次组句生成的端到端回归」脚本（`pnpm get:cloze`，走生产 provider，不打印 Key）
@@ -240,10 +241,10 @@ interface ReviewLog {
 
 // 每日汇总（文件：mds-data/review/daily.json）—— streak / 进度条的数据源
 interface DailyStat { date: string;            // 本地时区 YYYY-MM-DD
-  target: number; done: number; correct: number; total: number; elapsedMs: number }
+  size: number; done: number; correct: number; total: number; elapsedMs: number }  // 2026-10-24 更正：size 是本批数量
 
 // 今日任务（内存计算，不落盘；只有 DailyStat 与卡片状态落盘）
-interface DailyPlan { date: string; target: number; reviewCount: number; newCount: number;
+interface DailyPlan { date: string; size: number; reviewCount: number; newCount: number;
   batches: { words: string[]; kind: "word"|"cloze" }[] }
 ```
 
@@ -262,12 +263,12 @@ interface DailyPlan { date: string; target: number; reviewCount: number; newCoun
 
 #### Phase 1 · 词库功能 + SRS 每日复习（先做；先改 pencil 界面 → 确认 → 再拆任务实现）
 1. 词源区**切换条**：录入 / 词表
-2. 词表模式：选词表（资源只读 / 自建可增删）+ 新建词表 + **「今天默几个」**
-3. 队列：`buildDailyQueue` 由 FSRS-6 排（到期优先 + 新词补足到 N）；下面列表从「本次单词表」变为**今日队列**（带今日进度）
+2. 词表模式：选词表（资源只读 / 自建可增删）+ 新建词表 + **「本次默几个」**
+3. 队列：`buildRoundQueue` 由 SRS 排（due <= now 优先 + 新词补足到 N）；下面列表从「本次单词表」变为**本次取的词**（带本批进度）
 4. 数据层：词库 `mds-data/banks/*.json` + 复习状态 `mds-data/review/*.json`（ts-fsrs card + 复习日志）+ 内置 ECDICT 词库 + 在线清单增量；沿用 runtime cache storage 接口
 5. 自建词表编辑：加词、删词、改名、删除词表；资源词表只读；录入词 / 历史记录 → 词表（自动去重）
 6. 评分写回：赛博对/错 → FSRS Rating（书写模式默认不进调度）；结果页给一行复习反馈
-7. 单测：词库解析/归一/去重、清单增量与校验、`buildDailyQueue` 边界、SRS 轨迹（注入时钟）、存量单词表兼容
+7. 单测：词库解析/归一/去重、清单增量与校验、`buildRoundQueue` 边界、SRS 轨迹（注入时钟）、存量单词表兼容
 
 #### Phase 2 · 填空模式（范例组句）　—— 已实现（2026-10-12）
 1. 「组句」作为第四种内容模式进模式条
@@ -278,7 +279,7 @@ interface DailyPlan { date: string; target: number; reviewCount: number; newCoun
 6. 单测：出题契约解析、校验边界（空数/答案越界/泄漏未挖空词/答案数上限）、判分
 
 #### SRS 每日复习（崔总定：**含在 Phase 1**）
-- 就是 Phase 1 的第 3/4/6 项：卡片与日志、`buildDailyQueue`、「今天默几个」、评分写回、今日进度
+- 就是 Phase 1 的第 3/4/6 项：卡片与日志、`buildRoundQueue`、「本次默几个」、评分写回、本批进度
 - 与 Phase 2 无依赖，不单独排期；也不做参数训练（详见 D1/D8）
 
 ---
@@ -288,7 +289,7 @@ interface DailyPlan { date: string; target: number; reviewCount: number; newCoun
 | 阶段 | 内容 | 依赖 | 规模感 |
 | --- | --- | --- | --- |
 | **M1 词库** | ECDICT 构建脚本 + 内置 8 库 + 词库面板（列表/启用/删除）+ 在线清单抓取 + 自建/导入 + 「另存为词库」 | 无外部依赖 | 中 |
-| **M2 每日复习** | `ts-fsrs` 接入 + 卡片/日志存储 + `buildDailyQueue` + 「今日任务」入口与进度 + 结算写回评分 + 统计（到期/已学/准确率） | M1 | 中 |
+| **M2 取词队列** | `ts-fsrs` 接入 + 卡片/日志存储 + `buildRoundQueue` + 取词入口与本批进度 + 结算写回评分 + 统计（到期/已学/准确率） | M1 | 中 |
 | **M3 范例组句** | 新增「组句」内容模式 + AI **一次批量出题** provider + 校验纯函数 + 组句轮 UI/键盘流 + 每空判分写回 SRS；失败即报「AI 当前不可用」并结束，**不降级不自动重试** | M2 | 中大（最不确定的是 AI 出题质量） |
 
 建议**先让 M1 落地并让你实际用几天**，再定 M2 的限额参数（新词/天、每场词数）——这些参数的默认值应该由你的真实节奏决定，而不是我拍。
@@ -311,7 +312,7 @@ interface DailyPlan { date: string; target: number; reviewCount: number; newCoun
 | 10 | 组句模式是否预生成音频 | 建议**照旧生成**（≤24 词，结果页发音可用）；不生成则准备更快，但结果页发音按钮全灰 |
 | 11 | 「考到但答对」的干扰词 | 干扰词（未被挖空的候选词）**不记分、不进调度**，只用来制造选择压力 |
 | 12 | SRS 每日复习放哪个 phase | **含在 Phase 1**（已定） |
-| 13 | 词表模式下「本场默哪些词」 | **不做选词**：选定词表后完全由 FSRS-6 排（到期优先 + 新词补足），用户只能定**「今天默几个」**（已定） |
+| 13 | 词表模式下「本场默哪些词」 | **不做选词**：选定词表后完全由 FSRS-6 排（到期优先 + 新词补足），用户只能定**「本次默几个」**（已定；2026-10-24 更正为「本批数量」语义） |
 
 ---
 
