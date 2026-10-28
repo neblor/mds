@@ -2,14 +2,18 @@
  * 词表模式的词源卡：当前词表 + 「本次默几个」
  *
  * 这个数字是**这一批取几个词**，不是「今天一共默几个」：改完数字点「重新取词」就按新数量再取一批。
- * 点词表名打开选择词表弹层；数量用步进器调（5–100，步长 5），即改即存。
- * 键盘：步进器按钮回车/空格即调整；Tab 顺序为「选词表 → 减 → 加」。
+ * 点词表名打开选择词表弹层；数量用步进器调（5–30，步长 5），即改即存。
+ * 禁止手动输入，只能 5 个 5 个地增减；键盘：步进器按钮回车/空格即调整，
+ * Tab 顺序为「选词表 → 减 → 加」。
  */
 import { Show } from "solid-js";
 import { ChevronDown, Library, Minus, Plus } from "lucide-solid";
-import { MAX_BATCH_SIZE, MIN_BATCH_SIZE } from "~/lib/round-queue";
-
-const STEP = 5;
+import {
+	BATCH_SIZE_STEP,
+	clampBatchSize,
+	MAX_BATCH_SIZE,
+	MIN_BATCH_SIZE,
+} from "~/lib/round-queue";
 
 interface Props {
 	bankName: string | null;
@@ -25,10 +29,7 @@ interface Props {
 
 export default function BankSourceCard(props: Props) {
 	const adjust = (delta: number) => {
-		const next = Math.min(
-			MAX_BATCH_SIZE,
-			Math.max(MIN_BATCH_SIZE, props.batchSize + delta),
-		);
+		const next = clampBatchSize(props.batchSize + delta);
 		if (next !== props.batchSize) props.onBatchSize(next);
 	};
 
@@ -65,8 +66,9 @@ export default function BankSourceCard(props: Props) {
 			<div class="flex items-center gap-3 rounded-full bg-canvas px-3 py-1">
 				<button
 					type="button"
-					class="flex h-6 w-6 items-center justify-center rounded-full text-ink-soft transition hover:bg-soft hover:text-ink"
-					onClick={() => adjust(-STEP)}
+					class="flex h-6 w-6 items-center justify-center rounded-full text-ink-soft transition hover:bg-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+					onClick={() => adjust(-BATCH_SIZE_STEP)}
+					disabled={props.batchSize <= MIN_BATCH_SIZE}
 					aria-label="减少本次数量"
 				>
 					<Minus class="h-4 w-4" />
@@ -76,8 +78,9 @@ export default function BankSourceCard(props: Props) {
 				</span>
 				<button
 					type="button"
-					class="flex h-6 w-6 items-center justify-center rounded-full text-ink-soft transition hover:bg-soft hover:text-ink"
-					onClick={() => adjust(STEP)}
+					class="flex h-6 w-6 items-center justify-center rounded-full text-ink-soft transition hover:bg-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+					onClick={() => adjust(BATCH_SIZE_STEP)}
+					disabled={props.batchSize >= MAX_BATCH_SIZE}
 					aria-label="增加本次数量"
 				>
 					<Plus class="h-4 w-4" />

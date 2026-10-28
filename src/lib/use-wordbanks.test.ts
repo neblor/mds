@@ -11,7 +11,8 @@
  * 由 scripts/smoke-hydration.mjs 在真实浏览器里验证（见该脚本注释）。
  */
 import { createRoot } from "solid-js";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { QueueView } from "./bank-api";
 import { DEFAULT_BATCH_SIZE } from "./round-queue";
 import {
 	VOCAB_PREFS_KEY,
@@ -53,8 +54,36 @@ function firstPaint(): { mode: SourceMode; bankId: string | null } {
 }
 
 afterEach(() => {
+	vi.unstubAllGlobals();
 	Reflect.deleteProperty(globalThis, "localStorage");
 });
+
+function makeQueueView(words: string[]): QueueView {
+	return {
+		bankId: "pet",
+		queue: {
+			date: "2026-10-24",
+			reviews: [],
+			fresh: words,
+			words,
+			size: DEFAULT_BATCH_SIZE,
+		},
+		definitions: {},
+		progress: {
+			date: "2026-10-24",
+			size: words.length,
+			done: 0,
+			todayWords: 0,
+			correct: 0,
+			total: 0,
+			elapsedMs: 0,
+		},
+	};
+}
+
+function queueResponse(view: QueueView): Response {
+	return { ok: true, json: async () => view } as Response;
+}
 
 describe("normalizeVocabPrefs", () => {
 	it("字段缺失或非法一律回落默认值", () => {
@@ -84,6 +113,69 @@ describe("normalizeVocabPrefs", () => {
 		expect(
 			normalizeVocabPrefs({ mode: "bank", bankId: "  pet  ", batchSize: 20 }),
 		).toEqual({ mode: "bank", bankId: "pet", batchSize: 20 });
+	});
+
+	it("旧范围 5–100 的存量值迁到 5–30、步长 5", () => {
+		expect(normalizeVocabPrefs({ batchSize: 100 })).toMatchObject({
+			batchSize: 30,
+		});
+		expect(normalizeVocabPrefs({ batchSize: 30 })).toMatchObject({
+			batchSize: 30,
+		});
+		expect(normalizeVocabPrefs({ batchSize: 23 })).toMatchObject({
+			batchSize: 25,
+		});
+		expect(normalizeVocabPrefs({ todayTarget: 100 })).toMatchObject({
+			batchSize: 30,
+		});
+	});
+});
+
+describe("useWordBanks 换批接线", () => {
+	it("重新取词请求 no-store，并用响应替换当前队列", async () => {
+		stubStorage({});
+		const firstWords = ["word-001", "word-002"];
+		const nextWords = ["word-002", "word-003"];
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValueOnce(queueResponse(makeQueueView(firstWords)))
+			.mockResolvedValueOnce(queueResponse(makeQueueView(nextWords)));
+		vi.stubGlobal("fetch", fetchMock);
+
+		let api!: WordBanksApi;
+		let dispose!: () => void;
+		createRoot((rootDispose) => {
+			dispose = rootDispose;
+			api = useWordBanks({ requestRetention: () => 0.9 });
+		});
+		try {
+			api.selectBank("pet");
+			await vi.waitFor(() => {
+				expect(api.queue()?.queue.words).toEqual(firstWords);
+			});
+			await api.refreshQueue();
+
+			expect(fetchMock).toHaveBeenCalledTimes(2);
+			const firstUrl = new URL(
+				String(fetchMock.mock.calls[0][0]),
+				"http://localhost",
+			);
+			const nextUrl = new URL(
+				String(fetchMock.mock.calls[1][0]),
+				"http://localhost",
+			);
+			// 换批语义在服务端队列算法里，不再带 avoid 参数。
+			expect(firstUrl.searchParams.has("avoid")).toBe(false);
+			expect(nextUrl.searchParams.has("avoid")).toBe(false);
+			expect(firstUrl.searchParams.get("size")).toBe("20");
+			expect(nextUrl.searchParams.get("size")).toBe("20");
+			expect(fetchMock.mock.calls[0][1]).toMatchObject({ cache: "no-store" });
+			expect(fetchMock.mock.calls[1][1]).toMatchObject({ cache: "no-store" });
+			expect(api.queue()?.queue.words).toEqual(nextWords);
+			expect(api.error()).toBeNull();
+		} finally {
+			dispose();
+		}
 	});
 });
 

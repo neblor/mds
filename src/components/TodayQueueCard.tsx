@@ -110,7 +110,7 @@ export default function TodayQueueCard(props: Props) {
 						title={
 							!props.hasBank
 								? "先选择一个词表"
-								: "按「本次默」的数量再取一批词（不改卡片状态）"
+								: "按「本次默」的数量再取一批词：必默词保留，其余随机更换；候选不足时全取（不改卡片状态）"
 						}
 						aria-busy={refreshing()}
 					>

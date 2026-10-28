@@ -272,7 +272,10 @@ export function fetchReviewQueue(
 	size: number,
 ): Promise<QueueView> {
 	const params = new URLSearchParams({ bankId, size: String(size) });
-	return requestJson<QueueView>(`/api/review-queue?${params.toString()}`);
+	// 队列是实时的 SRS 视图；禁止 HTTP 缓存把一次旧换批结果 replay 回来。
+	return requestJson<QueueView>(`/api/review-queue?${params.toString()}`, {
+		cache: "no-store",
+	});
 }
 
 export function commitReview(

@@ -217,7 +217,7 @@ export function useWordBanks(options: {
 		}
 		try {
 			const view = await fetchReviewQueue(bankId, prefs().batchSize);
-			// 服务端可能夹取过请求数量（5–100），回写本地保持一致；
+			// 服务端会把请求数量夹到 5–30 并归一到 5 的整数倍；
 			// progress.size 是本批实际词数（词表不足时更小），不能拿来回写偏好。
 			if (view.queue.size !== prefs().batchSize) {
 				patchPrefs({ batchSize: view.queue.size });

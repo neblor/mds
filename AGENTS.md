@@ -249,17 +249,17 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 
 ### 词库 / 复习 / 学习档案（2026-10-18 更新）
 
-- **词库模式**：词库本体仍是 `mds-data/banks/*.json`；**取词队列按 SRS 排期计算，不落盘、与「每日」无关**（due <= now 的复习 + 未学新词，取到 `size` 为止）；队列来源（新词/复习/重学）由服务端判定。
+- **词库模式**：词库本体仍是 `mds-data/banks/*.json`；**取词队列按 SRS 排期计算，不落盘、与「每日」无关**（due <= now 的复习 + 未学新词，取到 `size` 为止）；队列来源（新词/复习/重学）由服务端判定。推荐排序只产生前 100 个候选；本批 = 池内前 K 个**必默** + 从剩余候选随机抽 `size-K` 个（K：5 词→2，之后每多 5 词 +1，30 词→7）。必默前缀保证高优先词不会被随机漏掉、候选池随时间前移；随机段让未作答直接换批也能换词；候选不足本批数量时返回全部候选，不减少队列。
 - **复习状态（唯一事实来源）**：`mds-data/review/review.sqlite`。表：`cards`（每词 FSRS 快照）、`review_log`（逐题判定）、`session` + `session_word`（每场使用记录与词）。写入一场 = 一个事务；`session.id` 为幂等键，重放不重复。
 - **场次采集**：书写与赛博都写场次（书写 `correct` 为 `null`）；书写不进 SRS 调度，但计入使用频率。客户端在开始默写时生成 `session.id`/起始时间，结算时提交 `words/correct/activeMs/wallMs`。`session.correct` 以逐题日志重算（**按题/空计数**）；「最近练习」的分母用 `judged`（该场日志条数，`review_log.session_id` 索引子查询），所以组句一轮多空时会出现 `2 / 3`（2 词 3 空），不会再被夹成 `2 / 2`。书写场次 `judged = 0`，显示 `— / 词数`。
 - **取词数量语义（2026-10-24 崔总更正，勿再理解成日目标）**：界面上只有一个数字 = **本次取几个词**。
-  客户端偏好字段 `batchSize`（旧字段 `todayTarget` 读时迁移），服务端 `size`。点`重新取词`就是按当前数字
+  客户端偏好字段 `batchSize`（旧字段 `todayTarget` 读时迁移），服务端 `size`；界面只允许 **5–30、步长 5**，禁止手动输入，旧值读时夹取并归一到 5 的整数倍。点`重新取词`就是按当前数字
   **再取一批**，跨批次没有「今日额度」；已默词不会作为新词重复出现，只有到期学习/重学卡会作为复习词回来。
   `progress.size` / `progress.done` 是**同一批**的两个数；跨批次累计看 `progress.todayWords`（统计侧，按场次词数求和，同一词多轮也累加）。
 - **今日统计**：不再有 `daily.json`；`readDayStats(bankId, day)` 由 `review_log` 聚合 `correct/total/elapsedMs`，
   并由 `session.word_count` 求和得到 `words`（当天默了几次就累加几次，跨批次不去重）。**结算后不重取词**：
   `commitSession` 只把写回的词并进本批已默集合（`applyCommitToQueue`），词面冻结到下一次`重新取词`。
-  `重新取词` 有刷新中/已刷新状态，不改卡片。
+  `重新取词` 有刷新中/已刷新状态，不改卡片；请求使用 `cache: "no-store"`，避免旧队列被 HTTP 缓存重放。
 - **迁移/兼容**：工厂 `createReviewStore(reviewDir)` 负责打开/建库/迁移；旧文件先导临时库、计数校验、`quick_check`、原子 rename，再归档。失败保留旧文件并返回 JSON 兼容 store（`mode="legacy"`，`stats=null`）；下次启动重试。`node:sqlite` 通过 `process.getBuiltinModule` 运行时获取，不得改成静态 import。
 - **学习档案**：词表模式当前词表左侧 `library` → 32×32 按钮打开档案（点词表名仍打开选择弹层）。档案 = 4 KPI + 学习进度 / 180 天热力 / 最近 3 场 + 14 天到期预测 / 薄弱·常练词；Esc 返回并恢复焦点。「已掌握」= 下次间隔 ≥ 21 天；正确率样本 < 10 显示「—」；旧数据无场次时场次类指标显示 `—` 并注明从本版开始。热力网格区**固定高度**（7 行 18px 格 ≈ 158px，容器 176px + `overflow-y` 显式取 `hidden`）且卡片不可被 flex 压缩：窗口变矮时整页滚动或网格横向滚动，**不允许内部出纵向滚动条**。
 - **写回判定字段**：结算写回（`buildCommitItems`）的对错 = **该行所有 `graded` 字段都对**：短句轮是 `sentence`（整句归一化比较），其余模式与短句降级轮是 `word`。只认 `word` 会让短句场次整场不写回（卡片不排期/日志不落盘/最近练习显示 `0 / N`）；只取 `word` 字段又会让「拼写对、释义错」进 FSRS 记成 Good（与结算页判错矛盾）——两处都是同一行错误（2026-10-18 修复）。耗时按 `roundIndex`（轮）取，组句一轮多空均分到各空。
@@ -269,7 +269,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 - **专练**：薄弱词最多 5 个，一键「单词 + 赛博」；`runContentMode` 只覆盖本场，结果页/历史显示「单词」，关闭后恢复用户模式。
 - **代码边界**：`review-service.ts` 的 `buildCommitItems` 被浏览器端复用，该模块及其依赖**不得 import `node:*`**（曾因 `node:crypto` 导致 Vite dev 下整页 externalized 报错、水合失败）。
 - **测试**：统计口径/迁移/store 的单测直接覆盖生产实现；改这些模块必须同步 `pnpm test:run` 与 `pnpm check`。
-- **文档**：方案 `plans/wordbank-stats.md`；实施报告 `.implementation-report/2026-10-18-wordbank-stats.md`；短句写回/热力滚动条/更新短句见 `.implementation-report/2026-10-18-sentence-writeback-and-archive-fixes.md`。
+- **文档**：方案 `plans/wordbank-stats.md`；实施报告 `.implementation-report/2026-10-18-wordbank-stats.md`；短句写回/热力滚动条/更新短句见 `.implementation-report/2026-10-18-sentence-writeback-and-archive-fixes.md`；取词队列 2026-10-28 最终口径见 `.implementation-report/2026-10-28-mandatory-prefix-batch-selection.md`（同日的 `2026-10-28-refresh-batch-candidate-pool.md` 已被取代）。
 
 ### 难点攻关
 

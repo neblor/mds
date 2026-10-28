@@ -18,6 +18,7 @@ import { localDateKey } from "./day";
 import {
 	buildRoundQueue,
 	clampBatchSize,
+	type QueueShuffle,
 	type RoundQueue,
 } from "./round-queue";
 import {
@@ -108,6 +109,8 @@ export function buildQueueForBank(options: {
 	bankId: string;
 	size: unknown;
 	now: Date;
+	/** 测试可注入固定洗牌；生产缺省随机。 */
+	shuffleFn?: QueueShuffle;
 }): QueueResult | null {
 	const { bankStore, reviewStore, bankId, now } = options;
 	const bank = bankStore.read(bankId);
@@ -119,6 +122,7 @@ export function buildQueueForBank(options: {
 		cards,
 		now,
 		size,
+		shuffleFn: options.shuffleFn,
 	});
 	const date = localDateKey(now);
 	const day = reviewStore.readDayStats(bankId, date);
@@ -356,9 +360,9 @@ export function commitReviews(options: {
 	requestRetention?: number;
 	session?: SessionCommitInput | null;
 }): CommitResult {
-	const { reviewStore, bankStore, bankId, now } = options;
-	const bank = bankStore.read(bankId);
-	const entries = bank?.entries ?? [];
+	// 词库存在性由 /api/review-commit 路由先校验；这里只写复习数据。
+	// bankStore 仍保留在 options 里供路由/测试统一传参，不在编排层重复读盘。
+	const { reviewStore, bankId, now } = options;
 	const cards = reviewStore.readCards(bankId);
 	const updated: CommittedWord[] = [];
 	const logs: ReviewLogRecord[] = [];

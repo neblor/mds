@@ -11,6 +11,8 @@ import type { BankEntry, WordBank } from "./bank-types";
 
 const dirs: string[] = [];
 const NOW = new Date(2026, 9, 12, 10, 0, 0);
+const identityShuffle = <T,>(list: T[]): T[] => [...list];
+const reverseShuffle = <T,>(list: T[]): T[] => [...list].reverse();
 
 function tempStores() {
 	const dir = mkdtempSync(join(tmpdir(), "mds-review-service-"));
@@ -41,14 +43,17 @@ function makeBank(id: string, words: [string, number?][]): WordBank {
 }
 
 describe("clampBatchSize", () => {
-	it("夹到 5–100，非法回落 20", () => {
+	it("夹到 5–30 并归一到 5 的整数倍，非法回落 20", () => {
 		expect(clampBatchSize(20)).toBe(20);
 		expect(clampBatchSize(1)).toBe(5);
-		expect(clampBatchSize(999)).toBe(100);
+		expect(clampBatchSize(999)).toBe(30);
 		expect(clampBatchSize("30")).toBe(30);
 		expect(clampBatchSize("x")).toBe(20);
 		expect(clampBatchSize(undefined)).toBe(20);
-		expect(clampBatchSize(20.6)).toBe(21);
+		expect(clampBatchSize(20.6)).toBe(20);
+		expect(clampBatchSize(22.5)).toBe(25);
+		expect(clampBatchSize(7)).toBe(5);
+		expect(clampBatchSize(8)).toBe(10);
 	});
 });
 
@@ -100,7 +105,7 @@ describe("buildQueueForBank", () => {
 			size: 9999,
 			now: NOW,
 		});
-		expect(result?.queue.size).toBe(100);
+		expect(result?.queue.size).toBe(30);
 		expect(result?.progress.size).toBe(1);
 	});
 
@@ -116,7 +121,7 @@ describe("buildQueueForBank", () => {
 		]);
 		bank.entries[0].definition = "a round fruit";
 		bank.entries[1].definition = "   ";
-		bank.entries[5].definition = "a small sweet fruit"; // 词频最低，不在队列里
+		bank.entries[5].definition = "a small sweet fruit"; // 首批不在队列，换批后应进入
 		bankStore.write(bank);
 
 		const result = buildQueueForBank({
@@ -125,6 +130,7 @@ describe("buildQueueForBank", () => {
 			bankId: "b1",
 			size: 5,
 			now: NOW,
+			shuffleFn: identityShuffle,
 		});
 		expect(result?.queue.words).toEqual([
 			"apple",
@@ -134,6 +140,27 @@ describe("buildQueueForBank", () => {
 			"elderberry",
 		]);
 		expect(result?.definitions).toEqual({ apple: "a round fruit" });
+
+		// 必默前缀 apple/banana 不变；换一种洗牌只改变随机段，释义表随新批重建。
+		const next = buildQueueForBank({
+			bankStore,
+			reviewStore,
+			bankId: "b1",
+			size: 5,
+			now: NOW,
+			shuffleFn: reverseShuffle,
+		});
+		expect(next?.queue.words).toEqual([
+			"apple",
+			"banana",
+			"date",
+			"elderberry",
+			"fig",
+		]);
+		expect(next?.definitions).toEqual({
+			apple: "a round fruit",
+			fig: "a small sweet fruit",
+		});
 	});
 });
 
