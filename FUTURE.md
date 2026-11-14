@@ -211,18 +211,25 @@
 - **另两条路线未采用**：Qwerty Learner 的 `pet-vacabulary-list-2024.json`（仓库 GPL-3.0 + 内容源自剑桥版权表）
   与 CEFR-J A1–B1（只能近似，覆盖官方主表 87%）；如将来需要一个「可商用重发」的 B1 词库，CEFR-J 那条仍是备选。
 
-### 17. 生成短句默写模式（用整句默写代替只默单词）
+### 17. 生成短句默写模式（**已完成 2026-10-17**）
 
-- **做什么**：第五种内容模式：先用 AI 为每个词生成**一句包含该词的短句**，然后默写整句（赛博模式敲整句；书写模式自己用笔默）。
-  - 出题：一次请求批量生成「词 → 短句」（复用现有 provider 形态：STRICT JSON、候选词校验、失败即报「AI 当前不可用」、不降级）；
-  - 音频：TTS 合成整句，缓存 key 必须与单词音频分开（句子哈希域独立）——与第 4 条「组句整句朗读」共用同一套句子音频缓存；
-  - 判定：按词对齐打分，能指出错在哪几个词（可选再加 AI 批改「意思对不对」）；
-  - 时长：按句长 × 档位 × 倍率计算，沿用 `timing.ts` 现有口径；
-  - 结果页：以句子为单元展示，逐词标红绿 + 整句发音按钮（现有结果页按「空/词」建模，需扩成句子单元）。
-- **触发条件**：单词级默写已熟练，崔总想要「词在句子里怎么用」这一层练习时。
-- **代价/前置**：新 provider + 句子级 TTS 缓存口径 + 结果页单元改造 + 键盘流/焦点规则重走一遍设计（先出 `.design` 稿再实现）。
-- **相关落点**：`src/lib/definition-provider.ts`（新 kind 或新 provider）、`src/lib/tts-filename.ts`、`src/lib/timing.ts`、
-  `src/lib/use-dictation.ts`（新 round kind）、`src/components/ResultsView.tsx`、`.design/mds.pen`。
+> 落地：`src/lib/sentence-provider.ts` / `sentence-service.ts`（`sentences.json` 缓存）、`timing.ts` 的整句公式、
+> 结果页整句对照、词库页「更新短句」。实施报告：`.implementation-report/2026-10-17-sentence-mode.md`；
+> 写回与布局修复：`.implementation-report/2026-10-18-sentence-writeback-and-archive-fixes.md`。
+
+- **实际口径**（与原计划的差异一并记下，避免以后按旧稿理解）：
+  - 出题：一次请求批量生成「词 → 短句」，目标 3–6 词、硬上限 8 词
+    （`SENTENCE_MIN_WORDS` / `SENTENCE_TARGET_MAX_WORDS` / `SENTENCE_MAX_WORDS`）；
+    超长项先做一次「压到 ≤5 词」的收紧重试，仍不合格的词**降级为单词轮**，不中止本场。
+  - 音频：整句单独合成，**只念整句 3 遍**（不先念目标词），句子音频缓存与单词音频分开。
+  - 判定：**整句归一化后全等**（小写 / 去标点 / 压缩空白），不做 AI 批改，也不逐词标红绿。
+  - 计时：`3 遍 ×（4s 思考 + 0.45s × 整句字符数）`，再乘三档速率与倍率
+    （`SENTENCE_THINK_SECONDS` / `SENTENCE_CHAR_SECONDS`）。
+  - 结果页：目标词、标准整句（目标词高亮）、用户原文，用行首 ✓/✗ 与底色表达对错。
+  - 缓存与刷新：`sentences.json`（model + contentLevel 身份）；「更新短句」清掉本批词的句子缓存。
+- **当时计划但没做**（已另立条目，不在本条重开）：结果页逐词 diff → §七.2；用短句做挖空练习 → §七.3。
+- **未采用的旧方案（备查）**：原稿里的「按词对齐打分 + 可选 AI 批改意思对不对」在实测后没做，
+  改为整句归一化全等判定。
 
 ### 18. `daily.json` 的「今日已完成」口径与词库维度（**已完成 2026-10-18**）
 

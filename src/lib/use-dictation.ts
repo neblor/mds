@@ -204,10 +204,10 @@ function buildRounds(opts: BuildRoundsOptions): WordRound[] {
 			: undefined;
 		const audioName = data.nameMap.get(w) ?? "";
 
-		// 短句轮：先念目标词 1 遍，再念整句 2 遍（崔总 2026-10-17 定）。
+		// 短句轮：只念整句 3 遍（崔总 2026-10-17 定：用户听到第一个音就开始写，先念单词没有意义）。
 		// 没有合格短句/没有整句语音的词降级为普通单词轮，绝不整场报废。
 		if (contentMode === "sentence" && sentence && sentenceAudioName) {
-			// 只念整句 3 遍：用户听到第一个音就开始写，先念单词没有意义（崔总 2026-10-17）
+			// 逐遍的播报间隔与条数见 timing.sentenceSpeechIntervals（每遍「思考 + 书写」）。
 			return {
 				kind: "word" as const,
 				word: w,
