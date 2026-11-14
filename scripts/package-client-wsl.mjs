@@ -25,7 +25,7 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseBumpType } from "../src/lib/client-package-version.ts";
+import { parsePackageTarget } from "../src/lib/client-package-version.ts";
 import {
 	WINE32_DEB_URLS,
 	SYSTEM_WINE_PEB_DIR,
@@ -37,12 +37,12 @@ import {
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-let bumpType;
+let target;
 try {
-	bumpType = parseBumpType(process.argv.slice(2));
+	target = parsePackageTarget(process.argv.slice(2));
 } catch (error) {
 	console.error(error instanceof Error ? error.message : String(error));
-	console.error("用法：pnpm client:package:wsl <major|minor|patch|test>");
+	console.error("用法：pnpm client:package:wsl <major|minor|patch|test|X.Y.Z>");
 	process.exit(1);
 }
 
@@ -127,13 +127,13 @@ const pnpmDir = dirname(
 	realpathSync(execFileSync("which", ["pnpm"]).toString().trim()),
 );
 
-console.log(`在挂载命名空间内执行打包（bump=${bumpType}）…`);
+console.log(`在挂载命名空间内执行打包（目标=${target}）…`);
 process.exitCode = runInNamespace(
 	wslNamespaceScript({
 		env,
 		nodeDir,
 		pnpmDir,
 		projectRoot,
-		bumpType,
+		target: String(target),
 	}),
 );

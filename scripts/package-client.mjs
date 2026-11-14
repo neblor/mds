@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import {
 	createPackagePlan,
-	parseBumpType,
+	parsePackageTarget,
 } from "../src/lib/client-package-version.ts";
 import { cleanupPackageOutput } from "../src/lib/client-package-cleanup.ts";
 import {
@@ -28,13 +28,14 @@ function runPnpm(args) {
 	}
 }
 
-let bumpType;
+let target;
 try {
-	bumpType = parseBumpType(process.argv.slice(2));
+	target = parsePackageTarget(process.argv.slice(2));
 } catch (error) {
 	console.error(error instanceof Error ? error.message : String(error));
 	process.exit(1);
 }
+const targetArg = String(target);
 
 // —— 非 Windows + 系统 wine 缺 32 位支持时，透明切换到受限环境打包 ——
 // （NSIS 安装器是 32 位 PE，electron-builder 在 Linux/macOS 需用 wine 运行安装器抽取卸载器）
@@ -58,7 +59,7 @@ if (
 		dirname(fileURLToPath(import.meta.url)),
 		"package-client-wsl.mjs",
 	);
-	const result = spawnSync(process.execPath, [wslScript, bumpType], {
+	const result = spawnSync(process.execPath, [wslScript, targetArg], {
 		stdio: "inherit",
 		cwd: projectRoot,
 		env: process.env,
@@ -74,8 +75,14 @@ if (process.platform !== "win32" && !inNamespace && !hasWine32 && !unshareAvaila
 }
 
 const originalPackageText = readFileSync(packagePath, "utf8");
-const originalPackage = JSON.parse(originalPackageText);
-const plan = createPackagePlan(originalPackage.version, bumpType);
+let originalPackage;
+try {
+	originalPackage = JSON.parse(originalPackageText);
+} catch (error) {
+	console.error(`package.json 不是有效 JSON：${error instanceof Error ? error.message : String(error)}`);
+	process.exit(1);
+}
+const plan = createPackagePlan(originalPackage.version, target);
 const packagingPackage = structuredClone(originalPackage);
 packagingPackage.version = plan.targetVersion;
 packagingPackage.build.directories.output = plan.outputDir;
@@ -84,8 +91,10 @@ const writePackage = (value) =>
 
 console.log(
 	plan.changesVersion
-		? `正式打包：${plan.currentVersion} → ${plan.targetVersion}（${bumpType}）`
-		: `测试打包：保持版本 ${plan.currentVersion}，输出到 ${plan.outputDir}`,
+		? `正式打包：${plan.currentVersion} → ${plan.targetVersion}（${plan.bumpType}）`
+		: plan.bumpType === "test"
+			? `测试打包：保持版本 ${plan.currentVersion}，输出到 ${plan.outputDir}`
+			: `按当前版本打包：${plan.currentVersion}，输出到 ${plan.outputDir}`,
 );
 
 let packageWasChanged = false;

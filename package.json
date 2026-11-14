@@ -1,6 +1,7 @@
 {
   "name": "mds",
   "type": "module",
+  "private": true,
   "scripts": {
     "dev": "pnpm web:dev",
     "build": "pnpm web:build",
@@ -30,6 +31,8 @@
     "client:package": "node scripts/package-client.mjs",
     "client:package:wsl": "node scripts/package-client-wsl.mjs",
     "client:verify": "node scripts/verify-electron-package.mjs",
+    "release": "node scripts/release.mjs",
+    "release:publish": "node scripts/release-publish.mjs",
     "electron:start": "pnpm client:start",
     "electron:build": "pnpm client:package",
     "build:banks": "node scripts/build-banks.mjs",
@@ -111,7 +114,7 @@
       "mirror": "https://npmmirror.com/mirrors/electron/"
     }
   },
-  "version": "0.12.0",
+  "version": "1.0.0",
   "description": "默点啥 — 记单词 · 听写 · 默写小帮手",
   "author": "neblor"
 }

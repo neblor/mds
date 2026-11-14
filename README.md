@@ -28,6 +28,12 @@ mds（默点啥）把单词收集、发音准备、随机默写和结果对照�
 - 词表模式 + FSRS 取词队列（按本次数量取词）；每个词表有学习档案：掌握进度、近 7/30 天正确率、180 天练习热力、14 天到期预测、薄弱/常练词，并可一键专练薄弱词
 - Windows NSIS 安装包（引导式安装、仅当前用户、可选安装目录、卸载保留用户数据）
 
+### 下载
+
+Windows 安装包在 GitHub Releases 发布，最新版地址：https://github.com/neblor/mds/releases/latest
+
+每个版本附 `mds-<version>-setup.exe` 与 `SHA256SUMS.txt`；安装包目前没有代码签名，首次运行会提示「未知发布者」，属于预期行为。
+
 ### 快速开始
 
 本地安装与编译需要：Node.js 24+、pnpm 和 Git；Windows 10/11 或 WSL2 均可（WSL 下交叉打包见下文）。`pnpm` 可用 `npm install -g pnpm` 安装；所有命令都在项目根目录执行，不要换成 npm、npx 或 Deno。
@@ -98,11 +104,25 @@ pnpm get:explain --grade "hello=你好" "apple=哈喽"
 # 测试打包：不改版本号，产物在 dist/electron-test/
 pnpm client:package test
 
-# 正式打包：按需选择版本递增方式，产物在 dist/electron/
+# 只打包不发布：按需选择版本递增方式，产物在 dist/electron/
 pnpm client:package patch
+
+# 发版：构建 → 归档 → 提交 → 打 tag → 推送 → 上传 GitHub Release
+pnpm release patch
 ```
 
-`bump_type` 必填，只能是 `major`、`minor`、`patch` 或 `test`：前三种分别递增主、次、修订号（主、次递增会把低位归零），`test` 保持当前版本。命令会先跑 `pnpm check`，再打包、校验包内容并清理临时文件，最终输出目录只保留 `mds-<version>-setup.exe`。只有正式打包成功后才把新版本写回 `package.json`，失败会恢复原版本。
+`pnpm release` 是正式发版的唯一入口：它先跑 `pnpm check`，再调 `client:package` 打包并校验包内容，
+把安装包移到 `release-out/v<version>/`（含 `SHA256SUMS.txt`、`RELEASE-NOTES.md` 与清单），
+然后提交 `package.json`、打 annotated tag、原子推送分支与 tag，最后创建 Release 草稿、上传、逐个核对后再公开。
+
+- `pnpm release 1.0.0`：发布当前版本（版本号未变时只打 tag）；显式版本不得小于 `package.json` 的版本。
+- `pnpm release patch --dry-run`：只做预检并打印计划，不构建、不写文件、不上传。
+- `pnpm release patch --no-publish`：停在归档阶段，人工验收后再 `pnpm release:publish v<version> --execute`。
+- 发布说明写在 `docs/release-notes/<version>.md`；没有这个文件时用 `git log` 生成草稿，并停下来等你过目。
+
+官网发布说明与安装包都在 GitHub Release 上；仓库本身不向 npm 发布。
+
+`client:package` 的打包目标必填，可以是 `major`、`minor`、`patch`、`test` 或显式版本 `x.y.z`（可带 `v` 前缀）：前三种分别递增主、次、修订号（主、次递增会把低位归零），`test` 保持当前版本，显式版本不得低于 `package.json` 当前版本。命令会先跑 `pnpm check`，再打包、校验包内容并清理临时文件，最终输出目录只保留 `mds-<version>-setup.exe`。只有正式打包成功后才把新版本写回 `package.json`，失败会恢复原版本。
 
 **WSL2 下可以直接执行 `pnpm client:package <bump_type>`。** NSIS 安装器是 32 位 PE，Linux/WSL 交叉打包需要 32 位 wine；检测到系统 wine 缺少 32 位支持且 `unshare` 可用时，命令会自动切换到受限环境流程：首次运行把 wine32 运行件下载解包到 `.tmp/wine32`，wine 前缀与 electron-builder 缓存放在 `~/.cache/mds`（不写入仓库），然后在用户挂载命名空间内执行与正常打包完全相同的步骤，产物一致。因此 WSL 下不需要特意换命令；`pnpm client:package:wsl <bump_type>` 是同一流程的显式入口，产物也相同。首次自动准备需要网络以及 `curl`、`dpkg`。
 
@@ -133,7 +153,9 @@ AI 日志会记录请求失败、兼容降级、响应缺项或截断及缓存�
 | `pnpm get:phonetics ...` | 诊断音标 AI 兜底 |
 | `pnpm get:tts ...` | 诊断 Edge TTS 合成与回退 |
 | `pnpm client:dev` | 构建并启动 Electron 客户端 |
-| `pnpm client:package <major\|minor\|patch\|test>` | 自动检查、按模式管理版本并构建 Windows NSIS 安装包 |
+| `pnpm client:package <major\|minor\|patch\|test\|x.y.z>` | 自动检查、按模式管理版本并构建 Windows NSIS 安装包 |
+| `pnpm release <major\|minor\|patch\|x.y.z>` | 一键发版：构建 → 归档 → 提交 → tag → 推送 → 上传 GitHub Release |
+| `pnpm release:publish v<version> --execute` | 从已有归档续跑发布（默认只读预览） |
 
 ### 技术栈
 
@@ -162,6 +184,12 @@ mds is a small English dictation app that keeps word collection, speech preparat
 - Mode-aware result review: graded fields in red/green, reference fields ungraded, two-wave star celebration
 - A guided Windows NSIS installer (per-user, custom install directory, data kept on uninstall)
 - Per-bank learning archive: mastery progress, 7/30-day accuracy, 180-day practice heatmap, 14-day due forecast, weak/most-practiced words, and one-click weak-word drill
+
+### Download
+
+Windows installers are published on GitHub Releases: https://github.com/neblor/mds/releases/latest
+
+Each release ships `mds-<version>-setup.exe` plus `SHA256SUMS.txt`. The installer is not code-signed yet, so Windows shows an "unknown publisher" prompt the first time — that is expected.
 
 ### Getting started
 
@@ -236,9 +264,22 @@ pnpm client:package test
 
 # Release package: choose the intended version bump, write to dist/electron/
 pnpm client:package patch
+
+# Publish: build → archive → commit → tag → push → upload the GitHub Release
+pnpm release patch
 ```
 
-`bump_type` is required and must be `major`, `minor`, `patch`, or `test`. Major and minor bumps reset lower positions, while `test` keeps the current version. The command runs `pnpm check`, packages, verifies the app contents, and cleans temporary files, leaving only `mds-<version>-setup.exe` in the output directory. The new version is written back to `package.json` only after a successful release package; failures restore the previous version.
+`pnpm release` is the only supported publishing entry point. It runs `pnpm check`, packages through `client:package`,
+moves the installer into `release-out/v<version>/` (with `SHA256SUMS.txt`, `RELEASE-NOTES.md`, and a manifest),
+commits `package.json`, creates an annotated tag, pushes branch and tag atomically, then creates a draft Release,
+uploads the assets, verifies every asset, and only then publishes.
+
+- `pnpm release 1.0.0` publishes the current version (tag only when the version is unchanged); an explicit version must not be lower than `package.json`.
+- `pnpm release patch --dry-run` prints the plan without building, writing, or uploading.
+- `pnpm release patch --no-publish` stops after archiving; finish later with `pnpm release:publish v<version> --execute`.
+- Release notes live in `docs/release-notes/<version>.md`; without that file a `git log` draft is generated and the run stops for review.
+
+The `client:package` target is required and accepts `major`, `minor`, `patch`, `test`, or an explicit `x.y.z` version (an optional `v` prefix is allowed). Major and minor bumps reset lower positions, `test` keeps the current version, and an explicit version must not be lower than `package.json`. The command runs `pnpm check`, packages, verifies the app contents, and cleans temporary files, leaving only `mds-<version>-setup.exe` in the output directory. The new version is written back to `package.json` only after a successful release package; failures restore the previous version.
 
 **`pnpm client:package <bump_type>` works directly under WSL2.** The NSIS installer is a 32-bit PE, so cross-building on Linux/WSL needs 32-bit wine. When the system wine lacks 32-bit support and `unshare` is available, the command switches automatically to a restricted-environment flow: the first run downloads and extracts the wine32 runtime into `.tmp/wine32`, keeps the wine prefix and electron-builder cache under `~/.cache/mds` (outside the repo), then runs the exact same pipeline inside a user mount namespace with identical output. WSL users therefore do not need a different command; `pnpm client:package:wsl <bump_type>` is an explicit entry point for the same flow with the same artifact. The first automatic setup needs network access plus `curl` and `dpkg`.
 
@@ -269,7 +310,9 @@ Diagnostic logs cover request failures, compatibility fallbacks, truncated or in
 | `pnpm get:phonetics ...` | Diagnose the AI IPA fallback |
 | `pnpm get:tts ...` | Diagnose Edge TTS synthesis and fallbacks |
 | `pnpm client:dev` | Build and launch the Electron client |
-| `pnpm client:package <major\|minor\|patch\|test>` | Check, manage the version, and build the Windows NSIS installer |
+| `pnpm client:package <major\|minor\|patch\|test\|x.y.z>` | Check, manage the version, and build the Windows NSIS installer |
+| `pnpm release <major\|minor\|patch\|x.y.z>` | One-shot publish: build → archive → commit → tag → push → upload the GitHub Release |
+| `pnpm release:publish v<version> --execute` | Resume publishing from an existing archive (read-only preview by default) |
 
 ### Stack
 

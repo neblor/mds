@@ -73,7 +73,7 @@ describe("client-wsl-env", () => {
 			nodeDir: "/opt/node/bin",
 			pnpmDir: "/opt/pnpm/bin",
 			projectRoot: "/repo",
-			bumpType: "test",
+			target: "test",
 		});
 		const script = lines.join("\n");
 		expect(script).toContain("mount -t tmpfs tmpfs /run/user/1000");

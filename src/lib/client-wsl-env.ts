@@ -121,9 +121,10 @@ export function wslNamespaceScript(options: {
 	nodeDir: string;
 	pnpmDir: string;
 	projectRoot: string;
-	bumpType: string;
+	/** 打包目标（bump 类型或显式版本），原样传给 client:package */
+	target: string;
 }): string[] {
-	const { env, nodeDir, pnpmDir, projectRoot, bumpType } = options;
+	const { env, nodeDir, pnpmDir, projectRoot, target } = options;
 	return [
 		"set -e",
 		`mount -t tmpfs tmpfs ${env.runtimeDir}`,
@@ -137,7 +138,7 @@ export function wslNamespaceScript(options: {
 		"export WINEDEBUG=-all",
 		`export HOME=${process.env.HOME ?? "/root"}`,
 		`cd ${projectRoot}`,
-		`pnpm client:package ${bumpType}`,
+		`pnpm client:package ${target}`,
 	];
 }
 

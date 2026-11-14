@@ -59,9 +59,30 @@ const required = [
 	join(appDir, "electron", "main.mjs"),
 	join(appDir, "electron", "runtime-paths.mjs"),
 	join(appDir, "electron", "window-options.mjs"),
+	join(appDir, "package.json"),
 ];
 for (const file of required) {
 	if (!existsSync(file)) failures.push(`包内缺少运行文件：${file}`);
+}
+
+// 包内 package.json 的版本就是主进程 app.getVersion() 的来源（窗口标题、安装信息），
+// 必须与实际安装包版本一致，否则「发的版本」和「装的版本」会对不上。
+const bundledPackagePath = join(appDir, "package.json");
+if (existsSync(bundledPackagePath)) {
+	try {
+		const bundledVersion = JSON.parse(
+			readFileSync(bundledPackagePath, "utf8"),
+		).version;
+		if (bundledVersion !== packageVersion) {
+			failures.push(
+				`包内 package.json 版本是 ${bundledVersion}，期望 ${packageVersion}`,
+			);
+		}
+	} catch (error) {
+		failures.push(
+			`包内 package.json 不是有效 JSON：${error instanceof Error ? error.message : String(error)}`,
+		);
+	}
 }
 
 const forbidden = [

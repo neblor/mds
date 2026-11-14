@@ -6,6 +6,8 @@
 .pi-lens/
 
 dist
+# 发布归档（每版约 100 MB：安装包 + 校验和 + 发布说明 + 清单，不入库）
+release-out
 .wrangler
 .output
 .vercel
