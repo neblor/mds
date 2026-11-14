@@ -329,18 +329,45 @@ function readArchive(root, version) {
 /** 写文件用临时文件 + rename，避免写到一半被中断时留下半截清单/说明。 */
 function writeFileAtomic(path, text) {
 	const temporary = `${path}.tmp-${process.pid}`;
-	writeFileSync(temporary, text);
-	renameSync(temporary, path);
+	try {
+		writeFileSync(temporary, text);
+		renameSync(temporary, path);
+	} finally {
+		rmSync(temporary, { force: true });
+	}
 }
 
-/** 清掉上次被强杀留下的暂存目录（只认本版本自己的命名）。 */
-function removeStaleStaging(root, tag) {
+function processIsAlive(pid) {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (error) {
+		// ESRCH 才表示进程不存在；权限不足或平台差异一律保守保留。
+		return error?.code !== "ESRCH";
+	}
+}
+
+/** 只清理由已退出进程留下的暂存目录，绝不能删掉另一场正在进行的发布。 */
+export function removeStaleStaging(root, tag) {
 	const archiveRoot = join(root, "release-out");
 	if (!existsSync(archiveRoot)) return;
 	const prefix = `.staging-${tag}-`;
-	for (const entry of readdirSync(archiveRoot)) {
-		if (!entry.startsWith(prefix)) continue;
-		rmSync(join(archiveRoot, entry), { recursive: true, force: true });
+	for (const entry of readdirSync(archiveRoot, { withFileTypes: true })) {
+		if (!entry.isDirectory() || !entry.name.startsWith(prefix)) continue;
+		const pidText = entry.name.slice(prefix.length);
+		if (!/^\d+$/.test(pidText)) continue;
+		const pid = Number(pidText);
+		if (!Number.isSafeInteger(pid) || pid <= 0 || processIsAlive(pid)) continue;
+		rmSync(join(archiveRoot, entry.name), { recursive: true, force: true });
+	}
+}
+
+function moveFile(source, destination) {
+	try {
+		renameSync(source, destination);
+	} catch {
+		copyFileSync(source, destination);
+		rmSync(source, { force: true });
 	}
 }
 
@@ -423,7 +450,7 @@ function refreshNotes({ root, version, archive, args, log }) {
 	return readArchive(root, version);
 }
 
-function buildAndArchive({ root, plan, args, log }) {
+export function buildAndArchive({ root, plan, args, log }) {
 	const dir = join(root, plan.archiveDir);
 	if (existsSync(dir)) {
 		throw new Error(`归档目录已存在但不是本次的产物：${plan.archiveDir}（先人工核对或删除，不覆盖）`);
@@ -458,16 +485,11 @@ function buildAndArchive({ root, plan, args, log }) {
 	// 进程被强杀/磁盘写满时不会留下「缺清单的归档」，重跑也不会误用半成品。
 	removeStaleStaging(root, plan.tag);
 	const stage = join(root, "release-out", `.staging-${plan.tag}-${process.pid}`);
+	const artifactPath = join(stage, plan.artifactName);
 	let finalized = false;
 	try {
 		mkdirSync(stage, { recursive: true });
-		const artifactPath = join(stage, plan.artifactName);
-		try {
-			renameSync(distArtifact, artifactPath);
-		} catch {
-			copyFileSync(distArtifact, artifactPath);
-			rmSync(distArtifact, { force: true });
-		}
+		moveFile(distArtifact, artifactPath);
 		const bytes = statSync(artifactPath).size;
 		const sha256 = sha256File(artifactPath);
 		writeFileSync(
@@ -496,7 +518,23 @@ function buildAndArchive({ root, plan, args, log }) {
 			`[2/3] 归档完成：${plan.archiveDir}（${formatBytes(bytes)}，sha256 ${sha256.slice(0, 16)}…）`,
 		);
 	} finally {
-		if (!finalized) rmSync(stage, { recursive: true, force: true });
+		if (!finalized) {
+			// 归档失败不能把唯一安装包一起删掉：能回退就放回 dist；
+			// 回退失败则保留整个暂存目录，绝不能为了「清理干净」丢产物。
+			let keepStage = false;
+			try {
+				if (existsSync(artifactPath) && !existsSync(distArtifact)) {
+					mkdirSync(dirname(distArtifact), { recursive: true });
+					moveFile(artifactPath, distArtifact);
+				}
+			} catch (error) {
+				keepStage = true;
+				log(
+					`⚠ 安装包回退失败，已保留暂存目录 ${stage}：${error instanceof Error ? error.message : String(error)}`,
+				);
+			}
+			if (!keepStage) rmSync(stage, { recursive: true, force: true });
+		}
 	}
 	return readArchive(root, plan.targetVersion);
 }

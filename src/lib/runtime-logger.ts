@@ -21,8 +21,7 @@ export interface RuntimeDiagnosticLogger {
 	write(entry: RuntimeDiagnosticEntry): void;
 }
 
-function sanitizeEndpoint(value: unknown): unknown {
-	if (typeof value !== "string") return value;
+function sanitizeEndpoint(value: string): string {
 	try {
 		const url = new URL(value);
 		url.username = "";
@@ -36,33 +35,39 @@ function sanitizeEndpoint(value: unknown): unknown {
 }
 
 function sanitizeDetails(details: Record<string, unknown>) {
-	const sanitized: Record<string, unknown> = {};
+	const sanitized = new Map<string, unknown>();
 	for (const [key, value] of Object.entries(details)) {
 		if (key.toLowerCase().includes("key")) {
-			sanitized[key] = "[redacted]";
-		} else if (key === "endpoint") {
-			sanitized[key] = sanitizeEndpoint(value);
+			sanitized.set(key, "[redacted]");
+		} else if (key === "endpoint" && typeof value === "string") {
+			sanitized.set(key, sanitizeEndpoint(value));
 		} else {
-			sanitized[key] = value;
+			sanitized.set(key, value);
 		}
 	}
-	return sanitized;
+	// Object.fromEntries 会把 __proto__ 当普通字段保留；直接给对象赋值会把它吞掉。
+	return Object.fromEntries(sanitized);
 }
 
 /** 日志文件名：里面早已不止 AI 释义（还有 TTS 等），2026-11-15 由 `ai-definitions.log` 改名。 */
 const LOG_FILE = "runtime.log";
 const LEGACY_LOG_FILE = "ai-definitions.log";
 
-/** 旧日志无缝搬过来；迁移失败不影响写日志（新文件从头写）。 */
+/**
+ * 旧日志按「当前 / 轮换」分别搬迁，不覆盖任何已有 runtime 文件。
+ * 目标已存在时保留旧文件，避免把较新的日志顶掉；单个文件失败不妨碍另一个迁移。
+ */
 function migrateLegacyLog(logDir: string): void {
 	const current = join(logDir, LOG_FILE);
-	if (existsSync(current)) return;
 	const legacy = join(logDir, LEGACY_LOG_FILE);
-	try {
-		if (existsSync(legacy)) renameSync(legacy, current);
-		if (existsSync(`${legacy}.1`)) renameSync(`${legacy}.1`, `${current}.1`);
-	} catch {
-		// 尽力而为：失败就当没有历史日志。
+	for (const suffix of ["", ".1"]) {
+		const source = `${legacy}${suffix}`;
+		const target = `${current}${suffix}`;
+		try {
+			if (existsSync(source) && !existsSync(target)) renameSync(source, target);
+		} catch {
+			// 诊断日志迁移失败不得影响默写；保留源文件供下次或人工处理。
+		}
 	}
 }
 

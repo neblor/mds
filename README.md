@@ -53,7 +53,7 @@ pnpm dev
 pnpm build   # 生成 Web/Nitro 生产产物到 .output/
 pnpm start   # 启动已有构建，默认 http://127.0.0.1:3000
 pnpm test    # 运行全部 Vitest 单元测试
-pnpm check   # 测试 → 生产构建 → HTTP 冒烟，交付前完整检查
+pnpm check   # 测试 → 类型检查 → 生产构建 → HTTP 冒烟，交付前完整检查
 ```
 
 `pnpm start` 只启动已有 `.output`，不会自动构建；改完代码要先 `pnpm build`。监听地址、端口和缓存目录可传参，也兼容同名环境变量：
@@ -211,7 +211,7 @@ The development server runs at `http://localhost:5199`. The first `pnpm install`
 pnpm build   # production Web/Nitro output in .output/
 pnpm start   # serve the existing build at http://127.0.0.1:3000
 pnpm test    # all Vitest unit tests
-pnpm check   # tests → production build → HTTP smoke test
+pnpm check   # tests → type check → production build → HTTP smoke test
 ```
 
 `pnpm start` only serves an existing `.output` build and never rebuilds, so run `pnpm build` after changes. Host, port, and cache directory accept flags or matching environment variables:

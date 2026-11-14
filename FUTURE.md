@@ -129,9 +129,7 @@
   `typescript` 已提升为显式 devDependency（`^6.0.3`）——原先只是靠全局 Bun 提供的 `tsc`，干净机器/CI 上并不存在；
   `tsconfig.json` 另加 `exclude`（`dist`/`.output`/`release-out`/`.tmp`/`.mds-data`），避免把产物当源码检查。
 
-- **做什么**：Phase 2 已把全仓类型清零（`icons.tsx` 改走 `lucide-solid/icons/*` 子路径 + `skipLibCheck` + 修完全部存量类型错），但 `check` 仍不跑 tsc，容易再次积累。
-- **触发条件**：下次改动后想“一次命令给全绿”时。
-- **代价/前置**：`pnpm check` 加一步 `tsc --noEmit`（约 2–4s），确认 CI/打包脚本对时间长不敏感。
+- **验证**：`pnpm check` 已按 Vitest → `tsc --noEmit` → Web 生产构建 → HTTP 冒烟跑通。
 
 ### 7. 一次性待复核：真实 Key 的组句回归（**已完成 2026-10-13**）
 
@@ -172,9 +170,7 @@
 
 - **关闭理由**：崔总确认日常使用（含 1.0 安装版）未再出现 Alt 唤出菜单，不再单独跟踪。
 
-- **做什么**：本轮已在主进程 `Menu.setApplicationMenu(null)`，并在 xvfb 探针里验证「没有菜单栏可显示」；但 Linux/WSL 下没法真按 Alt，需在 Windows 安装版上按一下 Alt 确认。
-- **触发条件**：下次用 `pnpm client:package <bump>` 打一个包运行时（顺手一试）。
-- **代价/前置**：无；若仍能唤出，调查方向是 Windows 的窗口菜单栏（`setMenuBarVisibility`）与框架是否有其它菜单来源。
+- **当前实现**：主进程 `Menu.setApplicationMenu(null)` 保持不变；若日后 Alt 行为回归，再查 `setMenuBarVisibility` 与其它菜单来源。
 
 ### 12. 把「组句轮打桩冒烟」固化成脚本
 
@@ -186,21 +182,20 @@
 
 - **做什么**：生成级别（小学/初中/高中/大学）已按现有下拉样式实现在 AI 服务卡里（见
   `.implementation-report/2026-10-13-generation-level-and-objective-prompts.md`），但设计稿没同步。
-- **触发条件**：pencil MCP 能连上运行中的 Pencil 应用时（本轮它报 `visual_studio_code` 未连接，`.pen` 加密不能手改），
-  或下次批量维护设计稿时。
-- **代价/前置**：打开 Pencil 应用后，在 4 号屏 AI 卡内加一行「生成级别 + 下拉 + 说明」，并核对面板总高与内滚动。
+- **触发条件**：下次批量维护设计稿时。
+- **代价/前置**：设计稿现统一用 **paintress MCP / CLI** 操作（`.pen` 为明文 JSON，不再是「只能打开 Pencil 应用」的限制）；
+  在 4 号屏 AI 卡内加一行「生成级别 + 下拉 + 说明」，并核对面板总高与内滚动。
 
 ### 15. `module.register()` 迁移到 `registerHooks()`（**已完成 2026-11-15**）
 
 - **结果**：`scripts/ts-resolve-hook.mjs` 改为同步 `resolve` + 导出 `registerTsResolve()`（内部调 `module.registerHooks`）；
   **11 个脚本**（不只是原先记的 3 个）统一改成 `registerTsResolve()`，`pnpm db:status` / `get:tts --help` 等入口实测正常，
-  `DEP0205` 弃用警告已消失。
+  这些本地 CLI 的 `DEP0205` 弃用警告已消失（Vite 构建链的上游警告见下方边界说明）。
 
-- **做什么**：Node 已把 `module.register()`（异步钩子）标为 deprecated，建议用同步的 `registerHooks()`。
-  `scripts/ts-resolve-hook.mjs` 原先只有异步 `resolve`，被 **11 个** `scripts/*.mjs` 共用。
-- **触发条件**：Node 真正移除旧 API 时，或脚本输出里的 Deprecation 警告影响到人工看结果时。
-- **代价/前置**：钩子改成同步签名（`nextResolve` 不再 await），三个脚本改为 `registerHooks`；
-  注意 `explain-cli.test.ts` 已容忍 stderr 里的警告行，迁移后可再收紧。
+- **兼容性与验证**：项目要求 Node >=24，可直接使用同步 `registerHooks()`；钩子改为同步签名（`nextResolve` 不再 `await`），
+  并保持在动态 `import()` 业务模块之前注册。11 个脚本均通过语法检查，代表性 CLI 实测无 `DEP0205`。
+- **边界**：`vite build` 仍可能因 Vite 自身对旧 `module.register()` 的兼容回退而打印 `DEP0205`；
+  这是构建依赖链的独立事项，不是本地 11 个脚本未迁移，也不影响本项完成结论。
 
 ### 16. 剑桥 PET（B1 Preliminary）词库（**已完成 2026-10-13**：官方 PDF → 随包内置）
 
@@ -263,12 +258,11 @@
 
 ### 3. 诊断日志文件名与内容不再匹配（**已完成 2026-11-15**）
 
-- **结果**：日志文件由 `mds-data/logs/ai-definitions.log` 改名为 `runtime.log`；旧文件（含 `.1`）在首次写入时自动搬过去，
-  滚动与脱敏行为不变。AGENTS.md / README（中英）/ `plans/phonetic-mode.md` 已同步。
+- **结果**：日志文件由 `mds-data/logs/ai-definitions.log` 改名为 `runtime.log`；旧文件（含 `.1`）在目标不存在时自动搬过去，
+  已存在的 runtime 文件绝不覆盖。滚动与脱敏行为不变。AGENTS.md / README（中英）/ `plans/phonetic-mode.md` 已同步。
 
-- **做什么**：`runtime-logger` 写的是 `mds-data/logs/ai-definitions.log`，现在里面除了 AI 释义/批改，还多了 TTS 的降级与失败事件（`tts.endpoint-fallback` / `tts.synth-failed`）。
-- **触发条件**：需要人工翻日志排查时（文件名容易让人以为里面只有 AI 释义）。
-- **代价/前置**：改名要同时处理轮换文件（`.1`）与老日志的迁移/共存，属于「不影响功能但会误导人」的整理项。
+- **迁移口径**：当前文件与轮换文件分别迁移；不覆盖已有 `runtime.log` / `runtime.log.1`，目标冲突时保留旧源文件。
+  日志包含 AI 释义/批改与 TTS 降级、失败事件，仍不写 Key，1 MiB 轮换一份 `.1`。
 
 ### 4. 水合回归脚本是否进 `pnpm check`
 
@@ -287,9 +281,8 @@
 - **关闭理由**：崔总确认日常使用（含 1.0 安装版）TTS 一直正常，未出现端点回退导致不可用，不再单独跟踪；
   日后真遇到音频异常，先看 `mds-data/logs/runtime.log` 里的 `tts.endpoint-fallback`。
 
-- **做什么**：本轮的合成验证都在 WSL 里完成（端点 `api.msedgeservices.com` 可达、相符网络条件下 1.3–1.6s 出音频）。请在 Windows 安装版上真跑一次默写，确认目标环境（家用网络/代理）也连通，并观察 `mds-data/logs/ai-definitions.log` 是否出现 `tts.endpoint-fallback`（出现说明主端点在那儿不通、已自动回退旧端点）。
-- **触发条件**：下次在 Windows 上使用打包版时（同时验证 `pnpm get:tts` 是否可用）。
-- **代价/前置**：无；若显示回退，进一步看是 DNS/代理还是区域封锁。
+- **后续排查入口**：若日后出现音频异常，先看 `mds-data/logs/runtime.log` 的 `tts.endpoint-fallback`，
+  再按 DNS/代理/区域封锁方向排查；也可用 `pnpm get:tts <word>` 做单点诊断。
 
 ## 七、短句模式与准备进度遗留（Agent 记录，2026-10-17）
 
@@ -300,11 +293,8 @@
 - **关闭理由**：日常使用下来句子长度可接受，不再专项观测；若日后换模型/级别后觉得偏长，直接改
   `sentence-provider.ts` 的常量并重跑 `pnpm get:sentences`。
 
-- **做什么**：现在把「目标 3–6 词、硬上限 8 词」写成了校验条件，并且 `pnpm get:sentences` 会打印长度分布。
-  等真实使用一段时间后，看 7–8 词（贴着上限）的占比：超过 30% 说明提示词的「短」压不住，需要收紧或把上限降到 6–7。
-- **触发条件**：换模型、换生成级别，或崔总觉得句子还是偏长时。
-- **代价/前置**：只需改 `sentence-provider.ts` 里的三个常量（`SENTENCE_MAX_WORDS` / 目标区间 / 重试上限）
-  并重跑 `pnpm get:sentences`；校验与重试逻辑会自动跟随。
+- **当前口径**：仍为目标 3–6 词、硬上限 8 词；`pnpm get:sentences` 可随时打印长度分布。
+  日后换模型/级别或感觉偏长时，改 `sentence-provider.ts` 的常量即可，校验与重试会自动跟随。
 
 ### 2. 短句结果页的逐词 diff（**现在更有价值**）
 
@@ -322,10 +312,10 @@
 
 ### 4. `.design/mds.pen` 同步短句滑块项与结果行
 
-- **做什么**：内容模式滑块现在有 5 项（新增「短句」），结果页多了「整句行」形态；`.design/mds.md` 已同步文字口径，
-  但 `.pen` 加密只能通过 Pencil 应用改（与 §六 第 14 条同一限制）。
-- **触发条件**：Pencil 应用在线、批量维护设计稿时。
-- **代价/前置**：在词库屏的滑块里加「短句」，并补一屏短句结果行；注意滑块宽度是否还够（5 项比 4 项更长）。
+- **做什么**：内容模式滑块与结果页的「整句行」已在应用内实现，`.design/mds.md` 有文字口径，但设计稿尚未同步。
+- **触发条件**：下次批量维护设计稿时。
+- **代价/前置**：用 **paintress MCP / CLI** 在词库屏滑块里补「短句」，并补一屏短句结果行；同时以当前 7 项模式为准核对总宽，
+  不再沿用本条早期「5 项」或「Pencil 加密不能改」的过时限制。
 
 ### 5. 图标别名与 tsc 解析不一致的根因
 
@@ -354,12 +344,9 @@
 - **关闭理由**：现有公式（思考 4s + 0.45s/字符，×3 遍）在真实使用中节奏合适，不再标定；
   要调就改 `timing.ts` 的基础常量，不靠倍率凑（口径不变）。
 
-- **做什么**：短句计时已改为整句基础公式 `3 遍 ×（4 秒思考 + 0.45 秒 × 整句字符数）`。
-  这两个基础常量（思考 4s、每字符 0.45s）是按「整句要手写」估的，还没经过真实书写速度标定。
-- **触发条件**：崔总实测觉得偏快/偏慢时（尤其长句 40+ 字符）。
-- **代价/前置**：**改基础常量，不要靠三档速率或倍率调整去凑**（崔总明确要求）。
-  改 `src/lib/timing.ts` 的 `SENTENCE_THINK_SECONDS` / `SENTENCE_CHAR_SECONDS` 后跑
-  `src/lib/timing.test.ts`（含「比旧口径更长」的回归断言，改动大时需同步该断言）。
+- **当前公式**：`3 遍 ×（4 秒思考 + 0.45 秒 × 整句字符数）`，再乘三档速率与倍率。
+  若日后实测需要调整，只改 `src/lib/timing.ts` 的 `SENTENCE_THINK_SECONDS` / `SENTENCE_CHAR_SECONDS`，
+  并同步 `timing.test.ts`，不靠速率档或倍率硬凑。
 
 ## 八、学习档案 / SQLite 迁移遗留（Agent 记录，2026-10-18 方案评审后）
 
@@ -468,21 +455,15 @@
 - **关闭理由**：崔总确认按现有口径使用即可：本批进度不计书写，每日统计 `todayWords` 照旧计入书写；
   不再跟踪“书写完进度不动”的选项。
 
-- **现状**：书写场次不写卡片（既定口径），所以做完 20 个书写词后：本批词不打勾、本批 `已默 x / N` 不增长；
-  但每日统计 `todayWords` 已按 session.word_count 计入书写。队列仍按 SRS，同样的词下次仍会当新词排出。可选择：
-  ① 书写场次也把词计入本批已默（需按 session 写回；队列仍由 SRS 排，可能出现「打勾却仍在队列」）；
-  ② 维持现状：本批进度不计书写，但每日统计 `todayWords` 已按场次词数计入书写。
-- **触发条件**：用户反馈「明明写了 20 个，进度还是 0」或「第二天又是同样的新词」。
-- **代价/前置**：① 要同时想清楚队列去重口径（书写过的词是「已练」而非「已排期」）；② 零成本，只改文案。
+- **当前口径**：书写场次不写卡片、不推进本批进度，队列仍按 SRS；每日统计 `todayWords` 按 `session.word_count`
+  计入书写。该口径已经崔总确认，不再保留另一个「书写也计入本批」的候选方案。
 
 ### 8. 中途退出的场次是否记账（**已关闭 2026-11-15**：维持现状）
 
 - **关闭理由**：崔总确认按“只在结算时提交一次”的口径使用即可；若日后真需部分记账，再按逐步提交幂等键重新开条。
 
-- **做什么**：目前只有进入结算页才提交一次事务；做到一半 Escape/关窗 → 本场连 `session` 都没有。
-  可选：做几题提交几题，或退场时提交已判定部分。
-- **触发条件**：用户反馈「中途断了，前面做的都没算」。
-- **代价/前置**：需要逐步提交的幂等键设计（现为整场一个 `session.id`），并避免关窗时请求被掐断造成半写。
+- **当前口径**：只有进入结算页才提交一次事务；中途 Escape/关窗的场次不写入 `session`。
+  若日后确实需要部分记账，必须另开需求设计逐步提交幂等键与关窗防半写，不在本条中预留实现。
 
 ### 9. 组句逐空耗时是均分，不是实测
 
@@ -496,24 +477,16 @@
 - **关闭理由**：崔总确认不需要「今日总量/限额」，界面继续只保留「本次取几个词」一个数字
   （`batchSize` 不得被复用为日额度）。
 
-- **现状**：界面上唯一的数字是**本次取几个词**，`重新取词`按当前数字再取一批；没有「今日额度」。
-  跨批次累计只体现在 `progress.todayWords`（空态说明与统计）。
-- **可能的后续**：若将来要做「今天最多练 N 个」的限额或「今日累计 x / N」显示，需要**新增第二个数字/开关**，
-  不能复用 `batchSize`——否则会再次混淆成 2026-10-24 之前那套错误口径。
-- **触发条件**：用户明确要求「今日总量」或家长/自律场景需要限额。
-- **相关落点**：`src/lib/round-queue.ts`（`buildRoundQueue`）、`src/lib/use-wordbanks.ts`（`batchSize`）、
-  `src/components/TodayQueueCard.tsx`。
+- **当前口径**：界面只保留**本次取几个词**，`重新取词`按当前数字再取一批；跨批累计只看 `progress.todayWords`。
+  不引入今日额度，也不得把 `batchSize` 复用成日目标。
 
 ### 11. 候选池被到期复习占满时的新词推进（**已关闭 2026-11-15**：维持 SRS 到期优先）
 
 - **关闭理由**：崔总确认继续按到期优先，不为新词保留固定名额；若日后真出现复习积压 >100 且新词
   长期不出现，再按本条重开。
 
-- **现状**：候选池只取推荐序列前 100，本批前 K 个必默、其余随机。正常情况下来自新词的必默前缀会推动池子向前，整个词库会逐步被过一遍。
-- **边界**：如果到期复习长期积压超过 100，池子会被复习卡占满，新词可能长期进不了池；此时“必默前缀”保证了复习优先，但不再保证新词覆盖。
-- **可能的后续**：给池内新词保留固定名额（例如 10–20%），或允许用户切换“复习优先/新词优先”；这会改变当前严格的 SRS 到期优先，需要产品确认。
-- **触发条件**：真实使用中出现到期复习积压超过 100、且用户反馈新词长期不出现。
-- **相关落点**：`src/lib/round-queue.ts` 的候选池组装与必默前缀。
+- **当前口径**：候选池仍取推荐序列前 100，本批前 K 个必默、其余随机，严格按 SRS 到期优先，不为新词保留固定名额。
+  若日后真实出现复习积压 >100 且新词长期不出现，再另开需求评估「新词名额 / 优先级切换」。
 
 ## 十、音标模式（Agent 记录，2026-10-23 实施后）
 
@@ -543,27 +516,16 @@
 
 ### 2. 音素音频质量复核 / 备选音源（**已关闭 2026-11-15**）
 
-- **关闭理由**：崔总确认现有 Commons 音源听感可接受，不换源；日后具体某个音听不清时再单独扱。
-
-- **做什么**：Commons 辅音源多为「辅音 + 元音」示范，8 个双元音是拼接的，说话人口音不全是 RP。
-  当前以「音素示范」标注交付；若用户觉得听感不够干净，可换 eSpeak-ng（机器音、许可简单）、
-  Piper en_GB（神经音、需模型/许可核对）或自录/委托英式发音。
-- **触发条件**：崔总试听 `public/ipa/audio/v1/preview.html` 后认为音质不可接受，或用户反馈「听不清某个音」。
-- **代价/前置**：换源要重跑 `pnpm build:phoneme-audio`、更新 `scripts/data/phoneme-audio-sources.json`、
-  `public/ipa/audio/v1/LICENSE.md` 与 `THIRD_PARTY_NOTICES.md`；播放器/池子不用改。
-- **相关落点**：`plans/phonetic-audio-research.md`、`scripts/build-phoneme-audio.mjs`。
+- **关闭理由**：崔总确认现有 Commons 音源听感可接受，不换源；日后具体某个音听不清时再单独处理。
+- **当前资产**：沿用 `public/ipa/audio/v1/` 与现有许可文件。若将来真要换源，再按
+  `plans/phonetic-audio-research.md` 重跑 `pnpm build:phoneme-audio` 并同步 LICENSE / THIRD_PARTY_NOTICES。
 
 ### 3. AI 音标真实 20 词回归/人工抽检（**已关闭 2026-11-15**）
 
-- **关闭理由**：日常使用中音标兵底未出现系统性错误，不再单独抽检；遇到具体错词时用
+- **关闭理由**：日常使用中音标兜底未出现系统性错误，不再单独抽检；遇到具体错词时用
   `pnpm get:phonetics <word>` 单点排查，必要时升 `promptVersion`。
-
-- **做什么**：provider/service 单测已覆盖合法/非法 token、缺失不写负缓存、model 失效、写后复读，
-  但都是合成响应；再用真实 AI 跑至少 20 个词典未收录词（可用 `pnpm get:phonetics`），人工抽检
-  RP 准确性/主重音/多读音，记录通过率与典型错误，必要时调提示词（promptVersion +1）。
-- **触发条件**：首次真实使用 AI 兜底，或用户反馈某个 AI 音标明显错误。
-- **代价/前置**：需要 `.env` 的 AI 配置；不写业务缓存；提示词版本变化会让 `phonetics.json` 失效重取。
-- **相关落点**：`src/lib/phonetic-provider.ts`、`phonetic-service.ts`、`scripts/get-phonetics.mjs`。
+- **现有保障**：provider/service 单测已覆盖合法/非法 token、缺失不写负缓存、model 失效和写后复读；
+  真实问题按单词记录并调提示词，不再要求一批固定的 20 词人工验收。
 
 ### 4. 历史结果页的音标表按钮
 
@@ -583,14 +545,9 @@
 
 ### 6. Electron 全屏窗口的平台验证（**已关闭 2026-11-15**）
 
-- **关闭理由**：崔总确认 1.0 安装版上全屏音标表可正常开关、焦点能回主窗，不再单独验收；
-  若日后出现意外，`electron/main.mjs` 里的 `did-create-window` 兑底仍在。
-
-- **做什么**：`setWindowOpenHandler` + `overrideBrowserWindowOptions` 已在主进程实现并有纯函数测试；
-  但本轮只在 Web 验证了弹窗/暂停/关闭，Electron 的无边框全屏、Alt+F4 关闭、焦点返回需要在 Windows 包上人工过一遍。
-- **触发条件**：下一次 `pnpm client:package test` 或正式发布前。
-- **代价/前置**：需要 Wine/Windows 环境；若 override 不生效，已 `did-create-window` 兜底 `setFullScreen(true)`。
-- **相关落点**：`electron/main.mjs`、`electron/window-options.mjs`、`plans/phonetic-mode.md` §3.6.2。
+- **关闭理由**：崔总确认 1.0 安装版上全屏音标表可正常开关、焦点能回主窗，不再单独验收。
+- **现有实现**：保留 `setWindowOpenHandler` + `overrideBrowserWindowOptions` 及纯函数测试；
+  `electron/main.mjs` 的 `did-create-window` 兜底 `setFullScreen(true)` 也保留，日后有平台回归再排查。
 
 ### 7. 音标轮组件键盘 E2E
 
@@ -791,7 +748,9 @@ Windows 会提示「未知发布者」。需要购买证书（OV/EV），暂无�
 
 ### 5. 旧版本归档清理
 
-`release-out/` 每版约 100 MB（安装包 + 校验和 + 说明 + 清单）。将来加 `pnpm clean:releases --keep N`。
+`release-out/` 每版约 100 MB（安装包 + 校验和 + 说明 + 清单），硬杀后还可能有 `.staging-<tag>-<pid>/`。
+将来加 `pnpm clean:releases --keep N`，同时支持按年龄清理陈旧暂存目录；清理前仍须沿用活跃 PID 判断，
+不能为了腾空间误删正在进行的发布（PID 复用时宁可保守保留）。
 
 ### 6. 发布说明半自动化
 
@@ -803,18 +762,28 @@ Windows 会提示「未知发布者」。需要购买证书（OV/EV），暂无�
   两个资产的 `size` 与 `digest` 与本地一致、`releases/latest` 与安装包直链均 200、Release 正文为手写说明。
   装机侧由崔总确认：儿子已装上 1.0 并正常使用（Windows「未知发布者」提示属预期）。
 
-首次发版后需人工确认：tag 与 Release 指向同一提交、资产大小/摘要与本地一致、`SHA256SUMS.txt` 可校验、README 的 `releases/latest` 链接可达、安装包能正常安装启动。
+- **证据**：发布页 https://github.com/neblor/mds/releases/tag/v1.0.0 ；详细核对记录见会话内发布验收，后续无需再作为待办跟踪。
 
 ### 8. 归档写入的中断恢复（**已完成 2026-11-15**）
 
-- **结果**：`buildAndArchive` 改为先写 `release-out/.staging-<tag>-<pid>/`，清单/大小/摘要/说明全部校验通过后再
-  `rename` 成正式目录；失败或强杀时暂存目录会被清掉，下次构建前也会清理同标签的残留暂存目录。
-  `refreshNotes` 的说明与清单写入同样改成临时文件 + `rename`。
-
-`buildAndArchive` 目前直接在最终目录 `release-out/v<版本>/` 写文件；进程被强杀、磁盘写满或说明文件在构建期间被外部改动时，可能留下缺清单的半成品。下次运行会明确阻断而不会误发，但需要人工核对/清理。
-将来可改为临时目录准备完整归档、校验后原子 rename，并在重跑时识别/恢复唯一暂存目录。
+- **结果**：`buildAndArchive` 先写 `release-out/.staging-<tag>-<pid>/`，清单/大小/摘要/说明全部校验通过后再
+  `rename` 成正式目录。普通失败会把安装包回退到 `dist/electron` 并清暂存；回退失败则保留暂存目录，不丢唯一产物。
+  下次构建只清理由**已退出进程**留下的同标签暂存目录，活跃发布的目录不动。
+  `refreshNotes` 的说明与清单写入同样使用临时文件 + `rename`，临时文件无论成败都会清理。
+- **测试**：`src/lib/release-archive.test.ts` 直接覆盖生产 `buildAndArchive` 的失败回退与活跃/退出 PID 清理；
+  隔离发布夹具的完整链路也保持全绿。
+- **剩余边界**：硬杀后来不及执行 `finally`，`--skip-build` 会安全失败而不是自动恢复 stage；可选恢复方案另列 §十三.10。
 
 ### 9. 发布编排的隔离集成测试固化（2026-11-14 评审保留）
 
 本轮已用临时 Git 仓库、本地 bare remote 与假 `gh` 直接跑生产脚本，覆盖完整发布、续跑、分页、摘要、说明补写和并行提交阻断；夹具在 `.tmp/release-review/`，不进测试套件。
 将来可把精简场景固化成 Vitest（需处理 Windows 下 `git`/`gh`  shim 的可执行形式），让后续修改持续覆盖真实编排，而不只覆盖纯函数。
+
+### 10. 硬杀后暂存产物的自动恢复（可选加固，2026-11-15 评审登记）
+
+- **现状**：正式归档只会完整出现，普通失败会回退安装包；但硬杀后来不及执行 `finally`，
+  若 dist 已空，下一次 `--skip-build` 会安全报缺包，需完整重建或人工处理暂存目录，不会误用半成品。
+- **触发条件**：实际发布多次被强杀/断电，且重建约 10 分钟的代价成为问题。
+- **做法**：只允许恢复带完整清单、校验和且 sha256 复核通过的 stage，再原子提升为正式归档或回退到 dist；
+  没有完整清单时按不可信半成品处理，**不得只凭 MZ 头/文件大小恢复**。
+- **评审**：`.implementation-report/2026-11-15-future-a-b-review.md` N1。

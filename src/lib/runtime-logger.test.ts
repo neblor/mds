@@ -33,6 +33,20 @@ describe("runtime diagnostic logger", () => {
 		expect(content).not.toContain("user:pass");
 	});
 
+	it("脱敏保留 __proto__ 等普通数据字段", () => {
+		const logger = createRuntimeDiagnosticLogger({ mode: "client", cacheRoot: root });
+		const details = JSON.parse('{"__proto__":{"polluted":true},"normal":"ok"}');
+		logger.write({ event: "special-key", level: "warning", details });
+		const content = readFileSync(
+			join("/tmp/mds-runtime-logger-test/mds-data/logs", "runtime.log"),
+			"utf8",
+		);
+		const entry = JSON.parse(content);
+		expect(Object.hasOwn(entry.details, "__proto__")).toBe(true);
+		expect(entry.details.normal).toBe("ok");
+		expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+	});
+
 	it("Web 模式不创建日志", () => {
 		const logger = createRuntimeDiagnosticLogger({ mode: "web", cacheRoot: root });
 		logger.write({ event: "x", level: "error", details: {} });
@@ -70,5 +84,36 @@ describe("runtime diagnostic logger", () => {
 			'"event":"legacy-old"',
 		);
 		expect(existsSync(join(logDir, "ai-definitions.log"))).toBe(false);
+	});
+
+	it("runtime.log 已存在时仍补齐缺失的旧轮换文件", () => {
+		const logDir = join("/tmp/mds-runtime-logger-test/mds-data/logs");
+		mkdirSync(logDir, { recursive: true });
+		writeFileSync(join(logDir, "runtime.log"), "current\n");
+		writeFileSync(join(logDir, "ai-definitions.log.1"), "legacy-rotated\n");
+		const logger = createRuntimeDiagnosticLogger({ mode: "client", cacheRoot: root });
+		logger.write({ event: "fresh", level: "error", details: {} });
+		expect(readFileSync(join(logDir, "runtime.log.1"), "utf8")).toBe(
+			"legacy-rotated\n",
+		);
+		expect(existsSync(join(logDir, "ai-definitions.log.1"))).toBe(false);
+	});
+
+	it("目标文件已存在时不覆盖新日志，旧源文件保留待处理", () => {
+		const logDir = join("/tmp/mds-runtime-logger-test/mds-data/logs");
+		mkdirSync(logDir, { recursive: true });
+		writeFileSync(join(logDir, "runtime.log"), "current\n");
+		writeFileSync(join(logDir, "runtime.log.1"), "current-rotated\n");
+		writeFileSync(join(logDir, "ai-definitions.log"), "legacy\n");
+		writeFileSync(join(logDir, "ai-definitions.log.1"), "legacy-rotated\n");
+		const logger = createRuntimeDiagnosticLogger({ mode: "client", cacheRoot: root });
+		logger.write({ event: "fresh", level: "error", details: {} });
+		expect(readFileSync(join(logDir, "runtime.log"), "utf8")).toContain("current");
+		expect(readFileSync(join(logDir, "runtime.log"), "utf8")).not.toContain("legacy");
+		expect(readFileSync(join(logDir, "runtime.log.1"), "utf8")).toBe(
+			"current-rotated\n",
+		);
+		expect(existsSync(join(logDir, "ai-definitions.log"))).toBe(true);
+		expect(existsSync(join(logDir, "ai-definitions.log.1"))).toBe(true);
 	});
 });
