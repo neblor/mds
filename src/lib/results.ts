@@ -17,6 +17,7 @@ import {
 } from "./match";
 import { inflectedForms } from "./sentence-provider";
 import { sentenceOfBlank } from "./cloze-parse";
+import { roundAskOf } from "./mixed-mode";
 import { bestVariantIndex, matchVariant, normalizeForGrading } from "./phonetic-match";
 import { phoneticToString, tokensFromString } from "./phonetic-parse";
 import type { ContentMode } from "./state";
@@ -54,6 +55,13 @@ export interface ResultRow {
 	context?: string;
 	/** 展示用备注（如「本词无合格短句，按单词默写」） */
 	note?: string;
+	/**
+	 * 本行来自哪一轮的哪种内容模式。
+	 * 混合场次必填（逐行写回复习日志的模式依据）；单一模式缺省时按场次模式。
+	 */
+	mode?: ContentMode;
+	/** 混合场次：该词在本场第几次出现（1/2）；第 2 次的释义/中文词行只判第二步 */
+	pass?: 1 | 2;
 	fields: ResultField[];
 }
 
@@ -70,6 +78,12 @@ export interface WordRoundLike {
 	variant?: "word" | "sentence";
 	/** 短句模式：标准整句 */
 	sentence?: string;
+	/** 轮级内容模式（混合场次必填；单一模式缺省时按场次模式） */
+	mode?: ContentMode;
+	/** 混合场次：该词在本场第几次出现 */
+	pass?: 1 | 2;
+	/** 轮级备注（如降级说明） */
+	note?: string;
 	/** 音标模式：该轮要拼音标时携带标准读音与池子来源 */
 	phonetic?: {
 		expected: string;
@@ -116,6 +130,15 @@ export interface GradeOverride {
 	note?: string;
 }
 
+/**
+ * AI 批改覆盖表的键：`kind:word`。
+ *
+ * 混合场次里同一个词可能既是释义轮又是中文词轮，若只按 `word` 做键，两次批改会互相覆盖。
+ */
+export function gradeKey(kind: "definition" | "chinese", word: string): string {
+	return `${kind}:${word.trim().toLowerCase()}`;
+}
+
 export function buildResultRows(
 	rounds: RoundLike[],
 	mode: "writing" | "cyber",
@@ -155,20 +178,25 @@ export function buildResultRows(
 			);
 			continue;
 		}
+		const roundMode = (round.mode ?? contentMode) as ContentMode;
+		const ask = roundAskOf(round, contentMode);
 		const sentence = round.sentence?.trim();
 		rows.push({
 			word: round.word,
 			audioName: round.audioName,
 			roundIndex,
+			...(round.mode ? { mode: round.mode } : {}),
+			...(round.pass ? { pass: round.pass } : {}),
 			// 标准整句进 context：结果页据此高亮目标词并与用户整句并排对照
-			...(contentMode === "sentence" && sentence ? { context: sentence } : {}),
-			...(contentMode === "sentence" && !sentence
+			...(ask === "sentence" && sentence ? { context: sentence } : {}),
+			...(roundMode === "sentence" && !sentence
 				? { note: "本词没有合格短句，按单词默写" }
 				: {}),
 			...(contentMode === "phonetic"
 				? { note: "本词没有可用音标，按单词默写" }
 				: {}),
-			fields: buildFields(round, mode, contentMode, grades),
+			...(round.note ? { note: round.note } : {}),
+			fields: buildFields(round, mode, roundMode, grades),
 		});
 	}
 	return rows;
@@ -247,9 +275,10 @@ function buildFields(
 	contentMode: ContentMode,
 	grades?: Record<string, GradeOverride>,
 ): ResultField[] {
-	// 短句模式：只有拿到合格短句的轮次才是「整句」形态；降级轮按普通单词轮处理
-	const sentence = r.sentence?.trim();
-	if (contentMode === "sentence" && r.variant === "sentence" && sentence) {
+	// 短句轮：整句默写（单一模式里没拿到合格短句的降级轮 ask 是 "word"，落到下面的单词分支）
+	const ask = roundAskOf(r, contentMode);
+	if (ask === "sentence") {
+		const sentence = r.sentence?.trim() ?? "";
 		if (mode === "writing") {
 			// 书写模式无作答记录：只展示标准整句供自检
 			return [{ kind: "sentence", expected: sentence, graded: false }];
@@ -276,11 +305,21 @@ function buildFields(
 					? (r.chineseWord?.trim() ?? "")
 					: (r.definition?.trim() ?? "");
 			const graded = expected.length > 0;
-			const override = grades?.[r.word];
+			const override = grades?.[gradeKey(secondKind, r.word)];
 			const localMatch =
 				contentMode === "chinese"
 					? isChineseMatch(r.answerDef ?? "", expected)
 					: isDefinitionMatch(r.answerDef ?? "", expected);
+			const secondField: ResultField = {
+				kind: secondKind,
+				expected,
+				userValue: r.answerDef,
+				graded,
+				correct: graded ? (override?.correct ?? localMatch) : undefined,
+				...(override?.note ? { note: override.note } : {}),
+			};
+			// 第 2 次出现的释义/中文词轮只写第二步：不产生单词字段（否则空作答会恒判错）
+			if (ask === "second") return [secondField];
 			return [
 				{
 					kind: "word",
@@ -289,14 +328,7 @@ function buildFields(
 					graded: true,
 					correct: isStrictMatch(r.answer ?? "", r.word),
 				},
-				{
-					kind: secondKind,
-					expected,
-					userValue: r.answerDef,
-					graded,
-					correct: graded ? (override?.correct ?? localMatch) : undefined,
-					...(override?.note ? { note: override.note } : {}),
-				},
+				secondField,
 			];
 		}
 		return [
@@ -335,6 +367,35 @@ export function correctCount(rows: ResultRow[]): number {
 	return rows.filter((r) => rowJudgement(r) === true).length;
 }
 
+/** 词级汇总：同一个词的所有行都判对，才算这个词对（混合模式两轮全对才算对） */
+export interface WordSummary {
+	/** 参与统计的词数（按小写去重） */
+	words: number;
+	correctWords: number;
+}
+
+export function wordSummary(rows: ResultRow[]): WordSummary {
+	const byWord = new Map<string, { graded: boolean; ok: boolean }>();
+	for (const row of rows) {
+		const key = row.word.trim().toLowerCase();
+		if (!key) continue;
+		const entry = byWord.get(key) ?? { graded: false, ok: true };
+		const judgement = rowJudgement(row);
+		if (judgement !== undefined) {
+			entry.graded = true;
+			entry.ok = entry.ok && judgement;
+		}
+		byWord.set(key, entry);
+	}
+	let words = 0;
+	let correctWords = 0;
+	for (const entry of byWord.values()) {
+		words += 1;
+		if (entry.graded && entry.ok) correctWords += 1;
+	}
+	return { words, correctWords };
+}
+
 export function isAllCorrectRows(rows: ResultRow[]): boolean {
 	return rows.length > 0 && rows.every((r) => rowJudgement(r) === true);
 }
@@ -349,6 +410,8 @@ export const JUDGEMENT_NOTES: Record<ContentMode, string> = {
 	phonetic:
 		"音标判定：按音素序列比对，主重音必须正确，次重音不参与判定；同词多读音任一匹配即算对",
 	cloze: "组句判定：每个空独立比对，选中与正确词完全一致才算对（忽略首尾空格）",
+	mixed:
+		"混合判定：单词拼写需完全一致 · 释义/中文词由 AI 批改 · 每词第 2 次出现的释义/中文词只判第二步 · 整句忽略大小写与标点",
 };
 
 /** 内容模式的中文名（供界面标签复用） */
@@ -359,6 +422,7 @@ export const CONTENT_MODE_LABELS: Record<ContentMode, string> = {
 	sentence: "短句",
 	phonetic: "音标",
 	cloze: "组句",
+	mixed: "混合",
 };
 
 /** 整句里目标词的高亮分段（含屈折变化），供结果页渲染 */

@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
 	buildResultRows,
+	gradeKey,
 	highlightWordSegments,
 	rowJudgement,
 	correctCount,
 	isAllCorrectRows,
 	JUDGEMENT_NOTES,
 	CONTENT_MODE_LABELS,
+	wordSummary,
 	type WordRoundLike,
 	type PhoneticRoundLike,
 } from "./results";
@@ -90,7 +92,7 @@ describe("buildResultRows 赛博模式", () => {
 			],
 			"cyber",
 			"definition",
-			{ apple: { correct: true, note: "意思相同" } },
+			{ [gradeKey("definition", "apple")]: { correct: true, note: "意思相同" } },
 		);
 		expect(paraphrase.fields[1]).toMatchObject({
 			kind: "definition",
@@ -110,7 +112,7 @@ describe("buildResultRows 赛博模式", () => {
 			],
 			"cyber",
 			"definition",
-			{ apple: { correct: false, note: "抄了题干之外的内容" } },
+			{ [gradeKey("definition", "apple")]: { correct: false, note: "抄了题干之外的内容" } },
 		);
 		expect(marked.fields[1].correct).toBe(false);
 		expect(rowJudgement(marked)).toBe(false);
@@ -207,7 +209,7 @@ describe("buildResultRows 赛博模式", () => {
 			],
 			"cyber",
 			"chinese",
-			{ hello: { correct: true, note: "同义词" } },
+			{ [gradeKey("chinese", "hello")]: { correct: true, note: "同义词" } },
 		);
 		expect(row.fields[1]).toMatchObject({
 			kind: "chinese",
@@ -228,7 +230,7 @@ describe("buildResultRows 赛博模式", () => {
 			],
 			"cyber",
 			"chinese",
-			{ hello: { correct: false, note: "字写错了" } },
+			{ [gradeKey("chinese", "hello")]: { correct: false, note: "字写错了" } },
 		);
 		expect(row2.fields[1].correct).toBe(false);
 		expect(rowJudgement(row2)).toBe(false);
@@ -317,7 +319,7 @@ describe("统计与庆祝判定", () => {
 });
 
 describe("模式文案", () => {
-	it("六种模式的判定说明与标签齐全", () => {
+	it("七种模式的判定说明与标签齐全", () => {
 		expect(JUDGEMENT_NOTES).toMatchObject({
 			word: expect.stringContaining("单词判定"),
 			definition: expect.stringContaining("AI 批改"),
@@ -325,6 +327,7 @@ describe("模式文案", () => {
 			sentence: expect.stringContaining("忽略大小写与标点"),
 			phonetic: expect.stringContaining("重音"),
 			cloze: expect.stringContaining("每个空独立比对"),
+			mixed: expect.stringContaining("第 2 次"),
 		});
 		expect(CONTENT_MODE_LABELS).toEqual({
 			word: "单词",
@@ -333,7 +336,101 @@ describe("模式文案", () => {
 			sentence: "短句",
 			phonetic: "音标",
 			cloze: "组句",
+			mixed: "混合",
 		});
+	});
+});
+
+describe("buildResultRows 混合模式", () => {
+	it("每轮按自己的模式出字段：两段式 / 单步 / 整句", () => {
+		const rows = buildResultRows(
+			[
+				{
+					word: "apple",
+					audioName: "apple.mp3",
+					mode: "chinese",
+					pass: 1,
+					chineseWord: "苹果",
+					answer: "apple",
+					answerDef: "苹果",
+				},
+				{
+					word: "apple",
+					audioName: "apple.mp3",
+					mode: "definition",
+					pass: 2,
+					definition: "A round fruit.",
+					answerDef: "A round fruit.",
+				},
+				{
+					word: "banana",
+					audioName: "banana.mp3",
+					mode: "sentence",
+					pass: 1,
+					variant: "sentence",
+					sentence: "A yellow banana.",
+					answer: "a yellow banana",
+				},
+			],
+			"cyber",
+			"mixed",
+		);
+		expect(rows.map((r) => [r.mode, r.pass])).toEqual([
+			["chinese", 1],
+			["definition", 2],
+			["sentence", 1],
+		]);
+		expect(rows[0].fields.map((f) => f.kind)).toEqual(["word", "chinese"]);
+		// 单步轮不产生 word 字段，否则空作答会恒判错
+		expect(rows[1].fields.map((f) => f.kind)).toEqual(["definition"]);
+		expect(rows[2].fields.map((f) => f.kind)).toEqual(["sentence"]);
+		expect(rows.every((r) => rowJudgement(r) === true)).toBe(true);
+	});
+
+	it("词级汇总：同一词两轮全对才算这个词对", () => {
+		const rows = buildResultRows(
+			[
+				{
+					word: "apple",
+					audioName: "apple.mp3",
+					mode: "chinese",
+					pass: 1,
+					chineseWord: "苹果",
+					answer: "apple",
+					answerDef: "苹果",
+				},
+				{
+					word: "apple",
+					audioName: "apple.mp3",
+					mode: "definition",
+					pass: 2,
+					definition: "A round fruit.",
+					answerDef: "wrong",
+				},
+				{
+					word: "banana",
+					audioName: "banana.mp3",
+					mode: "chinese",
+					pass: 1,
+					chineseWord: "香蕉",
+					answer: "banana",
+					answerDef: "香蕉",
+				},
+				{
+					word: "banana",
+					audioName: "banana.mp3",
+					mode: "sentence",
+					pass: 2,
+					variant: "sentence",
+					sentence: "A yellow banana.",
+					answer: "A yellow banana.",
+				},
+			],
+			"cyber",
+			"mixed",
+		);
+		expect(correctCount(rows)).toBe(3);
+		expect(wordSummary(rows)).toEqual({ words: 2, correctWords: 1 });
 	});
 });
 

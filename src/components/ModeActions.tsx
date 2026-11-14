@@ -1,7 +1,7 @@
 /**
  * 模式操作区：主界面「默写内容」滑块右侧，按当前模式显示对应的操作。
  *
- * 目前只有短句模式有操作——`更新短句`：清掉当前这批词的短句缓存
+ * 目前短句与混合模式有操作——`更新短句`：清掉当前这批词的短句缓存
  * （`sentences.json` 里的对应条目），下次准备时重新向 AI 生句。
  * 以后哪个模式要加操作，就在这里加分支，不要再往控制条上堆按钮。
  */
@@ -26,9 +26,11 @@ export default function ModeActions(props: Props) {
 		error: boolean;
 	} | null>(null);
 
-	// 离开短句模式就清掉上次的提示，避免下次切回来看到过期结果
+	// 离开短句/混合模式就清掉上次的提示，避免下次切回来看到过期结果
 	createEffect(() => {
-		if (props.contentMode !== "sentence") setNote(null);
+		if (props.contentMode !== "sentence" && props.contentMode !== "mixed") {
+			setNote(null);
+		}
 	});
 
 	const canRefresh = () => !busy() && props.queueWords.length > 0;
@@ -72,7 +74,7 @@ export default function ModeActions(props: Props) {
 					</span>
 				</div>
 			</Show>
-			<Show when={props.contentMode === "sentence"}>
+			<Show when={props.contentMode === "sentence" || props.contentMode === "mixed"}>
 				<div class="flex min-w-0 flex-1 items-center gap-3">
 				<button
 					type="button"

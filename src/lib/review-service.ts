@@ -181,6 +181,11 @@ export interface ResultRowLike {
 	context?: string;
 	/** 该行来自第几轮（组句一轮多个空共用一轮耗时）；缺省按行号算 */
 	roundIndex?: number;
+	/**
+	 * 该行的内容模式（混合场次逐轮给出：definition/chinese/sentence/word）。
+	 * 缺省时回落到场次模式（单一模式的既有口径）。
+	 */
+	mode?: string;
 	fields: { kind: string; graded: boolean; correct?: boolean }[];
 }
 
@@ -235,13 +240,23 @@ export function buildCommitItems(options: {
 		const elapsed = Number.isFinite(roundElapsed)
 			? Math.max(0, Math.round(roundElapsed / Math.max(1, share)))
 			: 0;
-		// 短句/音标场次的降级轮：判定来自单词字段（本词没有合格短句/可用音标）
-		const rowMode: ReviewMode =
+		// 逐行模式优先（混合场次）：一行对应一轮，以该轮真实模式记账；
+		// 无行级模式时回落场次模式，并保留短句/音标降级轮记 word 的既有规则。
+		const explicitMode =
+			typeof row.mode === "string" &&
+			row.mode !== "mixed" &&
+			(REVIEW_MODES as readonly string[]).includes(row.mode)
+				? (row.mode as ReviewMode)
+				: null;
+		const fallbackMode =
 			options.mode === "sentence" && !hasSentenceField
 				? "word"
 				: options.mode === "phonetic" && !hasPhoneticField
 					? "word"
-					: options.mode;
+					: options.mode === "mixed"
+						? "word"
+						: options.mode;
+		const rowMode: ReviewMode = explicitMode ?? fallbackMode;
 		items.push({
 			word,
 			correct,

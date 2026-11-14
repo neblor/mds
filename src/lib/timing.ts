@@ -90,6 +90,32 @@ export function scaleTime(
 }
 
 /**
+ * 单步轮（混合模式里第 2 次出现的释义/中文词轮）的计数轨时长。
+ *
+ * 与 `countdownDuration` 的差别只在单词段：本轮不要求写单词，所以删掉
+ * `LETTER_SECONDS × 字母数 × 遍数`，只保留每遍的思考时间；第二步段不变。
+ * 例：transform（9 字母，3 遍）+ 55 字释义，中档 ×1.0 → 2×3 + (5 + 0.4×55) = 33s
+ * （两段式是 34.3s，差额正好是写单词的 0.3×9×3）。
+ */
+export function secondStepOnlyDuration(opts: {
+	word: string;
+	kind: "definition" | "chinese";
+	/** 第二步的标准文本（释义或中文词） */
+	secondText?: string;
+	level: SpeedLevel;
+	multiplier?: number;
+}): number {
+	const { word, kind, secondText = "", level, multiplier = 1 } = opts;
+	const repeats = repeatCount(word, kind === "definition");
+	const listen = THINK_SECONDS * repeats;
+	const second =
+		kind === "definition"
+			? DEF_THINK_SECONDS + DEF_LETTER_SECONDS * definitionLength(secondText)
+			: THINK_SECONDS + CHINESE_CHAR_SECONDS * chineseLength(secondText);
+	return scaleTime(listen + second, level, multiplier);
+}
+
+/**
  * 组句轮计数轨时长（秒）：看题基准 + 每字符阅读 + 每空选择，× 三档速率 × 倍率调整。
  * 占位符 `##n` 是标记不是内容，计数时先去掉。
  * 例：3 句共 120 字符、3 个空、中档 ×1.0 → 3 + 10.8 + 9 = 22.8s

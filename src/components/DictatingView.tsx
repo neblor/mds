@@ -1,22 +1,30 @@
 import { Show } from "solid-js";
 import { Volume2, Check } from "lucide-solid";
 import type { ContentMode } from "~/lib/state";
+import { secondStepLabel, type RoundAsk } from "~/lib/mixed-mode";
 
 export interface DictatingViewProps {
 	index: number;
 	total: number;
+	/** 进度单位：混合场次按「轮」，其余按「个」 */
+	unit?: "个" | "轮";
 	remainingSec: number;
 	durationSec: number;
 	showNumber: boolean;
 	repeatIndex: number;
 	repeatCount: number;
-	/** 播报序列的标签（短句轮为 ["单词","整句 1","整句 2"]）；缺省时按序号显示 */
+	/** 播报序列的标签（短句轮为 ["整句 1","整句 2","整句 3"]）；缺省时按序号显示 */
 	playLabels?: string[];
 	speechDone: boolean;
 	/** 是否正在发声（播报间隔期间为 false） */
 	sounding: boolean;
 	mode: "writing" | "cyber";
+	/** 本轮内容模式（混合场次逐轮不同；决定第二步是释义还是中文词） */
 	contentMode: ContentMode;
+	/** 本轮作答形态（唯一真源，见 mixed-mode.roundAskOf） */
+	ask: RoundAsk;
+	/** 本轮徽标（如「本轮：释义 · 第 1 次」）；单一模式场次为 null */
+	roundBadge?: string | null;
 	submittedWord: string | undefined;
 	submittedDef: string | undefined;
 	/** 输入框受控值 */
@@ -34,8 +42,7 @@ function autoFocus(el: HTMLInputElement | undefined) {
 	if (el) requestAnimationFrame(() => el.focus());
 }
 
-/** 播报状态文案 */
-/** 当前正在播的那一项叫什么（短句轮显示「单词」「整句 1」这类标签） */
+/** 当前正在播的那一项叫什么（短句轮显示「整句 1」这类标签） */
 function currentPlayLabel(props: DictatingViewProps): string {
 	const label = props.playLabels?.[Math.max(0, props.repeatIndex)];
 	if (label) return label;
@@ -48,37 +55,40 @@ function playStatus(props: DictatingViewProps): string {
 	return "请作答…";
 }
 
-/** 当前输入步骤 */
+/** 第二步的文案：释义 / 中文词（与 lib 侧同一份规则） */
+function secondLabel(props: DictatingViewProps): string {
+	return secondStepLabel({ mode: props.contentMode });
+}
+
+/** 当前输入步骤（按本轮作答形态判定，不再按场次模式猜） */
 function step(props: DictatingViewProps): "word" | "def" | "done" | "none" {
 	if (props.mode !== "cyber") return "none";
+	// 单步轮（混合里第 2 次出现的释义/中文词）直接从第二步开始
+	if (props.ask === "second") {
+		return props.submittedDef === undefined ? "def" : "done";
+	}
 	if (props.submittedWord === undefined) return "word";
-	if (
-		(props.contentMode === "definition" || props.contentMode === "chinese") &&
-		props.submittedDef === undefined
-	) {
+	if (props.ask === "word+second" && props.submittedDef === undefined) {
 		return "def";
 	}
 	return "done";
 }
 
 function statusText(props: DictatingViewProps): string {
-	const s = step(props);
-	if (s === "none") return "用笔写在纸上吧 ✍️";
-	if (props.contentMode === "sentence")
-		return "听整句写整句，写完按回车";
-	if (s === "word") return "听语音写单词，写完按回车";
-	if (s === "def")
-		return props.contentMode === "chinese"
-			? "再写中文词，写完按回车"
-			: "再写释义，写完按回车";
-	return "已提交，等时间到自动进入下一轮";
+	if (props.mode !== "cyber") return "用笔写在纸上吧 ✍️";
+	if (props.ask === "sentence") return "听整句写整句，写完按回车";
+	if (step(props) === "done") return "已提交，等时间到自动进入下一轮";
+	if (props.ask === "second") {
+		return `直接写${secondLabel(props)}（本轮不写单词），回车提交`;
+	}
+	if (step(props) === "def") return `再写${secondLabel(props)}，写完按回车`;
+	return "听语音写单词，写完按回车";
 }
 
-/** 是否两步输入（释义/中文词模式） */
-function hasSecondStep(props: DictatingViewProps): boolean {
-	return (
-		props.contentMode === "definition" || props.contentMode === "chinese"
-	);
+/** 第 1 格（单词/整句）的占位符 */
+function wordPlaceholder(props: DictatingViewProps): string {
+	if (props.ask === "sentence") return "输入整句…";
+	return "输入单词…";
 }
 
 function progressPct(remainingSec: number, durationSec: number): number {
@@ -88,7 +98,7 @@ function progressPct(remainingSec: number, durationSec: number): number {
 	);
 }
 
-/** 第 1 步：单词/中文词输入（或已提交显示，同一位置同一高度） */
+/** 第 1 格：单词 / 整句（ask=second 的轮次不渲染这一格） */
 function WordRow(props: DictatingViewProps) {
 	return (
 		<Show
@@ -96,25 +106,23 @@ function WordRow(props: DictatingViewProps) {
 			fallback={
 				<div class="flex h-14 items-center gap-3 rounded-xl border-[1.5px] border-ok bg-ok-bg px-4">
 					<Check class="h-5 w-5 shrink-0 text-ok" />
-					<span class="text-base font-medium text-ink">
+					<span class="truncate text-base font-medium text-ink">
 						{props.submittedWord ?? ""}
 					</span>
 				</div>
 			}
 		>
 			<div class="flex h-14 items-center gap-3 rounded-xl border-[1.5px] border-brand bg-surface px-4 shadow-sm">
-				{/* 仅两步模式才需要“第 1 步”标记 */}
-				<Show when={hasSecondStep(props)}>
-					<span class="flex h-[22px] w-11 shrink-0 items-center justify-center rounded-full bg-brand text-[11px] text-white">
-						第 1 步
+				{/* 两段式才需要「① 单词」标记，明确下一步还要写第二步 */}
+				<Show when={props.ask === "word+second"}>
+					<span class="flex h-[22px] w-[58px] shrink-0 items-center justify-center rounded-full bg-brand text-[11px] text-white">
+						① 单词
 					</span>
 				</Show>
 				<input
 					ref={autoFocus}
 					class="w-full bg-transparent text-base text-ink outline-none placeholder:text-ink-faint"
-					placeholder={
-						props.contentMode === "sentence" ? "输入整句…" : "输入单词…"
-					}
+					placeholder={wordPlaceholder(props)}
 					value={props.wordInput}
 					onInput={(e) => props.onWordInput(e.currentTarget.value)}
 					onKeyDown={(e) => {
@@ -130,10 +138,12 @@ function WordRow(props: DictatingViewProps) {
 	);
 }
 
-/** 第 2 步：释义输入（释义模式下单词已提交后出现，位于单词行下方） */
+/** 第 2 格：释义 / 中文词（两段式的第二步，或混合第 2 次出现的单步轮） */
 function DefRow(props: DictatingViewProps) {
 	const visible = () =>
-		step(props) === "def" || props.submittedDef !== undefined;
+		props.ask === "second" ||
+		step(props) === "def" ||
+		props.submittedDef !== undefined;
 	return (
 		<Show when={visible()}>
 			<Show
@@ -149,16 +159,14 @@ function DefRow(props: DictatingViewProps) {
 			>
 				<div class="flex h-14 items-center gap-3 rounded-xl border-[1.5px] border-brand bg-surface px-4 shadow-sm">
 					<span class="flex h-[22px] w-11 shrink-0 items-center justify-center rounded-full bg-brand text-[11px] text-white">
-						第 2 步
+						{props.ask === "second"
+							? secondLabel(props)
+							: `② ${secondLabel(props)}`}
 					</span>
 					<input
 						ref={autoFocus}
 						class="w-full bg-transparent text-base text-ink outline-none placeholder:text-ink-faint"
-						placeholder={
-							props.contentMode === "chinese"
-								? "输入中文词…"
-								: "输入释义…"
-						}
+						placeholder={`输入${secondLabel(props)}…`}
 						value={props.defInput}
 						onInput={(e) => props.onDefInput(e.currentTarget.value)}
 						onKeyDown={(e) => {
@@ -169,6 +177,10 @@ function DefRow(props: DictatingViewProps) {
 							}
 						}}
 					/>
+					{/* 单步轮：明确告诉用户不用再写单词 */}
+					<Show when={props.ask === "second"}>
+						<span class="shrink-0 text-[12px] text-ink-faint">不用写单词</span>
+					</Show>
 				</div>
 			</Show>
 		</Show>
@@ -179,12 +191,19 @@ function DefRow(props: DictatingViewProps) {
 export default function DictatingView(props: DictatingViewProps) {
 	return (
 		<div class="flex h-full flex-col gap-4 p-7">
-			{/* 顶部 */}
-			<div class="flex items-center justify-between">
-				<span class="rounded-full bg-surface px-4 py-2.5 font-data text-sm text-ink-soft shadow-sm">
-					第 {props.index + 1} / {props.total} 个
+			{/* 顶部：进度 / 本轮徽标 / 播报状态 */}
+			<div class="flex items-center justify-between gap-3">
+				<span class="shrink-0 rounded-full bg-surface px-4 py-2.5 font-data text-sm text-ink-soft shadow-sm">
+					第 {props.index + 1} / {props.total} {props.unit ?? "个"}
 				</span>
-				<span class="flex items-center gap-2 rounded-full bg-surface px-4 py-2.5 shadow-sm">
+				<Show when={props.roundBadge}>
+					{(badge) => (
+						<span class="min-w-0 truncate rounded-full bg-brand px-4 py-2 font-body text-[13px] font-semibold text-white shadow-sm">
+							{badge()}
+						</span>
+					)}
+				</Show>
+				<span class="flex shrink-0 items-center gap-2 rounded-full bg-surface px-4 py-2.5 shadow-sm">
 					<Volume2 class="h-4 w-4 text-brand" />
 					<span class="font-data text-sm text-ink">{playStatus(props)}</span>
 				</span>
@@ -227,10 +246,10 @@ export default function DictatingView(props: DictatingViewProps) {
 				</div>
 
 				<Show when={props.mode === "cyber"}>
-					<WordRow {...props} />
-					<Show when={hasSecondStep(props)}>
-						<DefRow {...props} />
+					<Show when={props.ask !== "second"}>
+						<WordRow {...props} />
 					</Show>
+					<DefRow {...props} />
 				</Show>
 
 				{/* 书写模式底部占位（与赛博输入区同高，位置稳定） */}

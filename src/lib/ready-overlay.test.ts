@@ -40,3 +40,11 @@ describe("准备完成文案", () => {
 		expect(text).not.toContain("语音");
 	});
 });
+
+describe("准备完成文案 · 混合", () => {
+	it("说轮数、每词两遍与随机搭配", () => {
+		expect(readyOverlaySummary({ count: 40, contentMode: "mixed" })).toBe(
+			"40 轮 · 每个词默 2 遍 · 释义/中文词/短句随机搭配 · 顺序已打乱",
+		);
+	});
+});

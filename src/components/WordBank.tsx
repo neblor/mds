@@ -15,6 +15,7 @@ import {
 	History,
 	Undo2,
 	AudioLines,
+	Shuffle,
 } from "lucide-solid";
 import BatchImportDialog from "~/components/BatchImportDialog";
 import BankPickerDialog from "~/components/BankPickerDialog";
@@ -71,6 +72,7 @@ const CONTENT_MODES: SliderOption<ContentMode>[] = [
 	{ value: "definition", label: "释义", icon: BookOpen },
 	{ value: "chinese", label: "中文词", icon: Languages },
 	{ value: "sentence", label: "短句", icon: MessageSquareQuote },
+	{ value: "mixed", label: "混合", icon: Shuffle },
 	{ value: "phonetic", label: "音标", icon: AudioLines },
 	{ value: "cloze", label: "组句", icon: TextCursorInput },
 ];
@@ -258,8 +260,8 @@ export default function WordBank(props: Props) {
 				</div>
 			</Show>
 
-			{/* 控制：速度 + 默写内容选择条 */}
-			<div class="flex gap-3">
+			{/* 控制：速度 + 默写内容选择条（窄窗时模式操作区换行） */}
+			<div class="flex flex-wrap gap-3">
 				<div class="flex shrink-0 gap-1 rounded-full bg-surface p-1 shadow-sm">
 					<For each={SPEED_LEVELS}>
 						{(l) => (
@@ -278,7 +280,7 @@ export default function WordBank(props: Props) {
 					</For>
 				</div>
 				<SegmentedSlider
-					class="w-[430px]"
+					class="w-[500px]"
 					options={CONTENT_MODES}
 					value={props.contentMode}
 					onChange={props.onContentMode}

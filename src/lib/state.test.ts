@@ -141,6 +141,7 @@ describe("内容模式的持久化恢复", () => {
 			"sentence",
 			"phonetic",
 			"cloze",
+			"mixed",
 		] as const) {
 			expect(isContentMode(mode)).toBe(true);
 		}
@@ -151,6 +152,7 @@ describe("内容模式的持久化恢复", () => {
 
 	it("全部模式都能恢复——组句/短句/音标都曾经有白名单漏项风险", () => {
 		expect(resolveStoredContentMode("cloze", null)).toBe("cloze");
+		expect(resolveStoredContentMode("mixed", null)).toBe("mixed");
 		expect(resolveStoredContentMode("sentence", null)).toBe("sentence");
 		expect(resolveStoredContentMode("phonetic", null)).toBe("phonetic");
 		expect(resolveStoredContentMode("chinese", null)).toBe("chinese");

@@ -46,4 +46,5 @@ export { default as Upload } from "lucide-solid/icons/upload";
 export { default as TextCursorInput } from "lucide-solid/icons/text-cursor-input";
 export { default as MessageSquareQuote } from "lucide-solid/icons/message-square-quote";
 export { default as AudioLines } from "lucide-solid/icons/audio-lines";
+export { default as Shuffle } from "lucide-solid/icons/shuffle";
 export { default as LayoutGrid } from "lucide-solid/icons/layout-grid";

@@ -6,11 +6,14 @@ import {
 	isAllCorrectRows,
 	highlightWordSegments,
 	rowJudgement,
+	wordSummary,
+	CONTENT_MODE_LABELS,
 	type ResultField,
 	type ResultFieldKind,
 	type ResultRow,
 } from "~/lib/results";
 import type { ContentMode } from "~/lib/state";
+import { isSecondStepOnly } from "~/lib/mixed-mode";
 import { tokensFromString } from "~/lib/phonetic-parse";
 import { isStressToken } from "~/lib/phonetic-symbols";
 import { createPhonemeAudio } from "~/lib/use-phoneme-audio";
@@ -166,6 +169,30 @@ function ReferenceFieldLines(props: { field: ResultField }) {
 }
 
 /* ---------- 单行 ---------- */
+/** 混合场次的轮次标签：本轮模式 + 第 2 次出现的「只写…」标记 */
+function RoundTag(props: { row: ResultRow }) {
+	const label = () =>
+		props.row.mode ? CONTENT_MODE_LABELS[props.row.mode] : null;
+	const secondOnly = () =>
+		isSecondStepOnly({ mode: props.row.mode, pass: props.row.pass });
+	return (
+		<Show when={label()}>
+			{(text) => (
+				<>
+					<span class="shrink-0 rounded-md bg-[#EDF3F2] px-1.5 py-0.5 text-[11px] font-semibold text-ink-soft">
+						{text()}
+					</span>
+					<Show when={secondOnly()}>
+						<span class="shrink-0 rounded-md bg-brand/10 px-1.5 py-0.5 text-[11px] font-semibold text-brand">
+							只写{props.row.mode === "chinese" ? "中文词" : "释义"}
+						</span>
+					</Show>
+				</>
+			)}
+		</Show>
+	);
+}
+
 function ResultRowItem(props: {
 	row: ResultRow;
 	mode: "writing" | "cyber";
@@ -196,6 +223,7 @@ function ResultRowItem(props: {
 					<span class="text-base font-semibold text-ink">
 						{props.row.word}
 					</span>
+					<RoundTag row={props.row} />
 					<button
 						type="button"
 						class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ink-faint transition hover:bg-brand/10 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-35"
@@ -291,6 +319,7 @@ function SentenceResultRow(props: {
 					)}
 				</Show>
 				<span class="text-base font-semibold text-ink">{props.row.word}</span>
+				<RoundTag row={props.row} />
 				<span class="text-[12px] text-ink-faint">本句要默的词</span>
 				<button
 					type="button"
@@ -497,6 +526,8 @@ function PhoneticResultRow(props: {
 
 export default function ResultsView(props: Props) {
 	const correct = createMemo(() => correctCount(props.rows));
+	/** 词级汇总：同一个词的所有行都对才算这个词对（混合场次两轮全对才算对） */
+	const words = createMemo(() => wordSummary(props.rows));
 	const celebrate = createMemo(
 		() => props.mode === "cyber" && isAllCorrectRows(props.rows),
 	);
@@ -522,6 +553,11 @@ export default function ResultsView(props: Props) {
 					<Show when={props.mode === "cyber"}>
 						<span class="rounded-full bg-soft px-4 py-2 font-data text-xl text-ink">
 							{correct()} / {props.rows.length}
+						</span>
+					</Show>
+					<Show when={props.mode === "cyber" && props.contentMode === "mixed"}>
+						<span class="rounded-full bg-surface px-3 py-1.5 font-data text-[13px] text-ink-soft shadow-sm">
+							{words().correctWords} / {words().words} 词
 						</span>
 					</Show>
 				</div>

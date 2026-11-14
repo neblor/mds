@@ -19,6 +19,7 @@ import {
 	repeatCount,
 	sentenceCountdownDuration,
 	sentenceSpeechIntervals,
+	secondStepOnlyDuration,
 	phoneticCountdownDuration,
 	SENTENCE_REPEATS,
 	scaleTime,
@@ -58,9 +59,19 @@ import { loadWords, saveWords } from "./word-storage";
 import { timedOutInputPatch } from "./dictation-input";
 import {
 	buildResultRows,
+	gradeKey,
 	type ResultRow,
 	type GradeOverride,
 } from "./results";
+import {
+	applyMixedAvailability,
+	buildMixedPlan,
+	roundAskOf,
+	uniqueMixedWords,
+	type MixedBaseMode,
+	type MixedRoundMode,
+	type MixedRoundSlot,
+} from "./mixed-mode";
 import { createResultAudioPlayer } from "./result-audio";
 import { appendHistory, buildHistoryEntry } from "./history-storage";
 import {
@@ -111,6 +122,15 @@ export interface WordRound {
 	countdownSec: number;
 	/** 播音间隔（秒，已含档位×倍率） */
 	gapSec: number[];
+	/**
+	 * 轮级内容模式：混合场次逐轮不同（definition/chinese/sentence/word）。
+	 * 单一模式场次缺省，读方回落到场次模式（保持旧行为）。
+	 */
+	mode?: MixedRoundMode;
+	/** 混合场次：该词在本场第几次出现（1/2） */
+	pass?: 1 | 2;
+	/** 轮级备注（如降级说明），会带进结果行 */
+	note?: string;
 	answer?: string;
 	answerDef?: string;
 }
@@ -231,6 +251,95 @@ function buildRounds(opts: BuildRoundsOptions): WordRound[] {
 }
 
 /**
+ * 混合场次的轮次：模式与 pass 由计划给出，计时/播报全按**该轮自己的模式**算。
+ * - 短句轮 → 只念整句 3 遍
+ * - 释义/中文词轮（pass=1）→ 两段式计时
+ * - 释义/中文词轮（pass=2）→ 只写第二步，计时去掉「写单词」占用
+ * - word（降级）→ 普通单词轮
+ */
+function buildMixedRounds(opts: {
+	slots: MixedRoundSlot[];
+	data: PrepData;
+	level: SpeedLevel;
+	multiplier: number;
+}): WordRound[] {
+	const { slots, data, level, multiplier } = opts;
+	const own = (table: Record<string, string>, word: string): string | undefined =>
+		Object.hasOwn(table, word) ? table[word] : undefined;
+	return slots.map((slot) => {
+		const word = slot.word;
+		const def = own(data.defs, word);
+		const chineseWord = own(data.chinese, word);
+		const sentence = own(data.sentences, word);
+		const sentenceAudioName = sentence
+			? data.sentenceAudio.get(sentence)
+			: undefined;
+		const audioName = data.nameMap.get(word) ?? "";
+
+		if (slot.mode === "sentence" && sentence && sentenceAudioName) {
+			return {
+				kind: "word" as const,
+				word,
+				audioName: sentenceAudioName,
+				availableWordAudioName: audioName,
+				variant: "sentence" as const,
+				sentence,
+				sentenceAudioName,
+				playLabels: ["整句 1", "整句 2", "整句 3"],
+				repeatCount: SENTENCE_REPEATS,
+				countdownSec: sentenceCountdownDuration({ sentence, level, multiplier }),
+				gapSec: sentenceSpeechIntervals({ sentence, level, multiplier }),
+				mode: "sentence" as const,
+				pass: slot.pass,
+			};
+		}
+
+		// 句音缺失（准备期改配后仍可能落到这里）→ 普通单词轮
+		const mode: MixedRoundMode = slot.mode === "sentence" ? "word" : slot.mode;
+		const withDef = mode === "definition";
+		const count = repeatCount(word, withDef);
+		const secondKind =
+			slot.pass === 2 && (mode === "definition" || mode === "chinese")
+				? mode
+				: null;
+		const countdownSec = secondKind
+			? secondStepOnlyDuration({
+					word,
+					kind: secondKind,
+					secondText: secondKind === "definition" ? def : chineseWord,
+					level,
+					multiplier,
+				})
+			: countdownDuration({
+					word,
+					level,
+					withDefinition: withDef,
+					definitionText: def,
+					chineseText: mode === "chinese" ? chineseWord : undefined,
+					multiplier,
+				});
+		return {
+			kind: "word" as const,
+			word,
+			audioName,
+			variant: "word" as const,
+			definition: mode === "definition" ? def : undefined,
+			chineseWord: mode === "chinese" ? chineseWord : undefined,
+			repeatCount: count,
+			countdownSec,
+			gapSec: speechIntervals(word, count).map((gap) =>
+				scaleTime(gap, level, multiplier),
+			),
+			mode,
+			pass: slot.pass,
+			...(slot.mode === "sentence"
+				? { note: "本词没有可用短句，按单词默写" }
+				: {}),
+		};
+	});
+}
+
+/**
  * 一轮的播放序列：
  * - 单词轮 = 同一音频重复 repeatCount 遍
  * - 短句轮 = 目标词 1 遍 + 整句 2 遍（各自标签，失败可按项淘汰缓存）
@@ -332,6 +441,8 @@ export function useDictation() {
 	);
 	const activeContentMode = (): ContentMode =>
 		runContentMode() ?? contentMode();
+	/** 本轮的作答形态（混合场次逐轮不同；见 mixed-mode.roundAskOf） */
+	const askOf = (r: WordRound) => roundAskOf(r, activeContentMode());
 	const changeContentMode = (m: ContentMode) => {
 		setContentMode(m);
 		try {
@@ -415,12 +526,16 @@ export function useDictation() {
 	const finishDictation = () => {
 		roundSeq++;
 		clearRoundRuntime();
-		// 短句模式不做 AI 批改（归一化比较就够），因此不进 grading 阶段、结果立刻可见
-		if (
+		// 两段式轮（释义/中文词）需要 AI 批改第二步；混合场次按**轮**判断，
+		// 短句/单词轮不进 grading，结果立刻可见
+		const needsGrading =
 			mode() === "cyber" &&
-			(activeContentMode() === "chinese" ||
-				activeContentMode() === "definition")
-		) {
+			rounds().some((r) => {
+				if (r.kind !== "word") return false;
+				const ask = askOf(r);
+				return ask === "word+second" || ask === "second";
+			});
+		if (needsGrading) {
 			setPhase("grading");
 			void runGrading();
 		} else {
@@ -450,43 +565,84 @@ export function useDictation() {
 		setPhase("results");
 	};
 
-	/* ---------- AI 批改（一次请求批改本场全部第二步作答） ---------- */
+	/* ---------- AI 批改（按 kind 分组，一次请求批改本场同类第二步作答） ---------- */
 	const runGrading = async () => {
-		const kind = activeContentMode() === "chinese" ? "chinese" : "definition";
-		// 只批改两段式内容模式的第二步作答（短句模式走归一化比较，不请求 AI）
-		const items: GradeItem[] = rounds()
-			.filter((r): r is WordRound => r.kind === "word")
-			.filter((r) => r.answerDef !== undefined)
-			.map((r) => ({
+		// 混合场次里同一个词可能既有释义轮又有中文词轮：必须按 kind 分组请求，
+		// 且覆盖表的键要带上 kind（否则两次结果会互相覆盖）
+		const groups: Record<"definition" | "chinese", GradeItem[]> = {
+			definition: [],
+			chinese: [],
+		};
+		for (const r of rounds()) {
+			if (r.kind !== "word" || r.answerDef === undefined) continue;
+			const effective = r.mode ?? activeContentMode();
+			let kind: "definition" | "chinese" | null = null;
+			if (effective === "chinese") kind = "chinese";
+			else if (effective === "definition") kind = "definition";
+			if (kind === null) continue;
+			groups[kind].push({
 				word: r.word,
-				expected:
-					kind === "chinese" ? (r.chineseWord ?? "") : (r.definition ?? ""),
+				expected: kind === "chinese" ? (r.chineseWord ?? "") : (r.definition ?? ""),
 				answer: r.answerDef ?? "",
-			}));
+			});
+		}
+		const pendingKinds = (["definition", "chinese"] as const).filter(
+			(kind) => groups[kind].length > 0,
+		);
 		// 防御：没有可批改的作答（理论不会发生）直接进结果
-		if (items.length === 0) {
+		if (pendingKinds.length === 0) {
 			enterResults();
 			return;
 		}
 		const seq = ++gradeSeq;
-		gradeAbort = new AbortController();
+		const controller = new AbortController();
+		gradeAbort = controller;
 		const alive = () => seq === gradeSeq;
 		try {
-			const res = await requestAnswerGrades(
-				kind,
-				items,
-				settings(),
-				gradeAbort.signal,
+			const settled = await Promise.all(
+				pendingKinds.map(async (kind) => {
+					try {
+						const res = await requestAnswerGrades(
+							kind,
+							groups[kind],
+							settings(),
+							controller.signal,
+						);
+						return { kind, res } as const;
+					} catch (error) {
+						return { kind, error } as const;
+					}
+				}),
 			);
 			if (!alive()) return;
 			const map: Record<string, GradeOverride> = {};
-			for (const g of res.grades) {
-				map[g.word] = { correct: g.correct, ...(g.note ? { note: g.note } : {}) };
+			const warnings: string[] = [];
+			let failed = 0;
+			for (const entry of settled) {
+				if ("error" in entry) {
+					failed += 1;
+					continue;
+				}
+				if (entry.res.warning) warnings.push(entry.res.warning);
+				for (const g of entry.res.grades) {
+					map[gradeKey(entry.kind, g.word)] = {
+						correct: g.correct,
+						...(g.note ? { note: g.note } : {}),
+					};
+				}
 			}
-			lastGrades = map;
-			setGradeNote(
-				res.warning ? `AI 批改完成，部分题目降级为本地判定（${res.warning}）` : null,
-			);
+			lastGrades = Object.keys(map).length > 0 ? map : null;
+			if (lastGrades === null) {
+				setGradeNote("AI 批改失败，已改用本地匹配判定");
+			} else if (failed > 0) {
+				setGradeNote("部分题目 AI 批改失败，已改用本地匹配判定");
+			} else if (warnings.length > 0) {
+				setGradeNote(
+					`AI 批改完成，部分题目降级为本地判定（${warnings[0]}）`,
+				);
+			} else {
+				setGradeNote(null);
+			}
 		} catch {
 			if (!alive()) return;
 			lastGrades = null;
@@ -668,12 +824,13 @@ export function useDictation() {
 		const content = contentOverride ?? contentMode();
 		// 音标模式优先用内置词典，未配置 AI 也能开始；缺词降级为单词轮
 		if (content !== "word" && content !== "phonetic" && !isAiConfigured(settings())) {
+			const aiRequiredLabels: Partial<Record<ContentMode, string>> = {
+				cloze: "组句模式",
+				sentence: "短句模式",
+				mixed: "混合模式（释义/中文词/短句都要 AI）",
+			};
 			setError(
-				content === "cloze"
-					? "组句模式需要先配置 AI 服务（右上角设置里填写）"
-					: content === "sentence"
-						? "短句模式需要先配置 AI 服务（右上角设置里填写）"
-						: "释义/中文词模式需要先配置 AI 服务（右上角设置里填写）",
+				`${aiRequiredLabels[content] ?? "释义/中文词模式"}需要先配置 AI 服务（右上角设置里填写）`,
 			);
 			return;
 		}
@@ -691,7 +848,9 @@ export function useDictation() {
 					? "正在生成短句…"
 					: content === "phonetic"
 						? "正在加载音标词典…"
-						: "正在生成语音…",
+						: content === "mixed"
+							? "正在生成释义 / 中文词 / 短句…"
+							: "正在生成语音…",
 		);
 		prepAbort = new AbortController();
 		const seq = ++prepSeq;
@@ -1013,6 +1172,129 @@ export function useDictation() {
 		setPhase("ready");
 	};
 
+	const prepareMixed = async (
+		ws: string[],
+		voice: string,
+		signal: AbortSignal,
+		alive: () => boolean,
+	) => {
+		const words = uniqueMixedWords(ws);
+		const plan = buildMixedPlan({ words });
+		setPrepProgress(0);
+		setPrepIndeterminate(true);
+		setPrepStatus("正在生成释义 / 中文词 / 短句…");
+
+		// 三类数据并行取；单类失败只降级，三类全失败才中止（与单一模式一致）
+		const settle = async <T,>(task: Promise<T>) => {
+			try {
+				return { ok: true as const, value: await task };
+			} catch (error) {
+				return { ok: false as const, error };
+			}
+		};
+		const [defsResult, chineseResult, sentencesResult] = await Promise.all([
+			settle(requestDefinitions(words, settings(), signal)),
+			settle(requestChineseWords(words, settings(), signal)),
+			settle(requestSentences(words, settings(), signal)),
+		]);
+		if (!alive()) return;
+		if (signal.aborted) throw new Error("aborted");
+		if (!defsResult.ok && !chineseResult.ok && !sentencesResult.ok) {
+			const first = defsResult.error;
+			throw first instanceof Error ? first : new Error(String(first));
+		}
+		const defs = defsResult.ok ? defsResult.value : {};
+		const chinese = chineseResult.ok ? chineseResult.value : {};
+		const sentences = sentencesResult.ok
+			? sentencesResult.value.sentences
+			: {};
+
+		const aiAvailable = (word: string, mode: MixedBaseMode) => {
+			if (mode === "definition") return Boolean(defs[word]);
+			if (mode === "chinese") return Boolean(chinese[word]);
+			return Boolean(sentences[word]);
+		};
+		const firstPass = applyMixedAvailability(plan, aiAvailable);
+
+		// 语音：词音全合成（每种轮都要听），句音只合成最终确实用到的整句
+		const sentenceTexts = [
+			...new Set(
+				firstPass.rounds
+					.filter((slot) => slot.mode === "sentence")
+					.map((slot) => sentences[slot.word])
+					.filter((text): text is string => Boolean(text)),
+			),
+		];
+		const total = words.length + sentenceTexts.length;
+		let wordDone = 0;
+		let sentenceDone = 0;
+		const reportProgress = () => {
+			const done = wordDone + sentenceDone;
+			setPrepProgress(total > 0 ? done / total : 1);
+			setPrepStatus(`正在生成语音 ${Math.min(done, total)}/${total}`);
+		};
+		setPrepIndeterminate(false);
+		reportProgress();
+		const [wordItems, sentenceItems] = await Promise.all([
+			requestTtsAll(words, voice, signal, (done) => {
+				if (!alive()) return;
+				wordDone = done;
+				reportProgress();
+			}),
+			requestTtsAll(sentenceTexts, voice, signal, (done) => {
+				if (!alive()) return;
+				sentenceDone = done;
+				reportProgress();
+			}),
+		]);
+		if (!alive()) return;
+
+		const sentenceAudio = new Map(
+			sentenceItems.map((item) => [item.word, item.name]),
+		);
+		const audioAvailable = (word: string, mode: MixedBaseMode) => {
+			if (mode === "definition") return Boolean(defs[word]);
+			if (mode === "chinese") return Boolean(chinese[word]);
+			const text = sentences[word];
+			return Boolean(text && sentenceAudio.has(text));
+		};
+		const finalPlan = applyMixedAvailability(firstPass.rounds, audioAvailable);
+
+		lastPrep = {
+			words,
+			nameMap: new Map(wordItems.map((item) => [item.word, item.name])),
+			defs,
+			chinese,
+			sentences,
+			sentenceAudio,
+		};
+
+		const degraded = [...firstPass.degraded, ...finalPlan.degraded];
+		const notes: string[] = [];
+		if (!defsResult.ok) notes.push("释义生成失败");
+		if (!chineseResult.ok) notes.push("中文词生成失败");
+		if (!sentencesResult.ok) notes.push("短句生成失败");
+		const lostSentence = degraded.filter((item) => item.from === "sentence").length;
+		if (lostSentence > 0) {
+			notes.push(`${lostSentence} 轮缺可用短句，已改配为其它模式`);
+		}
+		const lostOther = degraded.length - lostSentence;
+		if (lostOther > 0) {
+			notes.push(`${lostOther} 轮缺释义/中文词，已改配或降级为单词`);
+		}
+		if (notes.length > 0) setResultNote(notes.join("；"));
+
+		setRounds(
+			buildMixedRounds({
+				slots: finalPlan.rounds,
+				data: lastPrep,
+				level: speed(),
+				multiplier: settings().multiplier,
+			}),
+		);
+		setPhase("ready");
+	};
+
 	const runPreparation = async (
 		ws: string[],
 		content: ContentMode,
@@ -1040,6 +1322,10 @@ export function useDictation() {
 			}
 			if (content === "phonetic") {
 				await preparePhonetic(ws, voice, signal, alive);
+				return;
+			}
+			if (content === "mixed") {
+				await prepareMixed(ws, voice, signal, alive);
 				return;
 			}
 			const shuffled = shuffle(ws);
@@ -1145,14 +1431,11 @@ export function useDictation() {
 			// 组句：所有空都选完才算输入完成
 			return r.blanks.every((blank) => blank.chosen !== undefined);
 		}
+		// 作答形态逐轮判定（混合场次里同一个词两轮的形态不同）
+		const ask = askOf(r);
+		if (ask === "second") return r.answerDef !== undefined;
 		if (r.answer === undefined) return false;
-		if (
-			(activeContentMode() === "definition" ||
-				activeContentMode() === "chinese") &&
-			r.answerDef === undefined
-		) {
-			return false;
-		}
+		if (ask === "word+second" && r.answerDef === undefined) return false;
 		return true;
 	};
 
@@ -1169,7 +1452,7 @@ export function useDictation() {
 		}
 		const patch = timedOutInputPatch({
 			round: r,
-			contentMode: activeContentMode(),
+			ask: askOf(r),
 			wordInput: wordInput(),
 			definitionInput: defInput(),
 		});
@@ -1393,14 +1676,11 @@ export function useDictation() {
 		if (mode() !== "cyber") return "none";
 		const r = rounds()[currentIndex()];
 		if (!r || r.kind === "cloze") return "none";
+		const ask = askOf(r);
+		// 单步轮（混合里第 2 次出现的释义/中文词）直接从第二步开始
+		if (ask === "second") return r.answerDef === undefined ? "def" : "done";
 		if (r.answer === undefined) return "word";
-		if (
-			(activeContentMode() === "definition" ||
-				activeContentMode() === "chinese") &&
-			r.answerDef === undefined
-		) {
-			return "def";
-		}
+		if (ask === "word+second" && r.answerDef === undefined) return "def";
 		return "done";
 	};
 

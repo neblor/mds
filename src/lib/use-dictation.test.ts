@@ -62,8 +62,9 @@ function mountDictation(): { dictation: Dictation; dispose: () => void } {
 }
 
 async function flushAsyncWork() {
-	await Promise.resolve();
-	await Promise.resolve();
+	// 准备链路有多层 await / Promise.all（混合模式多了 settle 包装），
+	// 只排 2 个 microtask 会停在中间态，放宽到 24 个 tick。
+	for (let i = 0; i < 24; i += 1) await Promise.resolve();
 }
 
 describe("useDictation 生产流程编排", () => {
@@ -551,6 +552,218 @@ describe("useDictation 生产流程编排", () => {
 		d.abortPreparation();
 		expect(d.phase()).toBe("idle");
 		expect(d.contentMode()).toBe("definition");
+	});
+
+	describe("混合模式（mixed）", () => {
+		const setupMixed = async (
+			words: string[],
+			mode: "writing" | "cyber",
+		): Promise<Dictation> => {
+			mounted = mountDictation();
+			const d = mounted.dictation;
+			d.changeSettings({
+				...d.settings(),
+				aiBaseUrl: "https://example.test/v1",
+				aiApiKey: "test-key",
+			});
+			mocks.requestChineseWords.mockResolvedValue(
+				Object.fromEntries(words.map((word) => [word, `中文-${word}`])),
+			);
+			d.changeContentMode("mixed");
+			for (const word of words) d.addWord(word);
+			d.startDictation(mode);
+			await flushAsyncWork();
+			return d;
+		};
+
+		it("准备：每词 2 轮、两种模式互异，三类 AI 各请求一次", async () => {
+			const words = ["apple", "banana", "happy"];
+			const d = await setupMixed(words, "cyber");
+			expect(d.phase()).toBe("ready");
+			expect(d.rounds()).toHaveLength(words.length * 2);
+			for (const word of words) {
+				const rounds = d
+					.rounds()
+					.filter((r) => r.kind === "word" && r.word === word);
+				expect(rounds).toHaveLength(2);
+				const modes = rounds.map((r) => (r.kind === "word" ? r.mode : null));
+				expect(new Set(modes).size).toBe(2);
+				expect(
+					rounds.map((r) => (r.kind === "word" ? r.pass : null)).sort(),
+				).toEqual([1, 2]);
+			}
+			expect(mocks.requestDefinitions).toHaveBeenCalledWith(
+				words,
+				expect.anything(),
+				expect.any(AbortSignal),
+			);
+			expect(mocks.requestChineseWords).toHaveBeenCalledWith(
+				words,
+				expect.anything(),
+				expect.any(AbortSignal),
+			);
+			expect(mocks.requestSentences).toHaveBeenCalledWith(
+				words,
+				expect.anything(),
+				expect.any(AbortSignal),
+			);
+			d.abortPreparation();
+		});
+
+		it("三类 AI 全部失败：准备报错，不进入 ready", async () => {
+			mounted = mountDictation();
+			const d = mounted.dictation;
+			d.changeSettings({
+				...d.settings(),
+				aiBaseUrl: "https://example.test/v1",
+				aiApiKey: "test-key",
+			});
+			mocks.requestDefinitions.mockRejectedValue(new Error("upstream down"));
+			mocks.requestChineseWords.mockRejectedValue(new Error("upstream down"));
+			mocks.requestSentences.mockRejectedValue(new Error("upstream down"));
+			d.changeContentMode("mixed");
+			d.addWord("apple");
+			d.startDictation("cyber");
+			await flushAsyncWork();
+			expect(d.phase()).toBe("preparing");
+			expect(d.prepError()).toContain("upstream down");
+		});
+
+		it("赛博：第 2 次出现的释义轮只写第二步，批改按 kind 分组且不碰撞", async () => {
+			const random = vi.spyOn(Math, "random").mockReturnValue(0.9);
+			try {
+				mocks.requestAnswerGrades.mockImplementation(
+					async (kind: "definition" | "chinese") => ({
+						grades:
+							kind === "definition"
+								? [
+										{ word: "apple", correct: true },
+										{ word: "banana", correct: true },
+									]
+								: [
+										{ word: "apple", correct: false },
+										{ word: "banana", correct: true },
+									],
+					}),
+				);
+				const d = await setupMixed(["apple", "banana"], "cyber");
+				// Math.random=0.9 → 每个词固定为「第 1 次中文词、第 2 次释义」
+				expect(
+					d.rounds().map((r) =>
+						r.kind === "word" ? [r.word, r.mode, r.pass] : null,
+					),
+				).toEqual([
+					["apple", "chinese", 1],
+					["banana", "chinese", 1],
+					["apple", "definition", 2],
+					["banana", "definition", 2],
+				]);
+				d.go();
+				for (let i = 0; i < 4; i += 1) {
+					expect(d.currentIndex()).toBe(i);
+					const round = d.rounds()[i];
+					if (!round || round.kind !== "word") {
+						throw new Error(`第 ${i} 轮不是单词轮`);
+					}
+					playDeferreds[playDeferreds.length - 1]?.resolve("completed");
+					await flushAsyncWork();
+					if (round.mode === "chinese") {
+						expect(d.step()).toBe("word");
+						d.setWordInput(round.word);
+						d.submitWord();
+						await flushAsyncWork();
+						expect(d.step()).toBe("def");
+						d.setDefInput(`中文-${round.word}`);
+						d.submitDef();
+					} else {
+						// 第 2 次出现的释义轮：没有第 1 格，直接写释义
+						expect(d.step()).toBe("def");
+						expect(round.answer).toBeUndefined();
+						d.setDefInput(`def-${round.word}`);
+						d.submitDef();
+					}
+					await flushAsyncWork();
+				}
+				expect(d.phase()).toBe("results");
+				expect(mocks.requestAnswerGrades).toHaveBeenCalledTimes(2);
+				const chineseCall = mocks.requestAnswerGrades.mock.calls.find(
+					([kind]) => kind === "chinese",
+				);
+				const definitionCall = mocks.requestAnswerGrades.mock.calls.find(
+					([kind]) => kind === "definition",
+				);
+				expect(chineseCall?.[1]).toEqual([
+					{ word: "apple", expected: "中文-apple", answer: "中文-apple" },
+					{ word: "banana", expected: "中文-banana", answer: "中文-banana" },
+				]);
+				expect(definitionCall?.[1]).toEqual([
+					{ word: "apple", expected: "A round fruit.", answer: "def-apple" },
+					{
+						word: "banana",
+						expected: "A long yellow fruit.",
+						answer: "def-banana",
+					},
+				]);
+				const rows = d.resultRows();
+				expect(rows).toHaveLength(4);
+				const appleDef = rows.find(
+					(r) => r.word === "apple" && r.mode === "definition",
+				);
+				const appleZh = rows.find(
+					(r) => r.word === "apple" && r.mode === "chinese",
+				);
+				// 单步轮只判第二步：没有单词字段
+				expect(appleDef?.fields.map((f) => f.kind)).toEqual(["definition"]);
+				expect(appleDef?.fields[0]?.correct).toBe(true);
+				expect(appleZh?.fields.map((f) => f.kind)).toEqual(["word", "chinese"]);
+				// AI 给 apple 的释义判对、中文词判错：证明两个 kind 的结果没有互相覆盖
+				expect(appleZh?.fields[1]?.correct).toBe(false);
+				const writes = historyWrites();
+				const latest = writes[writes.length - 1]?.[0];
+				expect(latest?.contentMode).toBe("mixed");
+				expect(latest?.rows.map((r) => r.mode)).toEqual([
+					"chinese",
+					"chinese",
+					"definition",
+					"definition",
+				]);
+			} finally {
+				random.mockRestore();
+			}
+		});
+
+		it("书写：不进入批改，历史仍记 mixed 且逐行带模式", async () => {
+			const random = vi.spyOn(Math, "random").mockReturnValue(0.9);
+			try {
+				const d = await setupMixed(["apple"], "writing");
+				expect(
+					d.rounds().map((r) => (r.kind === "word" ? [r.mode, r.pass] : null)),
+				).toEqual([
+					["chinese", 1],
+					["definition", 2],
+				]);
+				d.go();
+				for (let i = 0; i < 2; i += 1) {
+					d.onRootKeyDown({
+						key: " ",
+						code: "Space",
+						preventDefault: vi.fn(),
+					} as unknown as KeyboardEvent);
+					await flushAsyncWork();
+				}
+				expect(d.phase()).toBe("results");
+				expect(mocks.requestAnswerGrades).not.toHaveBeenCalled();
+				const writes = historyWrites();
+				const latest = writes[writes.length - 1]?.[0];
+				expect(latest?.contentMode).toBe("mixed");
+				expect(latest?.rows.map((r) => r.mode)).toEqual([
+					"chinese",
+					"definition",
+				]);
+			} finally {
+				random.mockRestore();
+			}
+		});
 	});
 });
 

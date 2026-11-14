@@ -18,6 +18,7 @@ export type DictationMode = "writing" | "cyber";
  * - sentence：短句（准备阶段为每个词生成一个短句，播报与作答对象是整句，判定核心是目标词）
  * - phonetic：音标（看单词拼音标，点选音素，判定音频序列）
  * - cloze：范例组句（准备阶段由 AI 一次出整场题，每空选词作答）
+ * - mixed：混合（每词在释义/中文词/短句里随机取 2 种，各默一遍；轮级模式见 mixed-mode.ts）
  */
 export type ContentMode =
 	| "word"
@@ -25,7 +26,8 @@ export type ContentMode =
 	| "chinese"
 	| "sentence"
 	| "phonetic"
-	| "cloze";
+	| "cloze"
+	| "mixed";
 
 /** 内容模式白名单：持久化恢复与历史条目校验共用一份，避免各处各写一份而漏项 */
 export const CONTENT_MODES: readonly ContentMode[] = [
@@ -35,6 +37,7 @@ export const CONTENT_MODES: readonly ContentMode[] = [
 	"sentence",
 	"phonetic",
 	"cloze",
+	"mixed",
 ];
 
 export function isContentMode(value: unknown): value is ContentMode {

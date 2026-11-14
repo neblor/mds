@@ -17,6 +17,8 @@ export const REVIEW_MODES = [
 	"sentence",
 	"phonetic",
 	"cloze",
+	// 场次级模式（混合）；review_log.mode 仍记每轮真实模式，不会写 mixed
+	"mixed",
 ] as const;
 export type ReviewMode = (typeof REVIEW_MODES)[number];
 

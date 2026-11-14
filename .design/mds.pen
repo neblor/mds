@@ -24986,6 +24986,2227 @@
           ]
         }
       ]
+    },
+    {
+      "id": "O0ct7q",
+      "type": "ref",
+      "ref": "zae8o",
+      "name": "37 · 词库页（混合模式）",
+      "x": 5080,
+      "y": 0,
+      "descendants": {
+        "Y93IAW": {
+          "type": "frame",
+          "id": "jffIb",
+          "name": "Controls",
+          "width": 1064,
+          "height": 43,
+          "gap": 12,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "kOSwP",
+              "name": "Speed Selector",
+              "fill": "$surface",
+              "cornerRadius": 999,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#2E353B1F",
+                "offset": {
+                  "x": 0,
+                  "y": 1
+                },
+                "blur": 3
+              },
+              "gap": 4,
+              "padding": 4,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "pCWWV",
+                  "name": "Speed 快",
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "padding": [
+                    8,
+                    16
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "aPKeQ",
+                      "name": "Label",
+                      "fill": "$text-muted",
+                      "content": "快",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "kLiAi",
+                  "name": "Speed 中",
+                  "fill": "$primary",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "padding": [
+                    8,
+                    16
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "J47CV",
+                      "name": "Label",
+                      "fill": "$text-inverse",
+                      "content": "中",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "dtckH",
+                  "name": "Speed 慢",
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "padding": [
+                    8,
+                    16
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "U2uK1",
+                      "name": "Label",
+                      "fill": "$text-muted",
+                      "content": "慢",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "q5cYSb",
+              "name": "Content Mode Slider",
+              "width": 500,
+              "height": 38,
+              "fill": "$surface-inverse",
+              "cornerRadius": 999,
+              "gap": 4,
+              "padding": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "LFc7C",
+                  "name": "Mode 单词",
+                  "width": "fill_container",
+                  "height": 30,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "WMc94",
+                      "name": "Mode Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "type",
+                      "library": "lucide",
+                      "fill": "$text-muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "IHtKt",
+                      "name": "Mode Label",
+                      "fill": "$text-muted",
+                      "content": "单词",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "K35Sf",
+                  "name": "Mode 释义",
+                  "width": "fill_container",
+                  "height": 30,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "H6MXF",
+                      "name": "Mode Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "book-open",
+                      "library": "lucide",
+                      "fill": "$text-muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "p1Igd5",
+                      "name": "Mode Label",
+                      "fill": "$text-muted",
+                      "content": "释义",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "iYGJI",
+                  "name": "Mode 中文词",
+                  "width": "fill_container",
+                  "height": 30,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "pMaHu",
+                      "name": "Mode Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "languages",
+                      "library": "lucide",
+                      "fill": "$text-muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "P58a2",
+                      "name": "Mode Label",
+                      "fill": "$text-muted",
+                      "content": "中文词",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "B9N2J3",
+                  "name": "Mode 混合",
+                  "width": "fill_container",
+                  "height": 30,
+                  "fill": "$primary",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "JgvRL",
+                      "name": "Mode Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "shuffle",
+                      "library": "lucide",
+                      "fill": "$text-inverse"
+                    },
+                    {
+                      "type": "text",
+                      "id": "uABwL",
+                      "name": "Mode Label",
+                      "fill": "$text-inverse",
+                      "content": "混合",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "TVxx6",
+                  "name": "Mode 短句",
+                  "width": "fill_container",
+                  "height": 30,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "nit5e",
+                      "name": "Mode Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "message-square-quote",
+                      "library": "lucide",
+                      "fill": "$text-muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "uUEME",
+                      "name": "Mode Label",
+                      "fill": "$text-muted",
+                      "content": "短句",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "s0wFym",
+                  "name": "Mode 音标",
+                  "width": "fill_container",
+                  "height": 30,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "tBCg1",
+                      "name": "Mode Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "audio-lines",
+                      "library": "lucide",
+                      "fill": "$text-muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "vhgD0",
+                      "name": "Mode Label",
+                      "fill": "$text-muted",
+                      "content": "音标",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "U6v5V",
+                  "name": "Mode 组句",
+                  "width": "fill_container",
+                  "height": 30,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "gap": 6,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "WHUWZ",
+                      "name": "Mode Icon",
+                      "width": 16,
+                      "height": 16,
+                      "icon": "text-cursor-input",
+                      "library": "lucide",
+                      "fill": "$text-muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "LsqtK",
+                      "name": "Mode Label",
+                      "fill": "$text-muted",
+                      "content": "组句",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "YOeSB",
+              "name": "Mode Actions",
+              "height": 35,
+              "fill": "$surface",
+              "cornerRadius": 12,
+              "stroke": "$surface-inverse",
+              "strokeWidth": 1.5,
+              "gap": 6,
+              "padding": [
+                0,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "B448tW",
+                  "name": "Chart Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "refresh-cw",
+                  "library": "lucide",
+                  "fill": "$text-secondary"
+                },
+                {
+                  "type": "text",
+                  "id": "x5vKN",
+                  "name": "Chart Label",
+                  "fill": "$text-secondary",
+                  "content": "更新短句",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "alCZu",
+                  "x": 80,
+                  "y": 7.5,
+                  "name": "F1 Badge",
+                  "enabled": false,
+                  "fill": "$surface-inverse",
+                  "cornerRadius": 6,
+                  "padding": [
+                    2,
+                    6
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "QJyPH",
+                      "name": "F1 Label",
+                      "fill": "$text-muted",
+                      "content": "F1",
+                      "fontFamily": "$font-data",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "sO7mD": {
+          "fill": "$brand-tint",
+          "enabled": false
+        },
+        "Zy9hV": {
+          "fill": "$primary",
+          "content": "音标模式请用赛博默写：点选音标需要在屏幕上完成"
+        },
+        "aKfMy": {
+          "opacity": 0.45
+        }
+      }
+    },
+    {
+      "type": "frame",
+      "id": "nQwBC",
+      "x": 6280,
+      "y": 0,
+      "name": "38 · 默写中（混合·释义·第 1 次）",
+      "clip": true,
+      "width": 1120,
+      "height": 820,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 16,
+      "padding": 28,
+      "children": [
+        {
+          "type": "frame",
+          "id": "AuQgD",
+          "name": "Top Bar",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "gYXNn",
+              "name": "Progress Pill",
+              "fill": "$surface",
+              "cornerRadius": 999,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#2E353B1F",
+                "offset": {
+                  "x": 0,
+                  "y": 1
+                },
+                "blur": 3
+              },
+              "gap": 8,
+              "padding": [
+                10,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "BzpA1",
+                  "name": "Progress Text",
+                  "fill": "$text-secondary",
+                  "content": "第 1 / 40 轮",
+                  "fontFamily": "$font-data",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "F8tja",
+              "name": "Round Mode Pill",
+              "fill": "$primary",
+              "cornerRadius": 999,
+              "gap": 8,
+              "padding": [
+                10,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "YQdUz",
+                  "name": "Round Mode Text",
+                  "fill": "$text-inverse",
+                  "content": "本轮：释义 · 第 1 次",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "MvGba",
+              "name": "Speech Pill",
+              "fill": "$surface",
+              "cornerRadius": 999,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#2E353B1F",
+                "offset": {
+                  "x": 0,
+                  "y": 1
+                },
+                "blur": 3
+              },
+              "gap": 8,
+              "padding": [
+                10,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "q8hkzW",
+                  "name": "Volume Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "volume-2",
+                  "library": "lucide",
+                  "fill": "$primary"
+                },
+                {
+                  "type": "text",
+                  "id": "cIeoa",
+                  "name": "Speech Text",
+                  "fill": "$text-primary",
+                  "content": "播报 1/3",
+                  "fontFamily": "$font-data",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "E6DvOX",
+          "name": "Countdown Row",
+          "width": "fill_container",
+          "gap": 12,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "xuUWE",
+              "name": "Countdown Track",
+              "width": "fill_container",
+              "height": 10,
+              "fill": "$surface-inverse",
+              "cornerRadius": 999,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "BPqiv",
+                  "name": "Countdown Fill",
+                  "width": 640,
+                  "height": 10,
+                  "fill": "$primary",
+                  "cornerRadius": 999
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "ezBnb",
+              "name": "Countdown Number",
+              "fill": "$text-primary",
+              "textGrowth": "fixed-width-height",
+              "width": 60,
+              "height": 24,
+              "content": "9.4",
+              "textAlign": "right",
+              "fontFamily": "$font-data",
+              "fontSize": 17,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "ZDyZ0",
+          "name": "Center",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 12,
+          "padding": 40,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "ukWD1",
+              "name": "Big Volume",
+              "width": 52,
+              "height": 52,
+              "icon": "volume-2",
+              "library": "lucide",
+              "fill": "$gold"
+            },
+            {
+              "type": "frame",
+              "id": "uSPig",
+              "name": "Repeat Tag",
+              "fill": "$surface",
+              "cornerRadius": 999,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#2E353B1F",
+                "offset": {
+                  "x": 0,
+                  "y": 1
+                },
+                "blur": 3
+              },
+              "gap": 6,
+              "padding": [
+                8,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "nAFvH",
+                  "name": "Tag Text",
+                  "fill": "$text-secondary",
+                  "content": "正在播报 · 第 1 遍",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Y5LWh",
+          "name": "Spacer",
+          "width": "fill_container",
+          "height": "fill_container"
+        },
+        {
+          "type": "frame",
+          "id": "ybUud",
+          "name": "Status Line",
+          "width": "fill_container",
+          "height": 24,
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "ZKYpt",
+              "name": "Status Text",
+              "fill": "$text-muted",
+              "content": "听语音写单词 → 再写释义",
+              "fontFamily": "$font-body",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "hJGA8",
+          "name": "Word Input Row",
+          "width": "fill_container",
+          "height": 56,
+          "fill": "$surface",
+          "cornerRadius": 12,
+          "stroke": "$primary",
+          "strokeWidth": 1.5,
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#2E353B1F",
+            "offset": {
+              "x": 0,
+              "y": 1
+            },
+            "blur": 3
+          },
+          "gap": 10,
+          "padding": 16,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "N4TLt",
+              "name": "Step Tag",
+              "width": 58,
+              "height": 22,
+              "fill": "$primary",
+              "cornerRadius": 999,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "xEYqW",
+                  "name": "Step Label",
+                  "fill": "$text-inverse",
+                  "content": "① 单词",
+                  "fontFamily": "$font-body",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "XJS5I",
+              "name": "Word Placeholder",
+              "fill": "$text-muted",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "输入单词…",
+              "fontFamily": "$font-body",
+              "fontSize": 16,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "cjcMc",
+      "x": 7480,
+      "y": 0,
+      "name": "39 · 默写中（混合·释义·第 2 次）",
+      "clip": true,
+      "width": 1120,
+      "height": 820,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 16,
+      "padding": 28,
+      "children": [
+        {
+          "type": "frame",
+          "id": "B2UiKy",
+          "name": "Top Bar",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "gUCDq",
+              "name": "Progress Pill",
+              "fill": "$surface",
+              "cornerRadius": 999,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#2E353B1F",
+                "offset": {
+                  "x": 0,
+                  "y": 1
+                },
+                "blur": 3
+              },
+              "gap": 8,
+              "padding": [
+                10,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "TEA6p",
+                  "name": "Progress Text",
+                  "fill": "$text-secondary",
+                  "content": "第 2 / 40 轮",
+                  "fontFamily": "$font-data",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "I7cGl5",
+              "name": "Round Mode Pill",
+              "fill": "$primary",
+              "cornerRadius": 999,
+              "gap": 8,
+              "padding": [
+                10,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "aN4dY",
+                  "name": "Round Mode Text",
+                  "fill": "$text-inverse",
+                  "content": "本轮：释义 · 第 2 次",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "YwPvd",
+              "name": "Speech Pill",
+              "fill": "$surface",
+              "cornerRadius": 999,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#2E353B1F",
+                "offset": {
+                  "x": 0,
+                  "y": 1
+                },
+                "blur": 3
+              },
+              "gap": 8,
+              "padding": [
+                10,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "q5Q7H3",
+                  "name": "Volume Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "volume-2",
+                  "library": "lucide",
+                  "fill": "$primary"
+                },
+                {
+                  "type": "text",
+                  "id": "QQh7t",
+                  "name": "Speech Text",
+                  "fill": "$text-primary",
+                  "content": "播报 1/3",
+                  "fontFamily": "$font-data",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "lKYZu",
+          "name": "Countdown Row",
+          "width": "fill_container",
+          "gap": 12,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "YOGRd",
+              "name": "Countdown Track",
+              "width": "fill_container",
+              "height": 10,
+              "fill": "$surface-inverse",
+              "cornerRadius": 999,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "FjD8T",
+                  "name": "Countdown Fill",
+                  "width": 640,
+                  "height": 10,
+                  "fill": "$primary",
+                  "cornerRadius": 999
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "U8iI6",
+              "name": "Countdown Number",
+              "fill": "$text-primary",
+              "textGrowth": "fixed-width-height",
+              "width": 60,
+              "height": 24,
+              "content": "9.4",
+              "textAlign": "right",
+              "fontFamily": "$font-data",
+              "fontSize": 17,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "OOy67",
+          "name": "Center",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 12,
+          "padding": 40,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon",
+              "id": "v5c8EL",
+              "name": "Big Volume",
+              "width": 52,
+              "height": 52,
+              "icon": "volume-2",
+              "library": "lucide",
+              "fill": "$gold"
+            },
+            {
+              "type": "frame",
+              "id": "gPUVN",
+              "name": "Repeat Tag",
+              "fill": "$surface",
+              "cornerRadius": 999,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#2E353B1F",
+                "offset": {
+                  "x": 0,
+                  "y": 1
+                },
+                "blur": 3
+              },
+              "gap": 6,
+              "padding": [
+                8,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "X0247",
+                  "name": "Tag Text",
+                  "fill": "$text-secondary",
+                  "content": "正在播报 · 第 1 遍",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "HNukR",
+          "name": "Spacer",
+          "width": "fill_container",
+          "height": "fill_container"
+        },
+        {
+          "type": "frame",
+          "id": "Bf5dY",
+          "name": "Status Line",
+          "width": "fill_container",
+          "height": 24,
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "yrmAY",
+              "name": "Status Text",
+              "fill": "$text-muted",
+              "content": "听语音直接写释义（本轮不写单词）",
+              "fontFamily": "$font-body",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "IrePF",
+          "name": "Word Input Row",
+          "width": "fill_container",
+          "height": 56,
+          "fill": "$surface",
+          "cornerRadius": 12,
+          "stroke": "$primary",
+          "strokeWidth": 1.5,
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#2E353B1F",
+            "offset": {
+              "x": 0,
+              "y": 1
+            },
+            "blur": 3
+          },
+          "gap": 10,
+          "padding": 16,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "spM9b",
+              "name": "Step Tag",
+              "width": 44,
+              "height": 22,
+              "fill": "$primary",
+              "cornerRadius": 999,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "gPYDf",
+                  "name": "Step Label",
+                  "fill": "$text-inverse",
+                  "content": "释义",
+                  "fontFamily": "$font-body",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "CqmMQ",
+              "name": "Word Placeholder",
+              "fill": "$text-muted",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "输入释义…",
+              "fontFamily": "$font-body",
+              "fontSize": 16,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "RuqHM",
+              "name": "No Word Hint",
+              "fill": "$text-muted",
+              "content": "不用写单词",
+              "fontFamily": "$font-body",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "r5D3qJ",
+      "x": 8680,
+      "y": 0,
+      "name": "40 · 默写结果（混合）",
+      "clip": true,
+      "width": 1120,
+      "height": 820,
+      "fill": "$bg",
+      "layout": "vertical",
+      "gap": 16,
+      "padding": 28,
+      "children": [
+        {
+          "type": "frame",
+          "id": "j4g4n2",
+          "name": "Results Head",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "O41U2j",
+              "name": "Title Group",
+              "gap": 14,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "sXYO5",
+                  "name": "Title",
+                  "fill": "$text-primary",
+                  "content": "默写结果",
+                  "fontFamily": "$font-heading",
+                  "fontSize": 24,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "kFe0T",
+                  "name": "Score Pill",
+                  "fill": "$surface-inverse",
+                  "cornerRadius": 999,
+                  "padding": [
+                    10,
+                    16
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "j0Q4qf",
+                      "name": "Score",
+                      "fill": "$text-primary",
+                      "content": "5 / 6",
+                      "fontFamily": "$font-data",
+                      "fontSize": 20,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n8WUf",
+                  "name": "Word Score Pill",
+                  "fill": "$surface",
+                  "cornerRadius": 999,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#2E353B1F",
+                    "offset": {
+                      "x": 0,
+                      "y": 1
+                    },
+                    "blur": 3
+                  },
+                  "padding": [
+                    6,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "F8qdZ",
+                      "name": "Word Score",
+                      "fill": "$text-secondary",
+                      "content": "2 / 3 词",
+                      "fontFamily": "$font-data",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "ZEhIu",
+              "name": "Close Button",
+              "fill": "$surface",
+              "cornerRadius": 999,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#2E353B1F",
+                "offset": {
+                  "x": 0,
+                  "y": 1
+                },
+                "blur": 3
+              },
+              "gap": 6,
+              "padding": [
+                10,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "Ds3zH",
+                  "name": "Close Label",
+                  "fill": "$text-secondary",
+                  "content": "关闭",
+                  "fontFamily": "$font-body",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "icon",
+                  "id": "ENbRW",
+                  "name": "Close Icon",
+                  "width": 18,
+                  "height": 18,
+                  "icon": "x",
+                  "library": "lucide",
+                  "fill": "$text-secondary"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "ACrHh",
+          "name": "Answer List",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 10,
+          "children": [
+            {
+              "type": "frame",
+              "id": "P8wA9e",
+              "name": "Result Row apple",
+              "width": "fill_container",
+              "fill": "$success-bg",
+              "cornerRadius": 8,
+              "gap": 12,
+              "padding": [
+                12,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "wdpTC",
+                  "name": "Status Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "check",
+                  "library": "lucide",
+                  "fill": "$success"
+                },
+                {
+                  "type": "frame",
+                  "id": "E1kyb6",
+                  "name": "Answer Info",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 2,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "yQnmJ",
+                      "name": "Word Line",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "XUlUK",
+                          "name": "Word",
+                          "fill": "$text-primary",
+                          "content": "apple",
+                          "fontFamily": "$font-body",
+                          "fontSize": 16,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "tVQ8A",
+                          "name": "Round Tag",
+                          "fill": "$surface-inverse",
+                          "cornerRadius": 6,
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "CNvDD",
+                              "name": "Round Tag Label",
+                              "fill": "$text-secondary",
+                              "content": "释义",
+                              "fontFamily": "$font-body",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "icon",
+                          "id": "HbBJP",
+                          "name": "Play Audio",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "Dkana",
+                      "name": "Definition",
+                      "fill": "$text-muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "释义：A round fruit that you can eat.",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "BGi1Q",
+                  "name": "User Answers",
+                  "width": 360,
+                  "layout": "vertical",
+                  "gap": 2,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "IteFh",
+                      "name": "User Word",
+                      "fill": "$success",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "apple",
+                      "textAlign": "right",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "f3lXe2",
+                      "name": "User Definition",
+                      "fill": "$success",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "a round fruit with red or green skin",
+                      "textAlign": "right",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "h1yYu",
+              "name": "Result Row apple (中文词)",
+              "width": "fill_container",
+              "fill": "$success-bg",
+              "cornerRadius": 8,
+              "gap": 12,
+              "padding": [
+                12,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "n7yPR7",
+                  "name": "Status Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "check",
+                  "library": "lucide",
+                  "fill": "$success"
+                },
+                {
+                  "type": "frame",
+                  "id": "sOFeP",
+                  "name": "Answer Info",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 2,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "J6rcF2",
+                      "name": "Word Line",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "K6Ozk6",
+                          "name": "Word",
+                          "fill": "$text-primary",
+                          "content": "apple",
+                          "fontFamily": "$font-body",
+                          "fontSize": 16,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "u6V5I",
+                          "name": "Round Tag",
+                          "fill": "$surface-inverse",
+                          "cornerRadius": 6,
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "DCPXy",
+                              "name": "Round Tag Label",
+                              "fill": "$text-secondary",
+                              "content": "中文词",
+                              "fontFamily": "$font-body",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "dSIZQ",
+                          "name": "Round Tag",
+                          "fill": "#4EA3A01F",
+                          "cornerRadius": 6,
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "g2ESH",
+                              "name": "Round Tag Label",
+                              "fill": "$primary",
+                              "content": "只写中文词",
+                              "fontFamily": "$font-body",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "icon",
+                          "id": "Lf8sC",
+                          "name": "Play Audio",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "BLqLo",
+                      "name": "Definition",
+                      "fill": "$text-muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "中文词：苹果",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "rY581",
+                  "name": "User Answers",
+                  "width": 360,
+                  "layout": "vertical",
+                  "gap": 2,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "SQeKU",
+                      "x": 0,
+                      "y": 0,
+                      "name": "User Word",
+                      "enabled": false,
+                      "fill": "$error",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container(360)",
+                      "content": "giveup",
+                      "textAlign": "right",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "EcO2f",
+                      "name": "User Definition",
+                      "fill": "$success",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "苹果",
+                      "textAlign": "right",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "x57A0",
+              "name": "Result Row give up (中文词)",
+              "width": "fill_container",
+              "fill": "$success-bg",
+              "cornerRadius": 8,
+              "gap": 12,
+              "padding": [
+                12,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "BPvVu",
+                  "name": "Status Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "check",
+                  "library": "lucide",
+                  "fill": "$success"
+                },
+                {
+                  "type": "frame",
+                  "id": "kMUSZ",
+                  "name": "Answer Info",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 2,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hDQ5H",
+                      "name": "Word Line",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "j33Hzl",
+                          "name": "Word",
+                          "fill": "$text-primary",
+                          "content": "give up",
+                          "fontFamily": "$font-body",
+                          "fontSize": 16,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "viNLq",
+                          "name": "Round Tag",
+                          "fill": "$surface-inverse",
+                          "cornerRadius": 6,
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "wjS0N",
+                              "name": "Round Tag Label",
+                              "fill": "$text-secondary",
+                              "content": "中文词",
+                              "fontFamily": "$font-body",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "icon",
+                          "id": "uXuBr",
+                          "name": "Play Audio",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "yxX8J",
+                      "name": "Definition",
+                      "fill": "$text-muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "中文词：放弃",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "G2CG6e",
+                  "name": "User Answers",
+                  "width": 360,
+                  "layout": "vertical",
+                  "gap": 2,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "k4N4M",
+                      "name": "User Word",
+                      "fill": "$success",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "give up",
+                      "textAlign": "right",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "LgJab",
+                      "name": "User Definition",
+                      "fill": "$success",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "放弃",
+                      "textAlign": "right",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n267w",
+              "name": "Result Row give up (释义)",
+              "width": "fill_container",
+              "fill": "$error-bg",
+              "cornerRadius": 8,
+              "gap": 12,
+              "padding": [
+                12,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "dR7a6",
+                  "name": "Status Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "x",
+                  "library": "lucide",
+                  "fill": "$error"
+                },
+                {
+                  "type": "frame",
+                  "id": "knc8y",
+                  "name": "Answer Info",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 2,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "dKYBW",
+                      "name": "Word Line",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "w2EoY",
+                          "name": "Word",
+                          "fill": "$text-primary",
+                          "content": "give up",
+                          "fontFamily": "$font-body",
+                          "fontSize": 16,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Q7NHG",
+                          "name": "Round Tag",
+                          "fill": "$surface-inverse",
+                          "cornerRadius": 6,
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "MmZpB",
+                              "name": "Round Tag Label",
+                              "fill": "$text-secondary",
+                              "content": "释义",
+                              "fontFamily": "$font-body",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "j0E1y7",
+                          "name": "Round Tag",
+                          "fill": "#4EA3A01F",
+                          "cornerRadius": 6,
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "cBw1i",
+                              "name": "Round Tag Label",
+                              "fill": "$primary",
+                              "content": "只写释义",
+                              "fontFamily": "$font-body",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "icon",
+                          "id": "cC0Kv",
+                          "name": "Play Audio",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "D0O72l",
+                      "name": "Definition",
+                      "fill": "$text-muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "释义：To stop trying to do something.",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "YT9t8",
+                  "name": "User Answers",
+                  "width": 360,
+                  "layout": "vertical",
+                  "gap": 2,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "WguK2",
+                      "x": 0,
+                      "y": 0,
+                      "name": "User Word",
+                      "enabled": false,
+                      "fill": "$error",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container(360)",
+                      "content": "orange",
+                      "textAlign": "right",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "v0Ved",
+                      "name": "User Definition",
+                      "fill": "$error",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "stop",
+                      "textAlign": "right",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "ht6WN",
+              "name": "Result Row happy (短句)",
+              "width": "fill_container",
+              "fill": "$success-bg",
+              "cornerRadius": 8,
+              "gap": 12,
+              "padding": [
+                12,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "HWvEv",
+                  "name": "Status Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "check",
+                  "library": "lucide",
+                  "fill": "$success"
+                },
+                {
+                  "type": "frame",
+                  "id": "v5eXpE",
+                  "name": "Answer Info",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 2,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "J5ME6",
+                      "name": "Word Line",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Gw8RD",
+                          "name": "Word",
+                          "fill": "$text-primary",
+                          "content": "happy",
+                          "fontFamily": "$font-body",
+                          "fontSize": 16,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "I4Hii",
+                          "name": "Round Tag",
+                          "fill": "$surface-inverse",
+                          "cornerRadius": 6,
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "C16WtM",
+                              "name": "Round Tag Label",
+                              "fill": "$text-secondary",
+                              "content": "短句",
+                              "fontFamily": "$font-body",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "icon",
+                          "id": "B73vQ",
+                          "name": "Play Audio",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "h0pKK",
+                      "name": "Definition",
+                      "fill": "$text-muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "句子：She has a happy smile.",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "IYe7f",
+                  "name": "User Answers",
+                  "width": 360,
+                  "layout": "vertical",
+                  "gap": 2,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Uzixl",
+                      "x": 0,
+                      "y": 0,
+                      "name": "User Word",
+                      "enabled": false,
+                      "fill": "$success",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container(360)",
+                      "content": "umbrella",
+                      "textAlign": "right",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ImnId",
+                      "name": "User Definition",
+                      "fill": "$success",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "she has a happy smile",
+                      "textAlign": "right",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "B09uWN",
+              "name": "Result Row happy (中文词)",
+              "width": "fill_container",
+              "fill": "$success-bg",
+              "cornerRadius": 8,
+              "gap": 12,
+              "padding": [
+                12,
+                16
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "ncafh",
+                  "name": "Status Icon",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "check",
+                  "library": "lucide",
+                  "fill": "$success"
+                },
+                {
+                  "type": "frame",
+                  "id": "vevUZ",
+                  "name": "Answer Info",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 2,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "c0A2g",
+                      "name": "Word Line",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "cohjl",
+                          "name": "Word",
+                          "fill": "$text-primary",
+                          "content": "happy",
+                          "fontFamily": "$font-body",
+                          "fontSize": 16,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "lkWVJ",
+                          "name": "Round Tag",
+                          "fill": "$surface-inverse",
+                          "cornerRadius": 6,
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "LothE",
+                              "name": "Round Tag Label",
+                              "fill": "$text-secondary",
+                              "content": "中文词",
+                              "fontFamily": "$font-body",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "jfe9x",
+                          "name": "Round Tag",
+                          "fill": "#4EA3A01F",
+                          "cornerRadius": 6,
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "hyRsL",
+                              "name": "Round Tag Label",
+                              "fill": "$primary",
+                              "content": "只写中文词",
+                              "fontFamily": "$font-body",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "icon",
+                          "id": "TxLP6",
+                          "name": "Play Audio",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$text-muted"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "O6M94E",
+                      "name": "Definition",
+                      "fill": "$text-muted",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "中文词：开心",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "DBcwN",
+                  "name": "User Answers",
+                  "width": 360,
+                  "layout": "vertical",
+                  "gap": 2,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "bOwng",
+                      "x": 0,
+                      "y": 0,
+                      "name": "User Word",
+                      "enabled": false,
+                      "fill": "$success",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container(360)",
+                      "content": "banana",
+                      "textAlign": "right",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "TOLjC",
+                      "name": "User Definition",
+                      "fill": "$success",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "快乐",
+                      "textAlign": "right",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "kN3If",
+          "name": "Spacer",
+          "width": "fill_container",
+          "height": "fill_container"
+        },
+        {
+          "type": "frame",
+          "id": "P7mhB",
+          "name": "Judgement Notes",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 2,
+          "alignItems": "end",
+          "children": [
+            {
+              "type": "text",
+              "id": "Evqw2",
+              "name": "Note",
+              "fill": "$text-muted",
+              "content": "每词 2 遍：第 1 遍写单词+释义/中文词，第 2 遍只写第二步 · 释义/中文词由 AI 批改 · 整句忽略大小写与标点",
+              "fontFamily": "$font-body",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "FgBFW",
+              "name": "Schedule Note",
+              "fill": "$primary",
+              "content": "已更新复习计划 · 2 个词明天再见",
+              "fontFamily": "$font-body",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "GpfYI",
+          "name": "Footer Hint",
+          "fill": "$text-muted",
+          "textGrowth": "fixed-width",
+          "width": "fill_container",
+          "content": "关闭后回到词库，单词保留；要重默直接点开始，要清空点清空",
+          "textAlign": "center",
+          "fontFamily": "$font-body",
+          "fontSize": 12,
+          "fontWeight": "normal"
+        }
+      ]
     }
   ],
   "variables": {

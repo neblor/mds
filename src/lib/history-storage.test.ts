@@ -288,3 +288,76 @@ describe("音标条目", () => {
 		});
 	});
 });
+
+describe("混合条目", () => {
+	it("接受 contentMode=mixed，并保留逐行 mode/pass（回看要显示本轮模式）", () => {
+		const rows = buildResultRows(
+			[
+				{
+					word: "apple",
+					audioName: "apple.mp3",
+					mode: "chinese",
+					pass: 1,
+					chineseWord: "苹果",
+					answer: "apple",
+					answerDef: "苹果",
+				},
+				{
+					word: "apple",
+					audioName: "apple.mp3",
+					mode: "definition",
+					pass: 2,
+					definition: "A round fruit.",
+					answerDef: "A round fruit.",
+				},
+			],
+			"cyber",
+			"mixed",
+		);
+		const built = buildHistoryEntry({
+			rows,
+			mode: "cyber",
+			contentMode: "mixed",
+			finishedAt: 1000,
+			gradeNote: null,
+		});
+		const [loaded] = normalizeHistory([built]);
+		expect(loaded?.contentMode).toBe("mixed");
+		expect(loaded?.correctCount).toBe(2);
+		expect(loaded?.rows.map((row) => [row.mode, row.pass])).toEqual([
+			["chinese", 1],
+			["definition", 2],
+		]);
+		// 单步轮没有单词字段（回看不会显示一格空作答）
+		expect(loaded?.rows[1]?.fields.map((field) => field.kind)).toEqual([
+			"definition",
+		]);
+	});
+
+	it("非法 mode/pass 被丢弃，不影响其余字段", () => {
+		const [loaded] = normalizeHistory([
+			{
+				id: "1",
+				finishedAt: 1000,
+				mode: "cyber",
+				contentMode: "mixed",
+				correctCount: 1,
+				wordCount: 1,
+				gradeNote: null,
+				rows: [
+					{
+						word: "apple",
+						audioName: "apple.mp3",
+						mode: "nonsense",
+						pass: 3,
+						fields: [
+							{ kind: "word", expected: "apple", graded: true, correct: true },
+						],
+					},
+				],
+			},
+		]);
+		expect(loaded?.rows[0]?.mode).toBeUndefined();
+		expect(loaded?.rows[0]?.pass).toBeUndefined();
+	});
+});

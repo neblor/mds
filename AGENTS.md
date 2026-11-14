@@ -6,7 +6,8 @@
 
 以下定义了项目根目录下设哪些目录用于做什么，这里往往是与项目本身运行无关的目录定义：
 
-- `.design` 设计目录，项目中需要用到界面设计时，在这里创建`.pen`文件，然后调用pencil mcp来操作
+- `.design` 设计目录，项目中需要用到界面设计时，在这里创建设计稿，并用 **paintress MCP / CLI** 操作
+  （见全局 AGENTS.md「设计稿操作」；不再使用 Pencil / pen.dev）
   - 设计目录下每一套设计至少由2个文件组成，一个是`.pen`文件，以及文件主名与之相同的`.md`文件为设计和功能做说明注解，阅读时一起对照理解
 - `.implementation-report` 实施报告目录，也可供自己回顾之前的改动
 
@@ -211,7 +212,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
   - 要是单词全对可以做一个撒花或是其他的效果来庆祝，所有svg图形需求优先查lucide icon库中有没有能满足要求的
 - 显示出结果后，提供关闭按钮，点击后回到准备默写状态，不自动重置默认内容，由用户自行选择默同样的还是清空重填
   - 结果界面按 Escape 必须与点击关闭按钮完全等价：停止正在试听的结果发音并回到词库准备状态，保留当前词库
-- 内容模式除单词/释义/中文词/组句外，另有`短句`与`音标`模式（滑块顺序：单词 · 释义 · 中文词 · 短句 · 音标 · 组句）：
+- 内容模式除单词/释义/中文词/组句外，另有`短句`、`混合`与`音标`模式（滑块顺序：单词 · 释义 · 中文词 · 短句 · 混合 · 音标 · 组句；7 项滑块宽 500px，控制行 `flex-wrap`，窄窗时模式操作区换到下一行）：
   - 准备阶段为每个目标词生成一句英文**短句或词组**，默写对象是整句；句子用词与句法难度由设置里的生成级别约束
   - **短句要短**：目标 3–6 词、**硬上限 8 词**，超过即判不合格并做一次「收紧到 ≤5 词」的重试，仍不合格的词**降级为单词轮**（不中止本场）；**允许不是完整句子**（短语/片段只要通顺即可）
   - 每轮播报：**只念整句 3 遍**，不再先念目标词（用户听到第一个音就开始写，念单词没有用）
@@ -246,6 +247,20 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 - **结果与写回**：`ResultFieldKind` 增加 `phonetic`；结果行标准/我的 token 都带喇叭；AI 来源标「AI 生成，仅供参考」；降级词走普通单词行并标「本词没有可用音标，按单词默写」。写回按该行是否有 `phonetic` 字段决定 mode：音标轮记 `phonetic`，降级轮记 `word`；场次 `contentMode` 仍为 `phonetic`。`review-service` 的 `hasPhoneticField` 与 `results` 的 `WordRound.phonetic` 分支是生产路径，改这里必须同步测试。
 - **测试**：`phonetic-symbols/parse/match/pool`、`phonetic-dictionary`、`phoneme-audio`、`phonetic-provider/service`、`phonetic-chart`、`results`/`review-service`/`timing`/`history-storage`；AI provider/service 覆盖合法/非法 token、缺失不写负缓存、model 失效、写后复读。改这些必须跑 `pnpm test:run` 与 `pnpm check`。
 - **设计**：`.design/phonetic-mode.md` + 四张 Web 实机截图（音标轮空/已填、结果 1/1 与 0/1）；`.design/mds.pen` 第六批 **33–36** 已切（33 词库页、34 音标轮、35 结果、36 全屏表）；4 个待确认点见 `.design/phonetic-mode.md`。
+
+### 混合模式（mixed，2026-10-29）
+
+- **入口**：内容模式第 5 项「混合」（滑块 7 项，宽 500px；图标 `shuffle`）；书写与赛博都支持（与释义/中文词/短句一致，书写场次照旧不写回 SRS）。必须配置 AI（三类数据都要），未配置时禁止开始并提示。
+- **配对与顺序**（`src/lib/mixed-mode.ts`）：每个词在**释义 / 中文词 / 短句**里随机取 2 种，n 词 = 2n 轮（20 词 = 40 轮）；整场打乱，**同词两轮至少隔 `max(3, round(0.3n))` 轮**（20 词 → 6），不做两遍制。顺序由「种子布局（前 n 轮是第 1 次、后 n 轮是第 2 次，间隔恒 = n）+ 只接受不破坏下限的随机换位」构造，下限是构造性保证，不靠重试。
+- **第 2 遍规则（崔总 2026-10-29）**：同一个词的**第 1 次**出现若是释义/中文词 → 两段式（先写单词，再写第二步）；**第 2 次**出现 → **只写第二步**（不写单词、不判拼写）。`roundAskOf()` 是作答形态的唯一真源（`word` / `word+second` / `second` / `sentence`），`step()`/`inputDone()`/超时封口/结果字段全部走它，**不要再按场次模式判断**。
+- **轮级模型**：`WordRound.mode`（definition/chinese/sentence/word）与 `WordRound.pass`（1/2）；单一模式场次不写这两个字段，行为与以前完全一致。
+- **准备**（`prepareMixed`）：三类 AI **并行**（每个词都请求释义/中文词/短句，便于缺失时改配）→ `applyMixedAvailability()` 按可用性改配（保持顺序与 pass，不缩短场次）→ 词音 + 句音两轨并行（句音只合成最终用到的整句）→ 再次按句音可用性改配 → 建轮。单类失败只降级，**三类全失败才中止**；降级写进结算 `resultNote`。释义/中文词/短句轮各自的计时公式不变，只有 pass=2 的释义/中文词轮用 `secondStepOnlyDuration`（删掉写单词占用）。
+- **批改**（`runGrading`）：按 kind 分组（释义一组、中文词一组）并行请求；`GradeOverride` 键为 `gradeKey(kind, word)`（`results.ts`）——只按词做键会让同一个词的两次第二步互相覆盖。
+- **结果**：40 行逐轮记分（顶部 `x/40`），混合再给词级汇总 `y/20`（`wordSummary()`：该词两轮全对才算对）；每行带本轮模式胶囊，pass=2 行加「只写释义/中文词」且**不产生单词字段**（否则空作答恒判错）。
+- **写回**：`session.content_mode = "mixed"`（`REVIEW_MODES` 白名单已含 mixed，无 schema 迁移）；`review_log.mode` 记**每轮真实模式**；`buildCommitItems` 逐行 mode 优先；一词两轮仍由 `aggregateItemsByWord` 聚合成一张卡（两轮全对才 Good）。`judged` 按题（40）、`word_count` 按词（20），与组句一轮多空同构。
+- **界面**：顶部本轮徽标「本轮：释义 · 第 1 次」；输入框徽标语义化 `① 单词` / `② 释义` / `② 中文词`；单步轮只有一格 + 右侧「不用写单词」；进度显示「第 x / 40 轮」。`DictatingView` 的 `ask` 由 `roundAskOf` 传入，组件内不再自己推断。
+- **测试**：`mixed-mode.test.ts`（配对/间隔/降级/roundAskOf）、`timing`（secondStepOnlyDuration）、`results`（逐轮 mode/词级汇总/单步无 word 字段）、`review-service`（逐行 mode 写回、一词两轮聚合、judged=40 与 word_count=20）、`use-dictation`（准备/两段式与单步/两次批改不碰撞/书写）、`dictation-input`、`state`、`history-storage`、`ready-overlay`。改这些必须跑 `pnpm test:run` 与 `pnpm check`。
+- **设计**：`.design/mds.pen` 第七批 **37–40**（词库页·混合 / 默写第 1 次 / 默写第 2 次 / 结果页），截图 `.design/mixed-mode-*.png`，注解见 `.design/mds.md` §第七批。
 
 ### 词库 / 复习 / 学习档案（2026-10-18 更新）
 

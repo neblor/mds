@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { timedOutInputPatch } from "./dictation-input";
 
 describe("cyber dictation timed-out input", () => {
-	it("释义模式未操作时同时提交空单词和空释义", () => {
+	it("两段式未操作时同时提交空单词和空释义", () => {
 		expect(
 			timedOutInputPatch({
 				round: {},
-				contentMode: "definition",
+				ask: "word+second",
 				wordInput: "",
 				definitionInput: "",
 			}),
@@ -17,51 +17,73 @@ describe("cyber dictation timed-out input", () => {
 		expect(
 			timedOutInputPatch({
 				round: { answer: "apple" },
-				contentMode: "definition",
+				ask: "word+second",
 				wordInput: "ignored",
 				definitionInput: "  partial definition  ",
 			}),
 		).toEqual({ answerDef: "partial definition" });
 	});
 
-	it("单词模式只提交单词", () => {
+	it("单词轮只提交单词", () => {
 		expect(
 			timedOutInputPatch({
 				round: {},
-				contentMode: "word",
+				ask: "word",
 				wordInput: "  app  ",
 				definitionInput: "unused",
 			}),
 		).toEqual({ answer: "app" });
 	});
 
-	it("音标模式只提交音素串（提前/超时同口径）", () => {
+	it("整句轮只提交整句（走同一个输入格）", () => {
 		expect(
 			timedOutInputPatch({
 				round: {},
-				contentMode: "phonetic",
-				wordInput: "  ˈ æ p  ",
+				ask: "sentence",
+				wordInput: "  A happy smile.  ",
 				definitionInput: "unused",
 			}),
-		).toEqual({ answer: "ˈ æ p" });
+		).toEqual({ answer: "A happy smile." });
 	});
 
-	it("中文词模式两步封口：单词 + 中文词都提交", () => {
+	it("单步轮只封第二步：不写单词（混合第 2 次出现的释义/中文词轮）", () => {
 		expect(
 			timedOutInputPatch({
 				round: {},
-				contentMode: "chinese",
+				ask: "second",
+				wordInput: "ignored",
+				definitionInput: "  stop trying  ",
+			}),
+		).toEqual({ answerDef: "stop trying" });
+	});
+
+	it("单步轮已提交第二步时不再重复封口", () => {
+		expect(
+			timedOutInputPatch({
+				round: { answerDef: "stop trying" },
+				ask: "second",
+				wordInput: "ignored",
+				definitionInput: "ignored",
+			}),
+		).toEqual({});
+	});
+
+	it("中文词两段式：单词 + 中文词都提交", () => {
+		expect(
+			timedOutInputPatch({
+				round: {},
+				ask: "word+second",
 				wordInput: "  hello ",
 				definitionInput: " 你好 ",
 			}),
 		).toEqual({ answer: "hello", answerDef: "你好" });
 	});
 
-	it("中文词模式保留已提交字段并提交未完成输入", () => {
+	it("中文词两段式：保留已提交的单词", () => {
 		expect(
 			timedOutInputPatch({
 				round: { answer: "hello" },
-				contentMode: "chinese",
+				ask: "word+second",
 				wordInput: "ignored",
 				definitionInput: " 你好 ",
 			}),

@@ -6,16 +6,12 @@ export function isReadyOverlayConfirmKey(event: {
 	return event.key === "Enter" && !event.repeat;
 }
 
-/** 准备完成文案：组句轮没有语音轨，短句轮默写对象是整句，音标轮看词拼音标 */
+import type { ContentMode } from "./state";
+
+/** 准备完成文案：组句轮没有语音轨，短句轮默写对象是整句，音标轮看词拼音标，混合轮逐词两种模式 */
 export function readyOverlaySummary(options: {
 	count: number;
-	contentMode:
-		| "word"
-		| "definition"
-		| "chinese"
-		| "sentence"
-		| "phonetic"
-		| "cloze";
+	contentMode: ContentMode;
 	summaryLabel?: string;
 }): string {
 	if (options.contentMode === "cloze") {
@@ -26,6 +22,9 @@ export function readyOverlaySummary(options: {
 	}
 	if (options.contentMode === "phonetic") {
 		return `${options.count} 个单词 · 语音已就绪 · 顺序已打乱 · 看单词拼音标`;
+	}
+	if (options.contentMode === "mixed") {
+		return `${options.count} 轮 · 每个词默 2 遍 · 释义/中文词/短句随机搭配 · 顺序已打乱`;
 	}
 	const mode = options.contentMode !== "word" ? ` · 含${options.summaryLabel ?? ""}` : "";
 	return `${options.count} 个单词 · 语音已就绪 · 顺序已打乱${mode}`;

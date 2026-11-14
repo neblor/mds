@@ -204,7 +204,7 @@ describe("短句写回", () => {
 			genMode: "cyber",
 			elapsedMs: [4000, 2000],
 		});
-		expect(items).toEqual([
+			expect(items).toEqual([
 			{
 				word: "apple",
 				correct: true,
@@ -219,6 +219,71 @@ describe("短句写回", () => {
 				mode: "word",
 				genMode: "cyber",
 				elapsedMs: 2000,
+			},
+		]);
+	});
+
+	it("混合场次：逐行按该轮真实模式写回，不写 mixed", () => {
+		const rows = buildResultRows(
+			[
+				{
+					word: "apple",
+					audioName: "apple.mp3",
+					mode: "chinese",
+					pass: 1,
+					chineseWord: "苹果",
+					answer: "apple",
+					answerDef: "苹果",
+				},
+				{
+					word: "apple",
+					audioName: "apple.mp3",
+					mode: "definition",
+					pass: 2,
+					definition: "A round fruit.",
+					answerDef: "A round fruit.",
+				},
+				{
+					word: "banana",
+					audioName: "banana.mp3",
+					mode: "sentence",
+					pass: 1,
+					variant: "sentence",
+					sentence: "A yellow banana.",
+					answer: "a yellow banana",
+				},
+			],
+			"cyber",
+			"mixed",
+		);
+		const items = buildCommitItems({
+			rows,
+			mode: "mixed",
+			genMode: "cyber",
+			elapsedMs: [3000, 4000, 5000],
+		});
+		expect(items).toEqual([
+			{
+				word: "apple",
+				correct: true,
+				mode: "chinese",
+				genMode: "cyber",
+				elapsedMs: 3000,
+			},
+			{
+				word: "apple",
+				correct: true,
+				// 第 2 次出现的释义轮：只有定义字段，仍按 definition 记账
+				mode: "definition",
+				genMode: "cyber",
+				elapsedMs: 4000,
+			},
+			{
+				word: "banana",
+				correct: true,
+				mode: "sentence",
+				genMode: "cyber",
+				elapsedMs: 5000,
 			},
 		]);
 	});
@@ -700,6 +765,54 @@ describe("commitReviews", () => {
 		expect(session).toMatchObject({ correct: 2, words: ["apple", "banana"] });
 		const recent = reviewStore.stats?.recentSessions("b1", 3)[0];
 		expect(recent).toMatchObject({ judged: 3, wordCount: 2, correct: 2 });
+	});
+
+	it("混合场次：4 个判定对 2 个词，卡片每词只推一次；一词两轮一错即 Again", () => {
+		const { bankStore, reviewStore } = tempStores();
+		bankStore.write(makeBank("b1", [["apple", 10], ["banana", 20]]));
+		const result = commitReviews({
+			bankStore,
+			reviewStore,
+			bankId: "b1",
+			items: [
+				{ word: "apple", correct: true, mode: "chinese", genMode: "cyber", elapsedMs: 1000 },
+				{ word: "apple", correct: false, mode: "definition", genMode: "cyber", elapsedMs: 1000 },
+				{ word: "banana", correct: true, mode: "sentence", genMode: "cyber", elapsedMs: 1000 },
+				{ word: "banana", correct: true, mode: "chinese", genMode: "cyber", elapsedMs: 1000 },
+			],
+			now: NOW,
+			session: {
+				id: "s-mixed",
+				genMode: "cyber",
+				contentMode: "mixed",
+				words: ["apple", "banana"],
+				correct: 0,
+				activeMs: 4000,
+				wallMs: 4000,
+			},
+		});
+		// 卡片按词聚合：apple 两轮一错 → Again；banana 两轮全对 → Good
+		expect(result.updated.map((item) => [item.word, item.rating])).toEqual([
+			["apple", 1],
+			["banana", 3],
+		]);
+		const session = reviewStore.readSessions("b1")[0];
+		expect(session.contentMode).toBe("mixed");
+		// 得分按题（4 空对 3），词数只有 2：旧实现会把 correct 夹到 word_count
+		expect(session).toMatchObject({ correct: 3, words: ["apple", "banana"] });
+		const recent = reviewStore.stats?.recentSessions("b1", 3)[0];
+		expect(recent).toMatchObject({ judged: 4, wordCount: 2, correct: 3 });
+		const logs = reviewStore.readLogs("b1");
+		expect(logs.map((log) => log.mode)).toEqual([
+			"chinese",
+			"definition",
+			"sentence",
+			"chinese",
+		]);
+		expect(Object.keys(reviewStore.readCards("b1")).sort()).toEqual([
+			"apple",
+			"banana",
+		]);
 	});
 
 	it("空提交不写日志，但会返回当前进度", () => {

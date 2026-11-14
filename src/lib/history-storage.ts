@@ -61,11 +61,16 @@ function normalizeRow(value: unknown): ResultRow | null {
 	const fields = r.fields
 		.map(normalizeField)
 		.filter((f): f is ResultField => f !== null);
+	// 逐轮模式与 pass（混合场次）：回看时才能显示「本轮：释义 · 第 2 次」这类标签
+	const mode = isContentMode(r.mode) ? r.mode : undefined;
+	const pass = r.pass === 1 || r.pass === 2 ? r.pass : undefined;
 	return {
 		word: r.word,
 		audioName: typeof r.audioName === "string" ? r.audioName : "",
 		...(typeof r.context === "string" && r.context ? { context: r.context } : {}),
 		...(typeof r.note === "string" && r.note ? { note: r.note } : {}),
+		...(mode ? { mode } : {}),
+		...(pass ? { pass } : {}),
 		fields,
 	};
 }

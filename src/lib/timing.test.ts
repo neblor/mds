@@ -19,6 +19,7 @@ import {
 	sentenceCharCount,
 	sentenceSpeechIntervals,
 	sentenceCountdownDuration,
+	secondStepOnlyDuration,
 	phoneticCountdownDuration,
 	IPA_THINK_SECONDS,
 	IPA_TOKEN_SECONDS,
@@ -523,5 +524,75 @@ describe("phoneticCountdownDuration", () => {
 				multiplier: 1.5,
 			}),
 		).toBe(round1(think * SPEED_RATE.fast * 1.5 + 2 + IPA_AUDIO_TAIL_SECONDS));
+	});
+});
+
+describe("secondStepOnlyDuration（混合第 2 次出现的释义/中文词轮）", () => {
+	const definition = "A round fruit that you can eat.";
+
+	it("释义：只保留每遍思考 + 第二步段（不含写单词）", () => {
+		// transform：9 字母 → 释义轮 3 遍；6 + (5 + 0.4 × 24) = 20.6
+		expect(
+			secondStepOnlyDuration({
+				word: "transform",
+				kind: "definition",
+				secondText: definition,
+				level: "normal",
+			}),
+		).toBe(20.6);
+	});
+
+	it("中文词：每遍思考 + 中文书写段", () => {
+		// 3 遍 → 6 + (2 + 1.5 × 2) = 11
+		expect(
+			secondStepOnlyDuration({
+				word: "transform",
+				kind: "chinese",
+				secondText: "改变",
+				level: "normal",
+			}),
+		).toBe(11);
+	});
+
+	it("与两段式的差额正好是「写单词」占用的时间", () => {
+		const word = "transform";
+		const twoStep = countdownDuration({
+			word,
+			level: "normal",
+			withDefinition: true,
+			definitionText: definition,
+		});
+		const oneStep = secondStepOnlyDuration({
+			word,
+			kind: "definition",
+			secondText: definition,
+			level: "normal",
+		});
+		// repeatCount(transform, true) = 3 → 0.3 × 9 × 3 = 8.1
+		expect(Math.round((twoStep - oneStep) * 10) / 10).toBe(
+			Math.round(LETTER_SECONDS * wordLength(word) * 3 * 10) / 10,
+		);
+	});
+
+	it("仍按档位与倍率双重缩放", () => {
+		expect(
+			secondStepOnlyDuration({
+				word: "transform",
+				kind: "chinese",
+				secondText: "改变",
+				level: "slow",
+				multiplier: 1.2,
+			}),
+		).toBe(Math.round(11 * SPEED_RATE.slow * 1.2 * 10) / 10);
+	});
+
+	it("第二步文本缺失时按最短文本计时，不抛错", () => {
+		expect(
+			secondStepOnlyDuration({
+				word: "sun",
+				kind: "definition",
+				level: "normal",
+			}),
+		).toBeGreaterThan(0);
 	});
 });

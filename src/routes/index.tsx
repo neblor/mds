@@ -12,6 +12,9 @@ import HistoryScreen from "~/components/HistoryScreen";
 import { useDictation } from "~/lib/use-dictation";
 import { useWordBanks } from "~/lib/use-wordbanks";
 import { planRetry } from "~/lib/history-screen";
+import { roundAskOf, type RoundAsk } from "~/lib/mixed-mode";
+import { CONTENT_MODE_LABELS } from "~/lib/results";
+import type { ContentMode } from "~/lib/state";
 
 export default function Home() {
 	const d = useDictation();
@@ -72,17 +75,27 @@ export default function Home() {
 		const round = d.currentRound();
 		return round && round.kind === "cloze" ? round : undefined;
 	};
-	/** 音标场次里的降级单词轮要按普通单词输入渲染，不能仍显示音标面板 */
-	const displayContentMode = () => {
+	/** 当前轮的有效内容模式：混合按轮、音标场次的降级轮按单词 */
+	const displayContentMode = (): ContentMode => {
 		const round = d.currentRound();
-		if (
-			d.contentMode() === "phonetic" &&
-			round?.kind === "word" &&
-			!round.phonetic
-		) {
-			return "word" as const;
+		if (round?.kind === "word") {
+			if (round.mode) return round.mode as ContentMode;
+			if (d.contentMode() === "phonetic" && !round.phonetic) return "word";
 		}
 		return d.contentMode();
+	};
+	/** 本轮的作答形态（单/双格由它决定，混合场次逐轮不同） */
+	const roundAsk = (): RoundAsk => {
+		const round = d.currentRound();
+		return round?.kind === "word" ? roundAskOf(round, d.contentMode()) : "word";
+	};
+	/** 混合场次的本轮徽标：模式 + 第几次出现 */
+	const roundBadge = (): string | null => {
+		const round = d.currentRound();
+		if (d.contentMode() !== "mixed") return null;
+		if (round?.kind !== "word" || !round.pass) return null;
+		const label = CONTENT_MODE_LABELS[(round.mode ?? "word") as ContentMode];
+		return `本轮：${label} · 第 ${round.pass} 次`;
 	};
 
 	// 结算时把这一场的判定写回复习计划（书写模式没有判定字段 → 底层会跳过）
@@ -207,6 +220,7 @@ export default function Home() {
 									<DictatingView
 										index={d.currentIndex()}
 										total={d.rounds().length}
+										unit={d.contentMode() === "mixed" ? "轮" : "个"}
 										remainingSec={d.remaining()}
 										durationSec={d.currentRound()?.countdownSec ?? 1}
 										showNumber={d.settings().showCountdownNumber}
@@ -217,6 +231,8 @@ export default function Home() {
 										sounding={d.sounding()}
 										mode={d.mode()}
 										contentMode={displayContentMode()}
+										ask={roundAsk()}
+										roundBadge={roundBadge()}
 										submittedWord={wordRound()?.answer}
 										submittedDef={wordRound()?.answerDef}
 										wordInput={d.wordInput()}
