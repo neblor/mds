@@ -10,11 +10,11 @@
  * 因此脚本会汇总长度分布，并对「贴着上限（7–8 词）」占比过高给出提示。
  */
 import { existsSync } from "node:fs";
-import { register } from "node:module";
+import { registerTsResolve } from "./ts-resolve-hook.mjs";
 import process from "node:process";
 import { resolve } from "node:path";
 
-register("./ts-resolve-hook.mjs", import.meta.url);
+registerTsResolve();
 
 const { getShortSentences } = await import("../src/lib/sentence-service.ts");
 const { sentenceWordCount, SENTENCE_MAX_WORDS } = await import(

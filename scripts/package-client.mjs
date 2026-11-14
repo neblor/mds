@@ -128,7 +128,11 @@ try {
 		console.log(`正式版本已更新为 ${plan.targetVersion}`);
 	} else {
 		writeFileSync(packagePath, originalPackageText);
-		console.log(`测试打包完成，版本仍为 ${plan.currentVersion}`);
+		console.log(
+			plan.bumpType === "test"
+				? `测试打包完成，版本仍为 ${plan.currentVersion}`
+				: `打包完成，版本保持 ${plan.currentVersion}`,
+		);
 	}
 } catch (error) {
 	if (packageWasChanged) writeFileSync(packagePath, originalPackageText);

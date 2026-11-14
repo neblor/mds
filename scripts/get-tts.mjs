@@ -7,10 +7,10 @@
  * 只读不写：不落业务缓存，也不打印任何密钥（Edge 的客户端令牌是公开常量，不在此列）。
  * 失败（任一词失败）退出码非 0，便于脚本/CI 判读。
  */
-import { register } from "node:module";
+import { registerTsResolve } from "./ts-resolve-hook.mjs";
 import process from "node:process";
 
-register("./ts-resolve-hook.mjs", import.meta.url);
+registerTsResolve();
 
 const { createEdgeTtsClient, getEdgeTtsClockSkew } = await import(
 	"../src/lib/edge-tts-client.ts"

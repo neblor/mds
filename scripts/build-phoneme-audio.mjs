@@ -23,9 +23,9 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 import process from "node:process";
-import { register } from "node:module";
+import { registerTsResolve } from "./ts-resolve-hook.mjs";
 
-register("./ts-resolve-hook.mjs", import.meta.url);
+registerTsResolve();
 const { PHONEME_AUDIO_VERSION, IPA_SYMBOLS, IPA_STRESS } = await import(
 	"../src/lib/phonetic-symbols.ts"
 );

@@ -13,10 +13,10 @@ import {
 	renameSync,
 	rmdirSync,
 } from "node:fs";
-import { register } from "node:module";
+import { registerTsResolve } from "./ts-resolve-hook.mjs";
 import { resolve } from "node:path";
 
-register("./ts-resolve-hook.mjs", import.meta.url);
+registerTsResolve();
 
 const { resolveDataDir, resolveReviewDir } = await import(
 	"../src/lib/data-paths.ts"

@@ -18,11 +18,11 @@
  */
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { register } from "node:module";
+import { registerTsResolve } from "./ts-resolve-hook.mjs";
 import { join, resolve } from "node:path";
 import process from "node:process";
 
-register("./ts-resolve-hook.mjs", import.meta.url);
+registerTsResolve();
 const { pageWordCandidates, parsePdf2Xml } = await import("../src/lib/pet-pdfxml.ts");
 const {
 	parsePetTopicWordList,

@@ -14,12 +14,12 @@
  */
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { register } from "node:module";
+import { registerTsResolve } from "./ts-resolve-hook.mjs";
 import { join, resolve } from "node:path";
 import process from "node:process";
 
 // 项目源码用无扩展名的相对导入（Vite 风格），Node 需要这个钩子才能解析
-register("./ts-resolve-hook.mjs", import.meta.url);
+registerTsResolve();
 const { csvRecords, ecdictRowToEntry, parseCsv } = await import(
 	"../src/lib/bank-parse.ts"
 );

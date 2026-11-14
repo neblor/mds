@@ -8,7 +8,8 @@
     "start": "pnpm web:start",
     "preview": "pnpm web:preview",
     "test": "pnpm test:run",
-    "check": "pnpm test:run && pnpm web:build && pnpm web:smoke",
+    "check": "pnpm test:run && pnpm typecheck && pnpm web:build && pnpm web:smoke",
+    "typecheck": "tsc --noEmit",
     "web:dev": "vite dev",
     "web:build": "vite build",
     "web:start": "node scripts/start-web.mjs",
@@ -60,6 +61,7 @@
     "electron-builder": "^26.15.3",
     "playwright-core": "^1.62.1",
     "tailwindcss": "^4.0.7",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   },
   "engines": {

@@ -133,9 +133,9 @@ pnpm release patch
 - Web 默认缓存：`.mds-data/word-cache`（音频 `*.mp3`、释义 `definitions.json`、中文词 `chinese-words.json`）
 - 安装版客户端：统一使用 Electron `userData/mds-data/word-cache`（卸载默认保留）
 - 复习状态：`.mds-data/review/review.sqlite`（SQLite/WAL）；旧 JSON 首次启动自动迁移，归档到 `review/migrated-v1/`
-- AI 诊断日志：Client 的 `mds-data/logs/ai-definitions.log`
+- AI / TTS 诊断日志：Client 的 `mds-data/logs/runtime.log`（旧名 `ai-definitions.log`，首次写入时自动搬过去）
 
-AI 日志会记录请求失败、兼容降级、响应缺项或截断及缓存写入失败，但不会记录 API Key；达到 1 MiB 后保留一份轮换日志。
+诊断日志会记录请求失败、兼容降级、响应缺项或截断、缓存写入失败以及 TTS 端点回退，但不会记录 API Key；达到 1 MiB 后保留一份轮换日志。
 
 ### 常用命令
 
@@ -145,7 +145,8 @@ AI 日志会记录请求失败、兼容降级、响应缺项或截断及缓存�
 | `pnpm build` | 生产构建到 `.output/` |
 | `pnpm start` | 启动已有生产构建（默认 `127.0.0.1:3000`） |
 | `pnpm test` | 运行全部 Vitest 单元测试 |
-| `pnpm check` | 测试、生产构建和 HTTP 冒烟 |
+| `pnpm check` | 测试、类型检查、生产构建和 HTTP 冒烟 |
+| `pnpm typecheck` | 单独跑 `tsc --noEmit` |
 | `pnpm db:status` | 只读查看复习 SQLite 状态（schema/条数/归档/quick_check） |
 | `pnpm db:rollback -- --yes` | 回滚到迁移前的 JSON（先退出应用） |
 | `pnpm get:explain ...` | 直接诊断 AI 释义接口（`--chinese` 诊断中文词） |
@@ -290,9 +291,9 @@ The resulting EXE installs as a guided NSIS package: per-user install, optional 
 - Web cache: `.mds-data/word-cache` (audio `*.mp3`, `definitions.json`, `chinese-words.json`)
 - Installed client cache: Electron `userData/mds-data/word-cache` (kept on uninstall by default)
 - Review state: `.mds-data/review/review.sqlite` (SQLite/WAL); legacy JSON is migrated on first start and archived under `review/migrated-v1/`
-- Client AI diagnostics: `mds-data/logs/ai-definitions.log`
+- Client runtime diagnostics: `mds-data/logs/runtime.log` (formerly `ai-definitions.log`; the old file is migrated on first write)
 
-Diagnostic logs cover request failures, compatibility fallbacks, truncated or incomplete responses, and cache write failures. API keys are never logged, and the file rotates at 1 MiB.
+Diagnostic logs cover request failures, compatibility fallbacks, truncated or incomplete responses, cache write failures, and TTS endpoint fallbacks. API keys are never logged, and the file rotates at 1 MiB.
 
 ### Main commands
 
@@ -302,7 +303,8 @@ Diagnostic logs cover request failures, compatibility fallbacks, truncated or in
 | `pnpm build` | Production build into `.output/` |
 | `pnpm start` | Serve the existing production build (default `127.0.0.1:3000`) |
 | `pnpm test` | Run all Vitest unit tests |
-| `pnpm check` | Run tests, production build, and HTTP smoke test |
+| `pnpm check` | Run tests, type check, production build, and HTTP smoke test |
+| `pnpm typecheck` | Run `tsc --noEmit` alone |
 | `pnpm db:status` | Read-only review SQLite status (schema, counts, archive, `quick_check`) |
 | `pnpm db:rollback -- --yes` | Roll back to the pre-migration JSON files (quit the app first) |
 | `pnpm get:explain ...` | Diagnose the AI content provider directly |

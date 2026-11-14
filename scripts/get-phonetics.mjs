@@ -5,11 +5,11 @@
  * 输出逐词读音、缺失、耗时、兼容降级与诊断事件；不打印 Key。
  */
 import { existsSync } from "node:fs";
-import { register } from "node:module";
+import { registerTsResolve } from "./ts-resolve-hook.mjs";
 import process from "node:process";
 import { resolve } from "node:path";
 
-register("./ts-resolve-hook.mjs", import.meta.url);
+registerTsResolve();
 const { fetchPhonetics } = await import("../src/lib/phonetic-provider.ts");
 const { phoneticDisplay } = await import("../src/lib/phonetic-parse.ts");
 

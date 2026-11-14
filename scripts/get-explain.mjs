@@ -1,11 +1,11 @@
 import { existsSync } from "node:fs";
-import { register } from "node:module";
+import { registerTsResolve } from "./ts-resolve-hook.mjs";
 import process from "node:process";
 import { resolve } from "node:path";
 
 // 项目源码用无扩展名的相对导入（Vite 风格），Node 需要这个钩子才能解析；
 // 钩子必须在 import 之前注册，因此 provider 用动态 import 引入。
-register("./ts-resolve-hook.mjs", import.meta.url);
+registerTsResolve();
 
 const { fetchEnglishDefinitions, fetchChineseWords, fetchAnswerGrades } =
 	await import("../src/lib/definition-provider.ts");

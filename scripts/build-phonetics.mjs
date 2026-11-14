@@ -15,9 +15,9 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import process from "node:process";
-import { register } from "node:module";
+import { registerTsResolve } from "./ts-resolve-hook.mjs";
 
-register("./ts-resolve-hook.mjs", import.meta.url);
+registerTsResolve();
 const {
 	normalizeSourceToken,
 	parsePhoneticVariants,

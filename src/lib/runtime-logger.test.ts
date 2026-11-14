@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { readFileSync, rmSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { createRuntimeDiagnosticLogger } from "./runtime-logger";
 
@@ -18,7 +24,7 @@ describe("runtime diagnostic logger", () => {
 				apiKey: "secret",
 			},
 		});
-		const file = join("/tmp/mds-runtime-logger-test/mds-data/logs", "ai-definitions.log");
+		const file = join("/tmp/mds-runtime-logger-test/mds-data/logs", "runtime.log");
 		const content = readFileSync(file, "utf8");
 		expect(content).toContain('"event":"request-failed"');
 		expect(content).toContain("https://example.test/v1");
@@ -42,11 +48,27 @@ describe("runtime diagnostic logger", () => {
 		logger.write({ event: "first", level: "error", details: {} });
 		logger.write({ event: "second", level: "warning", details: {} });
 		const logDir = "/tmp/mds-runtime-logger-test/mds-data/logs";
-		expect(readFileSync(join(logDir, "ai-definitions.log"), "utf8")).toContain(
+		expect(readFileSync(join(logDir, "runtime.log"), "utf8")).toContain(
 			'"event":"second"',
 		);
-		expect(
-			readFileSync(join(logDir, "ai-definitions.log.1"), "utf8"),
-		).toContain('"event":"first"');
+		expect(readFileSync(join(logDir, "runtime.log.1"), "utf8")).toContain(
+			'"event":"first"',
+		);
+	});
+
+	it("旧日志 ai-definitions.log 自动搬到 runtime.log", () => {
+		const logDir = join("/tmp/mds-runtime-logger-test/mds-data/logs");
+		mkdirSync(logDir, { recursive: true });
+		writeFileSync(join(logDir, "ai-definitions.log"), '{"event":"legacy"}\n');
+		writeFileSync(join(logDir, "ai-definitions.log.1"), '{"event":"legacy-old"}\n');
+		const logger = createRuntimeDiagnosticLogger({ mode: "client", cacheRoot: root });
+		logger.write({ event: "fresh", level: "error", details: {} });
+		expect(readFileSync(join(logDir, "runtime.log"), "utf8")).toContain(
+			'"event":"legacy"',
+		);
+		expect(readFileSync(join(logDir, "runtime.log.1"), "utf8")).toContain(
+			'"event":"legacy-old"',
+		);
+		expect(existsSync(join(logDir, "ai-definitions.log"))).toBe(false);
 	});
 });

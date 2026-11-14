@@ -23,6 +23,7 @@ import {
 	mkdirSync,
 	openSync,
 	readFileSync,
+	readdirSync,
 	readSync,
 	renameSync,
 	rmSync,
@@ -275,22 +276,18 @@ function previousReleaseTag(root) {
 }
 
 /** 读取并校验归档；目录不存在返回 null，存在但内容不自洽直接抛（不静默重建）。 */
-function readArchive(root, version) {
-	const dir = join(root, releaseArchiveDir(version));
-	if (!existsSync(dir)) return null;
+function readArchiveAt(dir, version, label) {
 	const manifestPath = join(dir, RELEASE_MANIFEST_FILE);
 	if (!existsSync(manifestPath)) {
 		throw new Error(
-			`归档目录已存在但没有 ${RELEASE_MANIFEST_FILE}：${releaseArchiveDir(version)}（先人工核对，不覆盖）`,
+			`归档目录已存在但没有 ${RELEASE_MANIFEST_FILE}：${label}（先人工核对，不覆盖）`,
 		);
 	}
 	let manifest;
 	try {
 		manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 	} catch (error) {
-		throw new Error(`归档清单不是有效 JSON：${releaseArchiveDir(version)}`, {
-			cause: error,
-		});
+		throw new Error(`归档清单不是有效 JSON：${label}`, { cause: error });
 	}
 	const name = String(manifest?.artifact?.name ?? "");
 	if (basename(name) !== name || !name) {
@@ -298,7 +295,7 @@ function readArchive(root, version) {
 	}
 	const artifactPath = join(dir, name);
 	if (!existsSync(artifactPath)) {
-		throw new Error(`归档缺少安装包：${releaseArchiveDir(version)}/${name}`);
+		throw new Error(`归档缺少安装包：${label}/${name}`);
 	}
 	const notesPath = join(dir, RELEASE_NOTES_FILE);
 	const sumsPath = join(dir, RELEASE_SUMS_FILE);
@@ -309,11 +306,11 @@ function readArchive(root, version) {
 	validateManifest(manifest, { version, bytes, sha256 });
 	validateChecksumsText(readFileSync(sumsPath, "utf8"), [{ sha256, name }]);
 	if (!readFileSync(notesPath, "utf8").trim()) {
-		throw new Error(`归档发布说明不能为空：${releaseArchiveDir(version)}/${RELEASE_NOTES_FILE}`);
+		throw new Error(`归档发布说明不能为空：${label}/${RELEASE_NOTES_FILE}`);
 	}
 	return {
 		dir,
-		relativeDir: releaseArchiveDir(version),
+		relativeDir: label,
 		manifest,
 		artifactPath,
 		notesPath,
@@ -321,6 +318,30 @@ function readArchive(root, version) {
 		bytes,
 		sha256,
 	};
+}
+
+function readArchive(root, version) {
+	const dir = join(root, releaseArchiveDir(version));
+	if (!existsSync(dir)) return null;
+	return readArchiveAt(dir, version, releaseArchiveDir(version));
+}
+
+/** 写文件用临时文件 + rename，避免写到一半被中断时留下半截清单/说明。 */
+function writeFileAtomic(path, text) {
+	const temporary = `${path}.tmp-${process.pid}`;
+	writeFileSync(temporary, text);
+	renameSync(temporary, path);
+}
+
+/** 清掉上次被强杀留下的暂存目录（只认本版本自己的命名）。 */
+function removeStaleStaging(root, tag) {
+	const archiveRoot = join(root, "release-out");
+	if (!existsSync(archiveRoot)) return;
+	const prefix = `.staging-${tag}-`;
+	for (const entry of readdirSync(archiveRoot)) {
+		if (!entry.startsWith(prefix)) continue;
+		rmSync(join(archiveRoot, entry), { recursive: true, force: true });
+	}
 }
 
 function writeReleaseNotes({ root, plan, dir, args, log }) {
@@ -393,8 +414,8 @@ function refreshNotes({ root, version, archive, args, log }) {
 	) {
 		return archive;
 	}
-	writeFileSync(target, selected.text);
-	writeFileSync(
+	writeFileAtomic(target, selected.text);
+	writeFileAtomic(
 		join(archive.dir, RELEASE_MANIFEST_FILE),
 		`${JSON.stringify({ ...archive.manifest, notesSource: selected.source }, null, 2)}\n`,
 	);
@@ -433,37 +454,50 @@ function buildAndArchive({ root, plan, args, log }) {
 		);
 	}
 
-	mkdirSync(dir, { recursive: true });
-	const artifactPath = join(dir, plan.artifactName);
+	// 归档先写进暂存目录，全部校验通过后再原子改名：
+	// 进程被强杀/磁盘写满时不会留下「缺清单的归档」，重跑也不会误用半成品。
+	removeStaleStaging(root, plan.tag);
+	const stage = join(root, "release-out", `.staging-${plan.tag}-${process.pid}`);
+	let finalized = false;
 	try {
-		renameSync(distArtifact, artifactPath);
-	} catch {
-		copyFileSync(distArtifact, artifactPath);
-		rmSync(distArtifact, { force: true });
-	}
-	const bytes = statSync(artifactPath).size;
-	const sha256 = sha256File(artifactPath);
-	writeFileSync(
-		join(dir, RELEASE_SUMS_FILE),
-		sha256SumsText([{ sha256, name: plan.artifactName }]),
-	);
+		mkdirSync(stage, { recursive: true });
+		const artifactPath = join(stage, plan.artifactName);
+		try {
+			renameSync(distArtifact, artifactPath);
+		} catch {
+			copyFileSync(distArtifact, artifactPath);
+			rmSync(distArtifact, { force: true });
+		}
+		const bytes = statSync(artifactPath).size;
+		const sha256 = sha256File(artifactPath);
+		writeFileSync(
+			join(stage, RELEASE_SUMS_FILE),
+			sha256SumsText([{ sha256, name: plan.artifactName }]),
+		);
 
-	const notesSource = writeReleaseNotes({ root, plan, dir, args, log });
-	const manifest = {
-		schema: RELEASE_MANIFEST_SCHEMA,
-		version: plan.targetVersion,
-		baseCommit,
-		builtAt: new Date().toISOString(),
-		notesSource,
-		artifact: { name: plan.artifactName, bytes, sha256 },
-	};
-	writeFileSync(
-		join(dir, RELEASE_MANIFEST_FILE),
-		`${JSON.stringify(manifest, null, 2)}\n`,
-	);
-	log(
-		`[2/3] 归档完成：${plan.archiveDir}（${formatBytes(bytes)}，sha256 ${sha256.slice(0, 16)}…）`,
-	);
+		const notesSource = writeReleaseNotes({ root, plan, dir: stage, args, log });
+		const manifest = {
+			schema: RELEASE_MANIFEST_SCHEMA,
+			version: plan.targetVersion,
+			baseCommit,
+			builtAt: new Date().toISOString(),
+			notesSource,
+			artifact: { name: plan.artifactName, bytes, sha256 },
+		};
+		writeFileSync(
+			join(stage, RELEASE_MANIFEST_FILE),
+			`${JSON.stringify(manifest, null, 2)}\n`,
+		);
+		// 清单/大小/摘要/说明全部自洽后才落成正式目录。
+		readArchiveAt(stage, plan.targetVersion, plan.archiveDir);
+		renameSync(stage, dir);
+		finalized = true;
+		log(
+			`[2/3] 归档完成：${plan.archiveDir}（${formatBytes(bytes)}，sha256 ${sha256.slice(0, 16)}…）`,
+		);
+	} finally {
+		if (!finalized) rmSync(stage, { recursive: true, force: true });
+	}
 	return readArchive(root, plan.targetVersion);
 }
 

@@ -250,7 +250,7 @@ PET/CET-4/中高考足够；GRE/TOEFL 会较多走 AI。每场队列通常只有
     `{ model, promptVersion, phonetics: { word: "ˈ æ p ə l" } }`；
   - 命中 → 请求缺失 → 校验合并 → 原子写 → 写后复读校验；
   - `model`/`promptVersion` 变化视为未命中；失效/中止不写；
-  - 诊断事件写入现有 `mds-data/logs/ai-definitions.log`（不记录 Key，沿用 logger 脱敏）。
+  - 诊断事件写入现有 `mds-data/logs/runtime.log`（不记录 Key，沿用 logger 脱敏；该文件 2026-11-15 由 `ai-definitions.log` 改名）。
 - 路由：`POST /api/phonetics`（薄适配，参数校验同 `/api/chinese-words`），
   返回 `{ phonetics, missing, cachedCount, warning }`。
 - 客户端：`requestPhonetics(words, settings, signal)` 只对词典没命中的词调用；

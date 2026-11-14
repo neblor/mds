@@ -43,7 +43,7 @@
 | `pnpm start` | `pnpm web:start`的常用别名，只启动已有生产构建 |
 | `pnpm preview` | `pnpm web:preview`的常用别名 |
 | `pnpm test` | `pnpm test:run`的常用别名，单次运行全部 Vitest |
-| `pnpm check` | 完整 Web 交付检查：Vitest → Web 生产构建 → Web 生产冒烟 |
+| `pnpm check` | 完整 Web 交付检查：Vitest → `tsc --noEmit` → Web 生产构建 → Web 生产冒烟 |
 | `pnpm get:explain word1 word2 ...` | 直接调用独立 AI 释义服务做人工诊断；读取项目`.env`中的`MDS_AI_BASE_URL`、`MDS_AI_API_KEY`、`MDS_AI_MODEL`，不读写业务缓存 |
 | `pnpm get:sentences word1 word2 ...` | 短句模式诊断：复用生产生句链路（含超长收紧重试），逐词输出句子/词数/是否偏长，并汇总长度分布（目标 3–6 词、硬上限 8 词），不写业务缓存 |
 | `pnpm get:tts word1 word2 ...` | 语音合成诊断：复用生产 Edge TTS provider，逐词输出命中端点/是否回退/耗时/字节数/mp3 头/失败原因，不写业务缓存。403 优先查系统时间（令牌按 5 分钟窗口），见`.implementation-report/2026-10-17-edge-tts-v2-and-hydration-crash.md`§六 |
@@ -84,6 +84,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 | 命令 | 用途 |
 | --- | --- |
 | `pnpm test:run` | 单次运行全部 Vitest，适用于交付与 CI |
+| `pnpm typecheck` | `tsc --noEmit` 全仓类型检查（已含在 `pnpm check` 里，也自上而下跑） |
 | `pnpm test:watch` | 启动 Vitest watch，适用于开发过程 |
 | `pnpm test:run -- src/lib/example.test.ts` | 只运行指定测试文件 |
 
@@ -134,7 +135,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 - 运行时缓存不得写入或打包进静态 `public`：Web 默认使用项目 `.mds-data/word-cache`（部署时可用 `MDS_CACHE_DIR` 覆盖）；Electron 安装版统一使用 `userData/mds-data/word-cache`（卸载默认保留）
 - 复习状态使用 `mds-data/review/review.sqlite`（SQLite/WAL）：首次启动自动迁移旧 `cards.json` / `log.jsonl` / `sessions.jsonl`，旧文件归档到 `review/migrated-v1/`；迁移失败进入兼容模式（默写/队列/结算可用，统计 503）。`daily.json` 已移除，今日进度由 `review_log` 按库/日聚合
 - Client 主进程必须在启动内置服务前设置 `MDS_RUNTIME_MODE=client` 和 `MDS_CACHE_DIR`；业务层通过 `/api/audio` 动态读取外置音频，不依赖静态目录
-- Client 模式下第三方 AI 释义调用的降级、错误、缺词/截断及缓存写入失败记录到外置 `mds-data/logs/ai-definitions.log`，日志达到 1 MiB 时轮换一份 `.1`；日志不得记录 API Key
+- Client 模式下第三方 AI 释义/TTS 等运行时诊断（降级、错误、缺词/截断、缓存写入失败、端点回退）记录到外置 `mds-data/logs/runtime.log`（2026-11-15 由 `ai-definitions.log` 改名，旧文件首次写入时自动迁移），日志达到 1 MiB 时轮换一份 `.1`；日志不得记录 API Key
 - Electron 主窗口默认及最大尺寸为 `1120×820`，最小尺寸为各边约三分之二的 `747×547`；允许在该范围内缩放，但必须禁用最大化和全屏
 - 音频与释义缓存的命中、读取、原子写入和失效必须通过统一的 runtime cache storage 接口完成，由工厂按 Web/Client 环境选择实现；业务路由不得直接操作缓存文件或自行判断运行环境
 - 打包：`pnpm client:package <major|minor|patch|test|x.y.z>`（`pnpm electron:build <bump_type>`为兼容别名）；发布模式产出`dist/electron/mds-<version>-setup.exe`，测试模式产出`dist/electron-test/mds-<version>-setup.exe`，两个输出目录在成功后都只保留该最终安装包

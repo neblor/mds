@@ -13,12 +13,12 @@
  * - 配置读项目 .env：MDS_AI_BASE_URL / MDS_AI_API_KEY / MDS_AI_MODEL
  */
 import { existsSync } from "node:fs";
-import { register } from "node:module";
+import { registerTsResolve } from "./ts-resolve-hook.mjs";
 import { resolve } from "node:path";
 import process from "node:process";
 
 // 项目源码用无扩展名的相对导入（Vite 风格），Node 需要这个钩子才能解析
-register("./ts-resolve-hook.mjs", import.meta.url);
+registerTsResolve();
 
 const projectRoot = resolve(import.meta.dirname, "..");
 const envFile = resolve(projectRoot, ".env");
