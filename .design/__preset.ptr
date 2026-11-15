@@ -1,0 +1,26 @@
+{
+  "version": "2.22",
+  "fileToken": "a8f4761e-d070-4b7f-96de-1a3f9e40f25b",
+  "variables": {},
+  "children": [],
+  "x-paintress": {
+    "spec": "1",
+    "presets": {
+      "version": 1,
+      "items": {}
+    },
+    "generator": "paintress/0.8.0",
+    "updated_at": "2026-11-15T10:04:37.025Z",
+    "created_at": "2026-11-15T10:01:26.744Z",
+    "fonts": {
+      "families": {
+        "Noto Sans SC": {
+          "source": {
+            "kind": "web",
+            "target": "https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap"
+          }
+        }
+      }
+    }
+  }
+}

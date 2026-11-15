@@ -260,11 +260,11 @@ interface DailyPlan { date: string; size: number; reviewCount: number; newCount:
 ## 4. 实施分期（崔总 2026-10-12 定：两个大 phase）
 
 > **Phase 1 已完成**（2026-10-12）：实现报告见 `.implementation-report/2026-10-12-wordbank-srs-phase1.md`；
-> 界面见 `.design/mds.pen` 的 18–23 屏。
+> 界面见 `.design/mds.ptr` 的 18–23 屏。
 > **Phase 2 已完成**（2026-10-12）：实现报告见 `.implementation-report/2026-10-12-wordbank-srs-phase2.md`；
 > 界面见 24–29 屏。实施时与计划的差异（已与崔总确认）与遗留项都写在报告与 `FUTURE.md` 第五节。
 
-#### Phase 1 · 词库功能 + SRS 每日复习（先做；先改 pencil 界面 → 确认 → 再拆任务实现）
+#### Phase 1 · 词库功能 + SRS 每日复习（先做；先改设计稿（paintress）→ 确认 → 再拆任务实现）
 1. 词源区**切换条**：录入 / 词表
 2. 词表模式：选词表（资源只读 / 自建可增删）+ 新建词表 + **「本次默几个」**
 3. 队列：`buildRoundQueue` 由 SRS 排（due <= now 优先 + 新词补足到 N）；下面列表从「本次单词表」变为**本次取的词**（带本批进度）

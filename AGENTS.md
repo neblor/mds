@@ -2,14 +2,34 @@
 
 `默点啥`项目，一个简单的默写辅助工具。
 
+> **记忆契约（3 行；规则书是 `.agents/memory/README.md`）**
+> ① 一个事实一个家 —— 详情写在拥有它的文件里，别处只留 `path#section` 指针；
+> ② 本文件只放每个会话都需要的东西（硬规则、命令、路由、索引），能查到的不放这里；
+> ③ 进度只归 `todo` 工具；改动后写记录到 `.agents/implementations/`，未收口的工作在 `specs/PLAN.md`，未做的登记根 `FUTURE.md`。
+
+## 计划与记忆索引
+
+这些文件**不会自动加载**，按下表按需读：
+
+| 位置 | 回答什么 | 何时读 |
+| --- | --- | --- |
+| `specs/PLAN.md` | 还没收口的事、待定问题、预算债务 | 开工前 |
+| `specs/<unit>.md` | 一个工作单元的需求 / 方案 / 验收（`/ask-plan` 产出） | 做具体一项工作前 |
+| `.agents/memory/README.md` | 记忆的写规则、预算、压缩配方 | 写记忆前 |
+| `.agents/memory/ARCHITECTURE.md` | 分层、版本基线、决策记录、调研存档 | 动架构 / 依赖 / 数据口径前 |
+| `.agents/memory/FINISHED.md` | 已收口的工作：摘要 + 证据指针 | 怕重复做已完成的事时 |
+| `.agents/memory/FUTURE.md` | 框架层延期项（业务延期项在根 `FUTURE.md`，见下节） | 想加「以后再做」时 |
+| `.agents/implementations/` | 每次改动的变更记录（`YYYY-MM-DD_HHMM_slug.md`） | 追改动、写 UAT 前 |
+
 ## 开发目录定义
 
 以下定义了项目根目录下设哪些目录用于做什么，这里往往是与项目本身运行无关的目录定义：
 
 - `.design` 设计目录，项目中需要用到界面设计时，在这里创建设计稿，并用 **paintress MCP / CLI** 操作
-  （见全局 AGENTS.md「设计稿操作」；不再使用 Pencil / pen.dev）
-  - 设计目录下每一套设计至少由2个文件组成，一个是`.pen`文件，以及文件主名与之相同的`.md`文件为设计和功能做说明注解，阅读时一起对照理解
-- `.implementation-report` 实施报告目录，也可供自己回顾之前的改动
+  （见全局 AGENTS.md「设计稿操作」）
+  - 设计目录下每一套设计至少由2个文件组成：一个设计稿（新建用 `.ptr`；历史 `.pen` 仍可读写），以及文件主名与之相同的 `.md` 作为设计与功能说明注解 —— 查看器识别同名 md，画布左上角会出现「笔记」面板；两者阅读时一起对照理解
+- `.agents` agent 记忆与变更记录目录（入口 `README.md`，规则 `.agents/memory/README.md`）：记忆在 `.agents/memory/`，变更记录在 `.agents/implementations/`，框架状态在 `.agents/framework/`；不是产品运行时目录，不进打包产物
+- `.implementation-report` **历史**实施报告目录（2026-08-01 起，只读），供回顾之前的改动；新记录进 `.agents/implementations/`，见「计划与记忆索引」
 
 ## 项目文档
 
@@ -17,8 +37,9 @@
   未来功能要用的数据，现在就必须完整落盘，界面上先不做过多展示，不允许出现「可惜当初没存」。
   - 每条写清：要做成什么样、触发条件（什么时候值得做）、代价/前置、相关落点或引用。
   - **本轮没做的额外项**（可选加固、被砍的优化、一次性待复核、Agent 建议）**必须登记到这里**；
-    `.implementation-report` 与 `plans/` 是回顾档案，不是待办清单 —— 只写在那边等于没记。
+    `.implementation-report`、`.agents/implementations/` 与 `plans/` 是回顾档案，不是待办清单 —— 只写在那边等于没记。
   - 做掉某条时：标注「已完成」并链到对应实施报告，不静默删除（后来者需要知道为何不再做）。
+- `.agents/memory/FUTURE.md` 只登记**框架层**（agent 记忆/流程自身）的延后项，业务延期项仍然只写根 `FUTURE.md`，不要两边各记一份。
 
 ## 技术选型
 
@@ -176,7 +197,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 - AI 释义功能的批量回归测试至少覆盖 20 个单词，并同时验证请求解析、请求词对齐、缓存写入及写后复读；不得只测试少量理想输入
 - 需要人工排查的第三方功能应提供项目根目录下可通过`pnpm`执行的诊断脚本；脚本必须复用生产 provider、输出耗时/缺项/降级等诊断信息，且不得在命令输出或日志中泄露 Key
 - 第三方调用即使存在自动降级也必须留下诊断记录；Client 模式统一写入外置`mds-data/logs`，至少记录网络/HTTP/超时、兼容降级、响应截断或缺项、缓存写入失败，并控制日志轮换大小
-- 完成后汇总实施报告存到`.implementation-report`，涉及到当前实现的需求，实现中的关键决策，以及结果，是否有后续可能要处理的部分；报告里「后续可能要处理的部分」必须同步登记到 [FUTURE.md](FUTURE.md)（那里是待办唯一入口）
+- 完成后写变更记录：新记录进 `.agents/implementations/`（`YYYY-MM-DD_HHMM_slug.md`，首行重复 `YYYY-MM-DDTHH:MM±HH:MM — 标题`；`/ask-init` 采纳前的 45 份历史报告留在只读的 `.implementation-report/`）。记录里写当前实现的需求、关键决策、结果，以及后续可能要处理的部分；「后续可能要处理的部分」必须同步登记到 [FUTURE.md](FUTURE.md)（业务待办唯一入口）
 
 ## 系统基础功能
 
@@ -264,7 +285,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 - **全屏音标表**：`/phonetic-symbols` 独立窗口；Electron 主进程 `setWindowOpenHandler` 只允许同源精确路径，用无边框全屏子窗口（主窗口 `fullscreenable:false` 不动）；Web 为普通弹窗。任意键/点击关闭，子窗口 `postMessage` + 父窗口轮询 `win.closed` 兜底。默写中打开：倒计时冻结、音频 abort；关闭后从当前这一遍恢复，暂停时长不计入本轮 `elapsedMs`；看表期间主窗口提交/跳轮 no-op。准备/就绪/结果阶段打开不暂停。
 - **结果与写回**：`ResultFieldKind` 增加 `phonetic`；结果行标准/我的 token 都带喇叭；AI 来源标「AI 生成，仅供参考」；降级词走普通单词行并标「本词没有可用音标，按单词默写」。写回按该行是否有 `phonetic` 字段决定 mode：音标轮记 `phonetic`，降级轮记 `word`；场次 `contentMode` 仍为 `phonetic`。`review-service` 的 `hasPhoneticField` 与 `results` 的 `WordRound.phonetic` 分支是生产路径，改这里必须同步测试。
 - **测试**：`phonetic-symbols/parse/match/pool`、`phonetic-dictionary`、`phoneme-audio`、`phonetic-provider/service`、`phonetic-chart`、`results`/`review-service`/`timing`/`history-storage`；AI provider/service 覆盖合法/非法 token、缺失不写负缓存、model 失效、写后复读。改这些必须跑 `pnpm test:run` 与 `pnpm check`。
-- **设计**：`.design/phonetic-mode.md` + 四张 Web 实机截图（音标轮空/已填、结果 1/1 与 0/1）；`.design/mds.pen` 第六批 **33–36** 已切（33 词库页、34 音标轮、35 结果、36 全屏表）；4 个待确认点见 `.design/phonetic-mode.md`。
+- **设计**：`.design/phonetic-mode.md` + 四张 Web 实机截图（音标轮空/已填、结果 1/1 与 0/1）；`.design/mds.ptr` 第六批 **33–36** 已切（33 词库页、34 音标轮、35 结果、36 全屏表；33 于 2026-11-15 实体化）；4 个待确认点见 `.design/phonetic-mode.md`。
 
 ### 混合模式（mixed，2026-10-29）
 
@@ -278,7 +299,7 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 - **写回**：`session.content_mode = "mixed"`（`REVIEW_MODES` 白名单已含 mixed，无 schema 迁移）；`review_log.mode` 记**每轮真实模式**；`buildCommitItems` 逐行 mode 优先；一词两轮仍由 `aggregateItemsByWord` 聚合成一张卡（两轮全对才 Good）。`judged` 按题（40）、`word_count` 按词（20），与组句一轮多空同构。
 - **界面**：顶部本轮徽标「本轮：释义 · 第 1 次」；输入框徽标语义化 `① 单词` / `② 释义` / `② 中文词`；单步轮只有一格 + 右侧「不用写单词」；进度显示「第 x / 40 轮」。`DictatingView` 的 `ask` 由 `roundAskOf` 传入，组件内不再自己推断。
 - **测试**：`mixed-mode.test.ts`（配对/间隔/降级/roundAskOf）、`timing`（secondStepOnlyDuration）、`results`（逐轮 mode/词级汇总/单步无 word 字段）、`review-service`（逐行 mode 写回、一词两轮聚合、judged=40 与 word_count=20）、`use-dictation`（准备/两段式与单步/两次批改不碰撞/书写）、`dictation-input`、`state`、`history-storage`、`ready-overlay`。改这些必须跑 `pnpm test:run` 与 `pnpm check`。
-- **设计**：`.design/mds.pen` 第七批 **37–40**（词库页·混合 / 默写第 1 次 / 默写第 2 次 / 结果页），截图 `.design/mixed-mode-*.png`，注解见 `.design/mds.md` §第七批。
+- **设计**：`.design/mds.ptr` 第七批 **37–40**（词库页·混合 / 默写第 1 次 / 默写第 2 次 / 结果页），截图 `.design/mixed-mode-*.png`，注解见 `.design/mds.md` §第七批；第八批 **41–44**（短句词库页 / 短句轮 / 短句结果 / 窄窗 747）见 §第八批。
 
 ### 词库 / 复习 / 学习档案（2026-10-18 更新）
 
@@ -311,3 +332,25 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 - 发音生成: 这个需要查一下有没有typescript实现的edge-tts库可以调，集成一个python程序太麻烦了，生成的音色配置要看下怎么弄，看要不要做进配置里
   - **现状（2026-10-17）**：已改为**项目内自研**：`src/lib/edge-tts-token.ts`（v2 `Sec-MS-GEC` 令牌）+ `src/lib/edge-tts-client.ts`（双端点、连接/回合超时、AbortSignal），不再依赖`edge-tts-universal`（它仍是 v1 令牌，且在握手失败时会让请求永不返回——正是「一直卡在生成音频中」的成因）。排障先跑`pnpm get:tts <word>`，详见`.implementation-report/2026-10-17-edge-tts-v2-and-hydration-crash.md`
 - AI释义生成: 其实这个难度倒不大，提供一个提示词，要求AI返回指定格式的json，一次性提交所有的单词，一次交互在json里返回所有单词对应的释义就行
+
+<!-- ask-init:begin workflow v1 -->
+## Ask workflow
+
+This project uses the `@andares/pi-toolkits` ask workflow. The steps run in this order:
+
+| step | entry | what it does |
+| --- | --- | --- |
+| discuss | `/ask` | read-only consult; `scratchpad` is the only write channel |
+| plan | `/ask-plan <topic>` | research, ask questions, write `specs/<slug>.md`, review it block by block in the browser, implement only after approval |
+| record | `record_change` | after the work: write the change record and one user-visible behaviour sentence |
+| review | `/ask-review` | optional third-party model cross-check (check + fix); it leaves no state behind |
+| accept | `/ask-uat` | cluster pending change records into acceptance items, verify them on the page, tick them off |
+
+Rules that are easy to break:
+
+- Change records live in `.agents/implementations/`; new ones carry the minute in the name (`YYYY-MM-DD_HHMM_slug.md`) and repeat it in the first line (`# YYYY-MM-DDTHH:MM±HH:MM — title`).
+- The acceptance ledger is `.agents/uat/ledger.jsonl`, append-only, committed to git, and belongs to the main checkout. Never edit it by hand: the tools and the page write it.
+- Acceptance items are created by clustering on the UAT side, never by an implementation session.
+- Plans go in `specs/`, memory in `.agents/memory/`, evidence in `.agents/implementations/`.
+
+<!-- ask-init:end workflow -->

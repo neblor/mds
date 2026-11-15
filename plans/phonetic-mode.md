@@ -64,7 +64,7 @@
 | 运行时缓存 | `cache-storage.ts` 的 `RuntimeCacheStorage`（definitions / chinese-words / sentences） | 加 `readPhonetics` / `writePhonetics` |
 | Electron 窗口 | `electron/main.mjs` + `window-options.mjs`；主窗口 `maximizable:false`、`fullscreenable:false`，无 preload | 用 `setWindowOpenHandler` 另开全屏窗口，不需要 preload |
 | 静态资产 | `public/` 随 `.output/public` 打包；`client:package` 排除的只有 `word-cache` | 音标表与词典放 `public/ipa/` |
-| 设计 | `.design/mds.pen` + `.design/mds.md`，Pencil 维护 | 新增音标模式屏与结果行设计，先评审再写 UI |
+| 设计 | `.design/mds.ptr` + `.design/mds.md`，paintress 维护 | 新增音标模式屏与结果行设计，先评审再写 UI |
 | 测试 | Vitest（node 环境）；`use-dictation.test.ts` 有完整流程 mock；`api.test.ts` 已覆盖 `playWithIntervals` | 纯逻辑 + provider/service + 关键流程都能单测 |
 
 **现有词库里的 `phonetic` 不能直接用**：它来自 ECDICT，是清洗不彻底的非标准写法。
@@ -622,7 +622,7 @@ export function createPhoneticWindowOptions() {
 ### 3.9 设计稿与文档
 
 - `.design/mds.md` 新增「音标模式」批次说明：6 项模式条、音标轮、结果行、全屏音标表入口；
-- `.design/mds.pen` 新增对应屏（Pencil 应用在线时编辑；`.pen` 加密，不手改）：
+- `.design/mds.ptr` 新增对应屏（paintress MCP / CLI 编辑；`.ptr` 是明文 JSON，结构化改动走工具）：
   - 主界面（选中音标、书写按钮置灰 + 信息条、音标表按钮）；
   - 音标轮（单词、答案 chips、音标池、键盘提示）：**chip 左 token/右喇叭**，
     池子 tile 建议同构；重音 tile/chip 无喇叭；喇叭播放态/失败置灰；
@@ -669,12 +669,12 @@ export function createPhoneticWindowOptions() {
 | --- | --- | --- | --- |
 | **P0 技术验证** | 复制音标表 → `public/ipa`；新路由；Electron `setWindowOpenHandler` 全屏窗口 + 任意键关闭 + 焦点返回；Britfone 样本转换/覆盖率跑通；**音素音频源/许可/原型**（已完成，见 `plans/phonetic-audio-research.md`） | 三个最大不确定项有结论；必要时改走 preload/换音源 | 0.5d |
 | **P1 数据与纯逻辑** | `phonetic-symbols/parse/pool/match`（含最大音节首归位）；`build-phonetics.mjs` + JSON + license；AI provider/service/route/`get:phonetics`；cache storage；**`build:phoneme-audio` + manifest/license + `phoneme-audio.ts` 播放器** | `pnpm build:phonetics`、`pnpm get:phonetics`、`pnpm build:phoneme-audio` 可用；单测绿 | 2d |
-| **P2 模式接入 + 设计** | 枚举/白名单/标签/滑块/书写置灰/Ready 文案/历史 field/review mode；Pencil 设计稿评审（含喇叭/左右分区） | 模式可见可持久化；设计定稿 | 1d |
+| **P2 模式接入 + 设计** | 枚举/白名单/标签/滑块/书写置灰/Ready 文案/历史 field/review mode；paintress 设计稿评审（含喇叭/左右分区） | 模式可见可持久化；设计定稿 | 1d |
 | **P3 轮次与界面** | 准备流程、`PhoneticRound`、计时、音标面板、键盘、提交/超时、结果行、写回；**PhonemeChip/池子/结果页喇叭 + 单词音频中止/恢复** | 能完整跑一场音标默写（不含全屏暂停） | 2d |
 | **P4 全屏与暂停** | 弹窗 hook、F1/入口、countdown clock、音频从当前遍继续、暂停耗时排除、焦点恢复；**全屏表打开时停止音素** | 看表暂停/恢复闭环；单测绿 | 1.25d |
 | **P5 验收与文档** | 手动 Electron/Web、`pnpm check`、设计文档、AGENTS/FUTURE/实施报告、音频许可清单 | 可交付 | 0.5d |
 
-合计约 **7–8 个工作日**（不含不可控的 Pencil 设计等待、Electron 窗口平台差异与音源替换）。
+合计约 **7–8 个工作日**（不含设计稿评审等待、Electron 窗口平台差异与音源替换）。
 
 ---
 
