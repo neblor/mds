@@ -40058,12 +40058,1870 @@
           ]
         }
       ]
+    },
+    {
+      "type": "frame",
+      "id": "q45aa",
+      "name": "45 · 设置（音色试听·空闲）",
+      "x": 5927,
+      "y": 1980,
+      "width": 1120,
+      "height": 820,
+      "layout": "none",
+      "clip": true,
+      "children": [
+        {
+          "id": "q45ab",
+          "type": "ref",
+          "ref": "zae8o",
+          "name": "Word Bank",
+          "x": 0,
+          "y": 0,
+          "descendants": {
+            "h5k1OP": {
+              "enabled": false
+            },
+            "sO7mD": {
+              "enabled": false
+            }
+          }
+        },
+        {
+          "type": "frame",
+          "id": "q45ac",
+          "x": 0,
+          "y": 0,
+          "name": "Backdrop",
+          "width": 1120,
+          "height": 820,
+          "fill": "$overlay",
+          "effect": {
+            "type": "background_blur",
+            "radius": 8
+          },
+          "layout": "vertical",
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "q45ad",
+              "name": "Settings Panel",
+              "width": 540,
+              "fill": "$surface",
+              "cornerRadius": 16,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#2E353B33",
+                "offset": {
+                  "x": 0,
+                  "y": 10
+                },
+                "blur": 30
+              },
+              "layout": "vertical",
+              "gap": 10,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "q45ae",
+                  "name": "Settings Head",
+                  "width": "fill_container",
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "q45af",
+                      "name": "Settings Title",
+                      "fill": "$text-primary",
+                      "content": "设置",
+                      "fontFamily": "$font-heading",
+                      "fontSize": 24,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "q45ag",
+                      "name": "Close Settings",
+                      "width": 22,
+                      "height": 22,
+                      "icon": "x",
+                      "library": "lucide",
+                      "fill": "$text-muted"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "q45ah",
+                  "name": "AI Card",
+                  "width": "fill_container",
+                  "fill": "$bg",
+                  "cornerRadius": 16,
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "q45ai",
+                      "name": "AI Title",
+                      "fill": "$text-primary",
+                      "content": "AI 释义服务（OpenAI 兼容）",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "q45aj",
+                      "name": "服务地址 Label",
+                      "fill": "$text-secondary",
+                      "content": "服务地址",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q45ak",
+                      "name": "服务地址 Input",
+                      "width": "fill_container",
+                      "fill": "$surface",
+                      "cornerRadius": 8,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "padding": [
+                        8,
+                        14
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "q45al",
+                          "name": "服务地址 Value",
+                          "fill": "$text-muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "https://api.example.com/v1",
+                          "fontFamily": "$font-body",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "q45am",
+                      "name": "API Key Label",
+                      "fill": "$text-secondary",
+                      "content": "API Key",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q45an",
+                      "name": "API Key Input",
+                      "width": "fill_container",
+                      "fill": "$surface",
+                      "cornerRadius": 8,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "padding": [
+                        8,
+                        14
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "q45ao",
+                          "name": "API Key Value",
+                          "fill": "$text-muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "sk-…",
+                          "fontFamily": "$font-body",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "q45ap",
+                      "name": "模型名 Label",
+                      "fill": "$text-secondary",
+                      "content": "模型名",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q45aq",
+                      "name": "模型名 Input",
+                      "width": "fill_container",
+                      "fill": "$surface",
+                      "cornerRadius": 8,
+                      "stroke": "$surface-inverse",
+                      "strokeWidth": 1,
+                      "padding": [
+                        8,
+                        14
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "q45ar",
+                          "name": "模型名 Value",
+                          "fill": "$text-primary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "gpt-4o-mini",
+                          "fontFamily": "$font-body",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "q45as",
+                      "name": "AI Hint",
+                      "fill": "$text-muted",
+                      "content": "不配置则无法使用「默写释义」和「中文词」功能",
+                      "fontFamily": "$font-body",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "q45at",
+                      "name": "生成级别 Label",
+                      "fill": "$text-secondary",
+                      "content": "生成级别",
+                      "fontFamily": "$font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q45au",
+                      "name": "生成级别 Select",
+                      "width": "fill_container",
+                      "padding": [
+                        8,
+                        14
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "fill": "$surface",
+                      "cornerRadius": 8,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "q45av",
+                          "name": "Level Value",
+                          "content": "初中（默认）",
+                          "fontFamily": "$font-body",
+                          "fontSize": 13,
+                          "fontWeight": "normal",
+                          "fill": "$text-primary"
+                        },
+                        {
+                          "type": "icon",
+                          "id": "q45aw",
+                          "name": "Select Chevron",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "chevron-down",
+                          "library": "lucide",
+                          "fill": "$text-secondary"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "q45ax",
+                      "name": "生成级别 Hint",
+                      "fill": "$text-muted",
+                      "content": "约束 AI 出题与释义的词汇、句法难度；默认初中",
+                      "fontFamily": "$font-body",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "q45ay",
+                  "name": "Voice Card",
+                  "width": "fill_container",
+                  "fill": "$bg",
+                  "cornerRadius": 16,
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "q45az",
+                      "name": "Voice Title",
+                      "fill": "$text-primary",
+                      "content": "语音音色（发音角色）",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q45bx",
+                      "name": "Voice Row",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "q45bt",
+                          "name": "Voice Select",
+                          "width": "fill_container",
+                          "height": 36,
+                          "fill": "$surface",
+                          "cornerRadius": 8,
+                          "stroke": "$surface-inverse",
+                          "strokeWidth": 1,
+                          "padding": [
+                            0,
+                            14
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "q45br",
+                              "name": "Voice Value",
+                              "fill": "$text-primary",
+                              "content": "Ava（女声，清晰自然）",
+                              "fontFamily": "$font-body",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "q45bs",
+                              "name": "Select Chevron",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "chevron-down",
+                              "library": "lucide",
+                              "fill": "$text-secondary"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "q45bw",
+                          "name": "Preview Button · 试听",
+                          "width": 92,
+                          "height": 36,
+                          "fill": "$surface",
+                          "cornerRadius": 8,
+                          "stroke": "$primary",
+                          "strokeWidth": 1.5,
+                          "gap": 6,
+                          "alignItems": "center",
+                          "justifyContent": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "q45bu",
+                              "name": "Preview Icon",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$primary"
+                            },
+                            {
+                              "type": "text",
+                              "id": "q45bv",
+                              "name": "Preview Label",
+                              "fill": "$primary",
+                              "content": "试听",
+                              "fontFamily": "$font-body",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "q45by",
+                      "name": "Voice Hint",
+                      "fill": "$text-muted",
+                      "content": "不同音色缓存互不冲突",
+                      "fontFamily": "$font-body",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "q45a4",
+                  "name": "Params Card",
+                  "width": "fill_container",
+                  "fill": "$bg",
+                  "cornerRadius": 16,
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "q45a5",
+                      "name": "Row Rate",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "q45a6",
+                          "name": "Rate Left",
+                          "layout": "vertical",
+                          "gap": 4,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "q45a7",
+                              "name": "Rate Label",
+                              "fill": "$text-primary",
+                              "content": "默写速度倍率调整",
+                              "fontFamily": "$font-body",
+                              "fontSize": 15,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "q45a8",
+                              "name": "Rate Hint",
+                              "fill": "$text-muted",
+                              "content": "在计算出的每轮时长上再乘以此系数",
+                              "fontFamily": "$font-body",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "q45a9",
+                          "name": "Multiplier Stepper",
+                          "fill": "$surface",
+                          "cornerRadius": 999,
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "color": "#2E353B1F",
+                            "offset": {
+                              "x": 0,
+                              "y": 1
+                            },
+                            "blur": 3
+                          },
+                          "gap": 12,
+                          "padding": [
+                            6,
+                            12
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "q45ba",
+                              "name": "Minus",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "minus",
+                              "library": "lucide",
+                              "fill": "$text-secondary"
+                            },
+                            {
+                              "type": "text",
+                              "id": "q45bb",
+                              "name": "Multiplier Value",
+                              "fill": "$text-primary",
+                              "content": "1.0",
+                              "fontFamily": "$font-data",
+                              "fontSize": 18,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "q45bc",
+                              "name": "Plus",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "plus",
+                              "library": "lucide",
+                              "fill": "$text-secondary"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q45bd",
+                      "name": "Row Countdown",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "q45be",
+                          "name": "Countdown Left",
+                          "layout": "vertical",
+                          "gap": 4,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "q45bf",
+                              "name": "Countdown Label",
+                              "fill": "$text-primary",
+                              "content": "每轮倒计时显示数字",
+                              "fontFamily": "$font-body",
+                              "fontSize": 15,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "q45bg",
+                              "name": "Countdown Hint",
+                              "fill": "$text-muted",
+                              "content": "精确到 0.1 秒，关闭后只显示进度条",
+                              "fontFamily": "$font-body",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "q45bh",
+                          "name": "Toggle On",
+                          "width": 44,
+                          "height": 24,
+                          "fill": "$primary",
+                          "cornerRadius": 999,
+                          "padding": 2,
+                          "justifyContent": "end",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "q45bi",
+                              "name": "Knob",
+                              "width": 20,
+                              "height": 20,
+                              "fill": "#FFFFFF",
+                              "cornerRadius": 999
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q45bj",
+                      "name": "Row Retention",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "q45bk",
+                          "name": "Review Left",
+                          "layout": "vertical",
+                          "gap": 4,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "q45bl",
+                              "name": "Review Label",
+                              "fill": "$text-primary",
+                              "content": "复习期望保持率",
+                              "fontFamily": "$font-body",
+                              "fontSize": 15,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "q45bm",
+                              "name": "Review Hint",
+                              "fill": "$text-muted",
+                              "content": "越高复习越频繁；默认 0.9",
+                              "fontFamily": "$font-body",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "q45bn",
+                          "name": "Retention Stepper",
+                          "fill": "$surface",
+                          "cornerRadius": 999,
+                          "effect": {
+                            "type": "shadow",
+                            "shadowType": "outer",
+                            "color": "#2E353B1F",
+                            "offset": {
+                              "x": 0,
+                              "y": 1
+                            },
+                            "blur": 3
+                          },
+                          "gap": 12,
+                          "padding": [
+                            6,
+                            12
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "q45bo",
+                              "name": "Minus",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "minus",
+                              "library": "lucide",
+                              "fill": "$text-secondary"
+                            },
+                            {
+                              "type": "text",
+                              "id": "q45bp",
+                              "name": "Retention Value",
+                              "fill": "$text-primary",
+                              "content": "0.9",
+                              "fontFamily": "$font-data",
+                              "fontSize": 18,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "q45bq",
+                              "name": "Plus",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "plus",
+                              "library": "lucide",
+                              "fill": "$text-secondary"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "q45df",
+      "name": "46 · 音色试听（四态）",
+      "x": 7147,
+      "y": 1980,
+      "width": 1200,
+      "height": 468,
+      "layout": "vertical",
+      "gap": 20,
+      "padding": 24,
+      "fill": "$page-bg",
+      "children": [
+        {
+          "type": "text",
+          "id": "q45bz",
+          "name": "46 Title",
+          "fill": "$text-primary",
+          "content": "46 · 音色试听：四个状态（方案 A，按钮 92×36 与下拉等高）",
+          "fontFamily": "$font-body",
+          "fontSize": 16,
+          "fontWeight": "600",
+          "textGrowth": "fixed-width",
+          "width": "fill_container"
+        },
+        {
+          "type": "frame",
+          "id": "q45co",
+          "name": "Row Idle Busy",
+          "width": "fill_container",
+          "gap": 24,
+          "alignItems": "start",
+          "children": [
+            {
+              "type": "frame",
+              "id": "q45cb",
+              "name": "State Cell",
+              "width": 540,
+              "layout": "vertical",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "q45ca",
+                  "name": "State Caption",
+                  "fill": "$text-secondary",
+                  "content": "① 空闲：描边按钮，提示行仍是缓存说明",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container"
+                },
+                {
+                  "type": "frame",
+                  "id": "q45b9",
+                  "name": "Voice Card · 空闲",
+                  "width": 540,
+                  "fill": "$bg",
+                  "cornerRadius": 16,
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "q45b0",
+                      "name": "Voice Title",
+                      "fill": "$text-primary",
+                      "content": "语音音色（发音角色）",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q45b7",
+                      "name": "Voice Row",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "q45b3",
+                          "name": "Voice Select",
+                          "width": "fill_container",
+                          "height": 36,
+                          "fill": "$surface",
+                          "cornerRadius": 8,
+                          "stroke": "$surface-inverse",
+                          "strokeWidth": 1,
+                          "padding": [
+                            0,
+                            14
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "q45b1",
+                              "name": "Voice Value",
+                              "fill": "$text-primary",
+                              "content": "Ava（女声，清晰自然）",
+                              "fontFamily": "$font-body",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "q45b2",
+                              "name": "Select Chevron",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "chevron-down",
+                              "library": "lucide",
+                              "fill": "$text-secondary"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "q45b6",
+                          "name": "Preview Button · 试听",
+                          "width": 92,
+                          "height": 36,
+                          "fill": "$surface",
+                          "cornerRadius": 8,
+                          "stroke": "$primary",
+                          "strokeWidth": 1.5,
+                          "gap": 6,
+                          "alignItems": "center",
+                          "justifyContent": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "q45b4",
+                              "name": "Preview Icon",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$primary"
+                            },
+                            {
+                              "type": "text",
+                              "id": "q45b5",
+                              "name": "Preview Label",
+                              "fill": "$primary",
+                              "content": "试听",
+                              "fontFamily": "$font-body",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "q45b8",
+                      "name": "Voice Hint",
+                      "fill": "$text-muted",
+                      "content": "不同音色缓存互不冲突",
+                      "fontFamily": "$font-body",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "q45cn",
+              "name": "State Cell",
+              "width": 540,
+              "layout": "vertical",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "q45cm",
+                  "name": "State Caption",
+                  "fill": "$text-secondary",
+                  "content": "② 合成中：首次试听 1–3 秒；按钮降级为灰、不可再点（有请求超时兜底）",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container"
+                },
+                {
+                  "type": "frame",
+                  "id": "q45cl",
+                  "name": "Voice Card · 合成中",
+                  "width": 540,
+                  "fill": "$bg",
+                  "cornerRadius": 16,
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "q45cc",
+                      "name": "Voice Title",
+                      "fill": "$text-primary",
+                      "content": "语音音色（发音角色）",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q45cj",
+                      "name": "Voice Row",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "q45cf",
+                          "name": "Voice Select",
+                          "width": "fill_container",
+                          "height": 36,
+                          "fill": "$surface",
+                          "cornerRadius": 8,
+                          "stroke": "$surface-inverse",
+                          "strokeWidth": 1,
+                          "padding": [
+                            0,
+                            14
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "q45cd",
+                              "name": "Voice Value",
+                              "fill": "$text-primary",
+                              "content": "Ava（女声，清晰自然）",
+                              "fontFamily": "$font-body",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "q45ce",
+                              "name": "Select Chevron",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "chevron-down",
+                              "library": "lucide",
+                              "fill": "$text-secondary"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "q45ci",
+                          "name": "Preview Button · 合成中",
+                          "width": 92,
+                          "height": 36,
+                          "fill": "$bg",
+                          "cornerRadius": 8,
+                          "stroke": "$surface-inverse",
+                          "strokeWidth": 1,
+                          "gap": 6,
+                          "alignItems": "center",
+                          "justifyContent": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "q45cg",
+                              "name": "Preview Icon",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "loader-circle",
+                              "library": "lucide",
+                              "fill": "$text-muted"
+                            },
+                            {
+                              "type": "text",
+                              "id": "q45ch",
+                              "name": "Preview Label",
+                              "fill": "$text-muted",
+                              "content": "合成中",
+                              "fontFamily": "$font-body",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "q45ck",
+                      "name": "Voice Hint",
+                      "fill": "$text-muted",
+                      "content": "正在生成试听音频…",
+                      "fontFamily": "$font-body",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "q45dd",
+          "name": "Row Playing Error",
+          "width": "fill_container",
+          "gap": 24,
+          "alignItems": "start",
+          "children": [
+            {
+              "type": "frame",
+              "id": "q45c0",
+              "name": "State Cell",
+              "width": 540,
+              "layout": "vertical",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "q45cz",
+                  "name": "State Caption",
+                  "fill": "$text-secondary",
+                  "content": "③ 播放中：按钮变「停止」；提示行改成这句原文（单行，播完恢复）",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container"
+                },
+                {
+                  "type": "frame",
+                  "id": "q45cy",
+                  "name": "Voice Card · 播放中",
+                  "width": 540,
+                  "fill": "$bg",
+                  "cornerRadius": 16,
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "q45cp",
+                      "name": "Voice Title",
+                      "fill": "$text-primary",
+                      "content": "语音音色（发音角色）",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q45cw",
+                      "name": "Voice Row",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "q45cs",
+                          "name": "Voice Select",
+                          "width": "fill_container",
+                          "height": 36,
+                          "fill": "$surface",
+                          "cornerRadius": 8,
+                          "stroke": "$surface-inverse",
+                          "strokeWidth": 1,
+                          "padding": [
+                            0,
+                            14
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "q45cq",
+                              "name": "Voice Value",
+                              "fill": "$text-primary",
+                              "content": "Ava（女声，清晰自然）",
+                              "fontFamily": "$font-body",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "q45cr",
+                              "name": "Select Chevron",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "chevron-down",
+                              "library": "lucide",
+                              "fill": "$text-secondary"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "q45cv",
+                          "name": "Preview Button · 停止",
+                          "width": 92,
+                          "height": 36,
+                          "fill": "$brand-tint",
+                          "cornerRadius": 8,
+                          "stroke": "$primary",
+                          "strokeWidth": 1.5,
+                          "gap": 6,
+                          "alignItems": "center",
+                          "justifyContent": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "q45ct",
+                              "name": "Preview Icon",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "square",
+                              "library": "lucide",
+                              "fill": "$primary"
+                            },
+                            {
+                              "type": "text",
+                              "id": "q45cu",
+                              "name": "Preview Label",
+                              "fill": "$primary",
+                              "content": "停止",
+                              "fontFamily": "$font-body",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "q45cx",
+                      "name": "Voice Hint",
+                      "fill": "$text-secondary",
+                      "content": "Everything that has a beginning, has an end.",
+                      "fontFamily": "$font-body",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "q45dc",
+              "name": "State Cell",
+              "width": 540,
+              "layout": "vertical",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "q45db",
+                  "name": "State Caption",
+                  "fill": "$text-secondary",
+                  "content": "④ 失败：按钮回到「试听」，提示行转红色说明；不写负缓存，再点即重试",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container"
+                },
+                {
+                  "type": "frame",
+                  "id": "q45da",
+                  "name": "Voice Card · 失败",
+                  "width": 540,
+                  "fill": "$bg",
+                  "cornerRadius": 16,
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "q45c1",
+                      "name": "Voice Title",
+                      "fill": "$text-primary",
+                      "content": "语音音色（发音角色）",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q45c8",
+                      "name": "Voice Row",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "q45c4",
+                          "name": "Voice Select",
+                          "width": "fill_container",
+                          "height": 36,
+                          "fill": "$surface",
+                          "cornerRadius": 8,
+                          "stroke": "$surface-inverse",
+                          "strokeWidth": 1,
+                          "padding": [
+                            0,
+                            14
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "q45c2",
+                              "name": "Voice Value",
+                              "fill": "$text-primary",
+                              "content": "Ava（女声，清晰自然）",
+                              "fontFamily": "$font-body",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "q45c3",
+                              "name": "Select Chevron",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "chevron-down",
+                              "library": "lucide",
+                              "fill": "$text-secondary"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "q45c7",
+                          "name": "Preview Button · 失败后重试",
+                          "width": 92,
+                          "height": 36,
+                          "fill": "$surface",
+                          "cornerRadius": 8,
+                          "stroke": "$primary",
+                          "strokeWidth": 1.5,
+                          "gap": 6,
+                          "alignItems": "center",
+                          "justifyContent": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "q45c5",
+                              "name": "Preview Icon",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$primary"
+                            },
+                            {
+                              "type": "text",
+                              "id": "q45c6",
+                              "name": "Preview Label",
+                              "fill": "$primary",
+                              "content": "试听",
+                              "fontFamily": "$font-body",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "q45c9",
+                      "name": "Voice Hint",
+                      "fill": "$error",
+                      "content": "试听失败：语音服务没有响应，请再试一次",
+                      "fontFamily": "$font-body",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "q45de",
+          "name": "46 Note",
+          "fill": "$text-muted",
+          "content": "切换音色 = 立刻停播并放弃在途请求，回到 ①；关闭设置面板 = 停止播放并中止请求。提示行高度恒定（12px 单行），任何状态都不顶动下拉。",
+          "fontFamily": "$font-body",
+          "fontSize": 12,
+          "fontWeight": "normal",
+          "textGrowth": "fixed-width",
+          "width": "fill_container"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "q45e4",
+      "name": "47 · 音色卡片布局方案（A/B/C）",
+      "width": 1200,
+      "height": 700,
+      "layout": "vertical",
+      "gap": 18,
+      "padding": 24,
+      "fill": "$page-bg",
+      "children": [
+        {
+          "type": "text",
+          "id": "q45eq",
+          "name": "47 Title",
+          "fill": "$text-primary",
+          "content": "47 · 试听按钮放哪：三个方案的卡片高度代价",
+          "fontFamily": "$font-body",
+          "fontSize": 16,
+          "fontWeight": "600",
+          "textGrowth": "fixed-width",
+          "width": "fill_container"
+        },
+        {
+          "type": "frame",
+          "id": "q45eu",
+          "name": "Variant Row",
+          "width": "fill_container",
+          "gap": 24,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "q45es",
+              "name": "Variant Cell",
+              "width": 540,
+              "layout": "vertical",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "q45er",
+                  "name": "Variant Caption",
+                  "fill": "$text-secondary",
+                  "content": "A（推荐）· 下拉 + 试听同行：选择与动作是一组，卡片高度 +0",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container"
+                },
+                {
+                  "type": "frame",
+                  "id": "q45ep",
+                  "name": "Voice Card · 方案 A",
+                  "width": 540,
+                  "fill": "$bg",
+                  "cornerRadius": 16,
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "q45eg",
+                      "name": "Voice Title",
+                      "fill": "$text-primary",
+                      "content": "语音音色（发音角色）",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q45en",
+                      "name": "Voice Row",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "q45ej",
+                          "name": "Voice Select",
+                          "width": "fill_container",
+                          "height": 36,
+                          "fill": "$surface",
+                          "cornerRadius": 8,
+                          "stroke": "$surface-inverse",
+                          "strokeWidth": 1,
+                          "padding": [
+                            0,
+                            14
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "q45eh",
+                              "name": "Voice Value",
+                              "fill": "$text-primary",
+                              "content": "Ava（女声，清晰自然）",
+                              "fontFamily": "$font-body",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "q45ei",
+                              "name": "Select Chevron",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "chevron-down",
+                              "library": "lucide",
+                              "fill": "$text-secondary"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "q45em",
+                          "name": "Preview Button · 试听",
+                          "width": 92,
+                          "height": 36,
+                          "fill": "$surface",
+                          "cornerRadius": 8,
+                          "stroke": "$primary",
+                          "strokeWidth": 1.5,
+                          "gap": 6,
+                          "alignItems": "center",
+                          "justifyContent": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "q45ek",
+                              "name": "Preview Icon",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$primary"
+                            },
+                            {
+                              "type": "text",
+                              "id": "q45el",
+                              "name": "Preview Label",
+                              "fill": "$primary",
+                              "content": "试听",
+                              "fontFamily": "$font-body",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "q45eo",
+                      "name": "Voice Hint",
+                      "fill": "$text-muted",
+                      "content": "不同音色缓存互不冲突",
+                      "fontFamily": "$font-body",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "q45et",
+              "name": "Variant Note",
+              "fill": "$text-muted",
+              "content": "下拉收窄到 376（卡片内宽 472 − 按钮 92 − 间距 8），最长的「Christopher（男声，浑厚）」仍放得下。\n面板总高不变，820 窗口不需要内部滚动。",
+              "fontFamily": "$font-body",
+              "fontSize": 13,
+              "fontWeight": "normal",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "lineHeight": 1.6
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "q45ey",
+          "name": "Variant Row",
+          "width": "fill_container",
+          "gap": 24,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "q45ew",
+              "name": "Variant Cell",
+              "width": 540,
+              "layout": "vertical",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "q45ev",
+                  "name": "Variant Caption",
+                  "fill": "$text-secondary",
+                  "content": "B（可用）· 下拉整行，按钮挪到提示行右侧：高度 +0，但离选择远",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container"
+                },
+                {
+                  "type": "frame",
+                  "id": "q45dp",
+                  "name": "Voice Card · 方案 B",
+                  "width": 540,
+                  "fill": "$bg",
+                  "cornerRadius": 16,
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "q45dg",
+                      "name": "Voice Title",
+                      "fill": "$text-primary",
+                      "content": "语音音色（发音角色）",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q45dt",
+                      "name": "Voice Select Row",
+                      "width": "fill_container",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "q45ds",
+                          "name": "Voice Select",
+                          "width": "fill_container",
+                          "height": 36,
+                          "fill": "$surface",
+                          "cornerRadius": 8,
+                          "stroke": "$surface-inverse",
+                          "strokeWidth": 1,
+                          "padding": [
+                            0,
+                            14
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "q45dq",
+                              "name": "Voice Value",
+                              "fill": "$text-primary",
+                              "content": "Ava（女声，清晰自然）",
+                              "fontFamily": "$font-body",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "q45dr",
+                              "name": "Select Chevron",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "chevron-down",
+                              "library": "lucide",
+                              "fill": "$text-secondary"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q45dy",
+                      "name": "Hint Row",
+                      "width": "fill_container",
+                      "gap": 12,
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "q45du",
+                          "name": "Voice Hint",
+                          "fill": "$text-muted",
+                          "content": "不同音色缓存互不冲突",
+                          "fontFamily": "$font-body",
+                          "fontSize": 12,
+                          "fontWeight": "normal",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "q45dx",
+                          "name": "Preview Button · 试听",
+                          "width": 92,
+                          "height": 36,
+                          "fill": "$surface",
+                          "cornerRadius": 8,
+                          "stroke": "$primary",
+                          "strokeWidth": 1.5,
+                          "gap": 6,
+                          "alignItems": "center",
+                          "justifyContent": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "q45dv",
+                              "name": "Preview Icon",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "volume-2",
+                              "library": "lucide",
+                              "fill": "$primary"
+                            },
+                            {
+                              "type": "text",
+                              "id": "q45dw",
+                              "name": "Preview Label",
+                              "fill": "$primary",
+                              "content": "试听",
+                              "fontFamily": "$font-body",
+                              "fontSize": 13,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "q45ex",
+              "name": "Variant Note",
+              "fill": "$text-muted",
+              "content": "视觉上像「说明 + 操作」，试听与下拉的归属感稍弱；下拉能吃满 472。\n若更在意下拉的呼吸感，选 B。",
+              "fontFamily": "$font-body",
+              "fontSize": 13,
+              "fontWeight": "normal",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "lineHeight": 1.6
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "q45e2",
+          "name": "Variant Row",
+          "width": "fill_container",
+          "gap": 24,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "q45e0",
+              "name": "Variant Cell",
+              "width": 540,
+              "layout": "vertical",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "q45ez",
+                  "name": "Variant Caption",
+                  "fill": "$text-secondary",
+                  "content": "C（不推荐）· 按钮独占一行：卡片 +44，面板超过 820 的 90% 上限",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "normal",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container"
+                },
+                {
+                  "type": "frame",
+                  "id": "q45d8",
+                  "name": "Voice Card · 方案 C",
+                  "width": 540,
+                  "fill": "$bg",
+                  "cornerRadius": 16,
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "q45dz",
+                      "name": "Voice Title",
+                      "fill": "$text-primary",
+                      "content": "语音音色（发音角色）",
+                      "fontFamily": "$font-body",
+                      "fontSize": 15,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q45ec",
+                      "name": "Voice Select Row",
+                      "width": "fill_container",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "q45eb",
+                          "name": "Voice Select",
+                          "width": "fill_container",
+                          "height": 36,
+                          "fill": "$surface",
+                          "cornerRadius": 8,
+                          "stroke": "$surface-inverse",
+                          "strokeWidth": 1,
+                          "padding": [
+                            0,
+                            14
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "q45d9",
+                              "name": "Voice Value",
+                              "fill": "$text-primary",
+                              "content": "Ava（女声，清晰自然）",
+                              "fontFamily": "$font-body",
+                              "fontSize": 14,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "q45ea",
+                              "name": "Select Chevron",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "chevron-down",
+                              "library": "lucide",
+                              "fill": "$text-secondary"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q45ef",
+                      "name": "Preview Button Wide",
+                      "width": "fill_container",
+                      "height": 36,
+                      "fill": "$surface",
+                      "cornerRadius": 8,
+                      "stroke": "$primary",
+                      "strokeWidth": 1.5,
+                      "gap": 6,
+                      "alignItems": "center",
+                      "justifyContent": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "q45ed",
+                          "name": "Preview Icon",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "volume-2",
+                          "library": "lucide",
+                          "fill": "$primary"
+                        },
+                        {
+                          "type": "text",
+                          "id": "q45ee",
+                          "name": "Preview Label",
+                          "fill": "$primary",
+                          "content": "试听这段语音",
+                          "fontFamily": "$font-body",
+                          "fontSize": 13,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "q45d7",
+                      "name": "Voice Hint",
+                      "fill": "$text-muted",
+                      "content": "不同音色缓存互不冲突",
+                      "fontFamily": "$font-body",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "q45e1",
+              "name": "Variant Note",
+              "fill": "$text-muted",
+              "content": "实现口径面板 ~840 → 884，远超 max-h-[90%]（738），必须内部滚动 —— 与「设置一屏可看全」的既定约束冲突。",
+              "fontFamily": "$font-body",
+              "fontSize": 13,
+              "fontWeight": "normal",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "lineHeight": 1.6
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "q45e3",
+          "name": "47 Note",
+          "fill": "$text-muted",
+          "content": "三案共用同一套状态与文案，差别只在按钮位置；A / B 都不改变卡片高度。",
+          "fontFamily": "$font-body",
+          "fontSize": 12,
+          "fontWeight": "normal",
+          "textGrowth": "fixed-width",
+          "width": "fill_container"
+        }
+      ],
+      "x": 5927,
+      "y": 2900
     }
   ],
   "x-paintress": {
     "spec": "1",
-    "generator": "paintress/0.8.0",
-    "updated_at": "2026-11-15T10:22:59.337Z",
+    "generator": "paintress/0.8.1",
+    "updated_at": "2026-11-23T16:38:46.648Z",
     "created_at": "2026-11-15T10:00:23.298Z"
   }
 }

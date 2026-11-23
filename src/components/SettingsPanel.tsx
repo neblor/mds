@@ -1,5 +1,5 @@
-import { For } from "solid-js";
-import { X, Minus, Plus } from "lucide-solid";
+import { For, Show } from "solid-js";
+import { X, Minus, Plus, LoaderCircle, Square, Volume2 } from "~/lib/icons";
 import type { AppSettings } from "~/lib/settings";
 import {
 	clampMultiplier,
@@ -8,6 +8,8 @@ import {
 } from "~/lib/settings";
 import { CONTENT_LEVEL_OPTIONS, parseContentLevel } from "~/lib/content-level";
 import { isSettingsBackdropClick } from "~/lib/settings-panel";
+import { createVoicePreviewPlayer } from "~/lib/voice-preview-player";
+import { previewButtonLabel, previewHintText } from "~/lib/voice-preview";
 
 interface Props {
 	settings: AppSettings;
@@ -26,6 +28,9 @@ interface Props {
 export default function SettingsPanel(props: Props) {
 	const set = (patch: Partial<AppSettings>) =>
 		props.onChange({ ...props.settings, ...patch });
+
+	/** 音色试听：状态编排在 voice-preview-player，驱动层默认接 /api/tts 与播放引擎 */
+	const preview = createVoicePreviewPlayer(() => props.settings.voice);
 
 	return (
 		<div
@@ -105,21 +110,80 @@ export default function SettingsPanel(props: Props) {
 						</p>
 					</div>
 
-					{/* 音色选择 */}
+					{/* 音色选择 + 试听 */}
 					<div class="flex flex-col gap-2.5 rounded-2xl bg-canvas p-[18px]">
 						<p class="text-[15px] font-semibold text-ink">
 							语音音色（发音角色）
 						</p>
-						<select
-							class="w-full rounded-lg border border-soft bg-surface px-3.5 py-3 text-sm text-ink outline-none focus:border-brand"
-							value={props.settings.voice}
-							onChange={(e) => set({ voice: e.currentTarget.value })}
+						<div class="flex items-stretch gap-2">
+							<select
+								class="min-w-0 flex-1 rounded-lg border border-soft bg-surface px-3.5 py-3 text-sm text-ink outline-none focus:border-brand"
+								value={props.settings.voice}
+								onChange={(e) => {
+									preview.voiceChanged(e.currentTarget.value);
+									set({ voice: e.currentTarget.value });
+								}}
+							>
+								<For each={VOICES}>
+									{(v) => <option value={v.id}>{v.label}</option>}
+								</For>
+							</select>
+							<button
+								type="button"
+								class="flex w-[92px] shrink-0 items-center justify-center gap-1.5 rounded-lg border-[1.5px] text-[13px] font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+								classList={{
+									"border-brand bg-surface text-brand hover:bg-brand/10":
+										preview.phase() === "idle" || preview.phase() === "error",
+									"cursor-default border-soft bg-canvas text-ink-faint":
+										preview.phase() === "synthesizing",
+									"border-brand bg-brand/10 text-brand":
+										preview.phase() === "playing",
+								}}
+								// 合成中用 aria-disabled 而不是 disabled：原生 disabled 会让按钮失焦，
+								// 合成完焦点回不来，键盘用户就停不下播了（键盘铁律）
+								aria-disabled={preview.phase() === "synthesizing"}
+								onClick={() => preview.toggle()}
+								aria-label={previewButtonLabel(preview.phase())}
+								title={
+									preview.phase() === "synthesizing"
+										? "正在合成试听音频"
+										: preview.phase() === "playing"
+											? "停止试听"
+											: "用当前音色随机念一句台词"
+								}
+							>
+								<Show
+									when={preview.phase() === "playing"}
+									fallback={
+										<Show
+											when={preview.phase() === "synthesizing"}
+											fallback={<Volume2 class="h-4 w-4" />}
+										>
+											<LoaderCircle class="h-4 w-4 animate-spin" />
+										</Show>
+									}
+								>
+									<Square class="h-4 w-4" />
+								</Show>
+								{previewButtonLabel(preview.phase())}
+							</button>
+						</div>
+						<p
+							class="truncate text-xs"
+							classList={{
+								"text-err": preview.phase() === "error",
+								"text-ink-soft": preview.phase() === "playing",
+								"text-ink-faint":
+									preview.phase() === "idle" ||
+									preview.phase() === "synthesizing",
+							}}
 						>
-							<For each={VOICES}>
-								{(v) => <option value={v.id}>{v.label}</option>}
-							</For>
-						</select>
-						<p class="text-xs text-ink-faint">不同音色缓存互不冲突</p>
+							{previewHintText(
+								preview.phase(),
+								preview.sentence(),
+								preview.error(),
+							)}
+						</p>
 					</div>
 
 					{/* 参数卡：三个旋钮三行并存（合并是为了不超出窗口高度） */}

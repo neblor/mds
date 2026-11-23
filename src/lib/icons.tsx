@@ -27,6 +27,8 @@ export { default as Type } from "lucide-solid/icons/type";
 export { default as BookOpen } from "lucide-solid/icons/book-open";
 export { default as Languages } from "lucide-solid/icons/languages";
 export { default as Loader2 } from "lucide-solid/icons/loader-2";
+export { default as LoaderCircle } from "lucide-solid/icons/loader-circle";
+export { default as Square } from "lucide-solid/icons/square";
 export { default as History } from "lucide-solid/icons/history";
 export { default as ChevronRight } from "lucide-solid/icons/chevron-right";
 export { default as RotateCcw } from "lucide-solid/icons/rotate-ccw";
