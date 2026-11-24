@@ -121,8 +121,8 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 | `pnpm client:package <target>` | 统一打包入口；`target`必填且只能是`major`/`minor`/`patch`/`test`/显式`x.y.z`，依次执行`check` → Windows NSIS 安装包打包 → 包内容校验 → 清理临时产物 |
 | `pnpm client:package:wsl <target>` | WSL/受限环境打包入口；目标参数同`client:package`，自动准备 wine 32 位运行件（下载解包 i386 deb 到`.tmp/wine32`）并在用户挂载命名空间内执行完全相同的流程，产物一致 |
 | `pnpm client:verify` | 打包清理前使用`win-unpacked`校验安装包 EXE 的 MZ 头、必要运行文件、包内`package.json`版本与期望一致，以及包内无`node_modules`和`word-cache` |
-| `pnpm release <bump\|x.y.z>` | **正式发版唯一入口**：预检 → `client:package` 构建 → 归档 `release-out/v<version>/` → 提交 + annotated tag → 原子 push → GitHub Release（草稿 → 上传 → 核对 → 公开） |
-| `pnpm release:publish v<version> [--execute] [--use-draft-notes]` | 从已有归档续跑发布（不重建）；默认只读预览，`--execute` 才写 git／推送／上传；`--dry-run` 与 `--execute` 互斥 |
+| `pnpm release <bump\|x.y.z>` | **正式发版唯一入口**：预检 → `client:package` 构建 → 归档 `release-out/v<version>/` → 提交 + annotated tag → 原子 push → GitHub Release（草稿 → 上传 → 核对 → 公开） → 收尾清理本机旧归档（只留最新一版，但绝不删未公开归档） |
+| `pnpm release:publish v<version> [--execute]` | 从已有归档续跑发布（不重建）；默认只读预览，`--execute` 才写 git／推送／上传；`--dry-run` 与 `--execute` 互斥 |
 | `pnpm electron:start` | `pnpm client:start`的兼容别名 |
 | `pnpm electron:build <bump_type>` | `pnpm client:package <bump_type>`的兼容别名，同样必须传入参数 |
 
@@ -138,15 +138,20 @@ pnpm web:start -- --host 0.0.0.0 --port 3000 --cache-dir /data/mds/word-cache
 ### 发版（`pnpm release`）
 
 - `pnpm release <major|minor|patch|X.Y.Z>` 是**唯一发版入口**：预检（分支 `master`、`origin` 为 `neblor/mds`、工作树只允许 `package.json` 的版本差异与本次发布说明、目标 tag 不存在、`gh` 已登录）
-  → `client:package <目标版本>` 构建 → 归档 `release-out/v<version>/` → 提交版本文件 + annotated tag → `git push --atomic` → Release 草稿 → 上传 → 逐个核对 → 公开。
+  → `client:package <目标版本>` 构建 → 归档 `release-out/v<version>/` → 提交版本文件 + annotated tag → `git push --atomic` → Release 草稿 → 上传 → 逐个核对 → 公开 → **收尾清本机旧归档**。
 - **发版动作由崔总执行**，Agent 只准备与验证；不要在 Agent 会话里自行 push / tag / 上传。
 - `--dry-run` 只打印计划；`--no-publish` 停在归档阶段；`pnpm release:publish v<version> --execute` 从归档续跑（幂等，不重建）。
 - **一旦进入提交阶段就不回滚**：回滚版本文件会让工作树落后于 HEAD，重跑升版校验必然失败。失败只保留现场并重跑续跑指令，**不要删 tag、不要删 Release 草稿、不要 force push**。
-- 发布说明写在 `docs/release-notes/<version>.md`；缺文件时按 `git log` 生成草稿并停下等人工改写，重跑不会重新构建；确认草稿可用时加 `--use-draft-notes`。
+- **一键到底，中间不停**：发布说明优先用 `docs/release-notes/<version>.md`；没写就按 `git log`（上一 tag..HEAD）**自动生成并直接发布**，不停下来等人工改写 —— 想改文字就事后补 `docs/release-notes/<version>.md` 再发下一版（旧的 `--use-draft-notes` 已移除，传了报未知参数）。
 - 发布期间不要动工作树（提交后的工作树校验会因此中断）。
-- `release-out/` 保留在本机（约 100 MB/版，已忽略不入库），需要时手动清理。
+- `release-out/` 每版约 100 MB（已忽略不入库）。**发布成功后脚本自动只保留最近 1 个归档**（`RELEASE_ARCHIVE_RETENTION`），旧版本产物不在本机堆积；`dist/electron` 由 `client:package` 清成只剩本次安装包。清理有几条铁律，改它必须遵守（`src/lib/release-prune.ts`）：
+  - 只在 **Release 已公开且资产逐个核对通过** 之后删 —— 任何提前失败/`--no-publish`/停在草稿说明的路径都不删，归档是 `release:publish --execute` 的唯一续跑依据；
+  - 更旧的归档只有远端状态为 **public** 才删，草稿/查不到/gh 不可用（unknown）一律保留并在日志里说明原因；
+  - 版本号比本次更新的、以及本次发布的，永远保留；
+  - `.staging-<tag>-<pid>` 只清已退出进程留下的（PID 判活，宁可保守）；
+  - 清理失败只告警，**不得**把已完成的发布变成失败。
 - 目前**没有代码签名**：Release 说明里要如实标注 Windows 会提示「未知发布者」。
-- 发布判定逻辑必须落在 `src/lib/release-plan.ts` / `src/lib/release-artifacts.ts`（纯函数 + 单测），`scripts/release.mjs` 只做 I/O；改这两处必须跑 `pnpm test:run`。
+- 发布判定逻辑必须落在 `src/lib/release-plan.ts` / `src/lib/release-artifacts.ts` / `src/lib/release-prune.ts`（纯函数 + 单测），`scripts/release.mjs` 只做 I/O；改这些必须跑 `pnpm test:run`。
 
 ## 项目输出形式
 

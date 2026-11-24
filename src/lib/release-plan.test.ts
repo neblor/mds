@@ -19,7 +19,6 @@ const args = (overrides: Partial<ReleaseArgs> = {}): ReleaseArgs => ({
 	dryRun: false,
 	noPublish: false,
 	skipBuild: false,
-	useDraftNotes: false,
 	...overrides,
 });
 
@@ -43,7 +42,6 @@ const plan = (
 		args: ReleaseArgs;
 		repository: RepositoryState;
 		archiveValid: boolean;
-		notesSourceAvailable: boolean;
 	}> = {},
 ) =>
 	createReleasePlan({
@@ -52,7 +50,6 @@ const plan = (
 		args: args(),
 		repository: state(),
 		archiveValid: false,
-		notesSourceAvailable: true,
 		...overrides,
 	});
 
@@ -69,7 +66,6 @@ describe("release args", () => {
 			"--dry-run",
 			"--no-publish",
 			"--skip-build",
-			"--use-draft-notes",
 			"--notes",
 			"notes.md",
 		]);
@@ -78,11 +74,19 @@ describe("release args", () => {
 			dryRun: true,
 			noPublish: true,
 			skipBuild: true,
-			useDraftNotes: true,
 			notesFile: "notes.md",
 		});
 		expect(parseReleaseArgs(["1.2.3", "--notes=notes.md"]).notesFile).toBe(
 			"notes.md",
+		);
+	});
+
+	it("发布说明不再需要人工确认：--use-draft-notes 已被移除（传入即未知参数）", () => {
+		expect(() => parseReleaseArgs(["patch", "--use-draft-notes"])).toThrow(
+			"未知参数",
+		);
+		expect(() => parsePublishArgs(["1.2.3", "--use-draft-notes"])).toThrow(
+			"未知参数",
 		);
 	});
 
@@ -103,11 +107,10 @@ describe("release args", () => {
 
 describe("publish args", () => {
 	it("解析版本与执行/预览开关", () => {
-		expect(parsePublishArgs(["v1.2.3", "--execute", "--use-draft-notes"])).toEqual({
+		expect(parsePublishArgs(["v1.2.3", "--execute"])).toEqual({
 			version: "1.2.3",
 			execute: true,
 			dryRun: false,
-			allowDraftNotes: true,
 		});
 		expect(parsePublishArgs(["1.2.3", "--dry-run"])).toMatchObject({
 			execute: false,
@@ -142,7 +145,6 @@ describe("release plan", () => {
 		expect(result.blockers).toEqual([]);
 		expect(result.buildNeeded).toBe(true);
 		expect(result.skipCommit).toBe(false);
-		expect(result.notesNeedsReview).toBe(false);
 	});
 
 	it("分支 / 远端 / 暂存区不对时阻断", () => {
@@ -221,10 +223,6 @@ describe("release plan", () => {
 		const skipped = plan({ args: args({ skipBuild: true }) });
 		expect(skipped.buildNeeded).toBe(false);
 		expect(skipped.warnings.join()).toContain("核不到包内内容");
-	});
-
-	it("没有手写发布说明时标记需要人工过目", () => {
-		expect(plan({ notesSourceAvailable: false }).notesNeedsReview).toBe(true);
 	});
 
 	it("目标版本等于当前版本时只打 tag，并提示", () => {

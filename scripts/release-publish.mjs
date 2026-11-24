@@ -13,10 +13,8 @@ import { publishRelease } from "./release.mjs";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 try {
-	const { version, execute, allowDraftNotes } = parsePublishArgs(
-		process.argv.slice(2),
-	);
-	publishRelease({ root: projectRoot, version, execute, allowDraftNotes });
+	const { version, execute } = parsePublishArgs(process.argv.slice(2));
+	publishRelease({ root: projectRoot, version, execute });
 } catch (error) {
 	console.error(`✗ ${error instanceof Error ? error.message : String(error)}`);
 	console.error(

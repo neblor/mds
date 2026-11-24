@@ -6,9 +6,12 @@
  *   P0 预检  分支 / origin / 工作树 / tag / gh 登录
  *   P1 构建  pnpm client:package <目标版本>（check → electron-builder → verify → cleanup）
  *   P2 归档  release-out/v<版本>/：安装包 + SHA256SUMS.txt + RELEASE-NOTES.md + release.json
+ *            说明优先用手写 `docs/release-notes/<版本>.md`，没有就按 git log 自动生成 ——
+ *            一条指令到底，不停下等人工改写。
  *   P3 提交  git commit "chore: release v<版本>" + annotated tag
  *   P4 推送  git push --atomic origin HEAD:refs/heads/master refs/tags/v<版本>
  *   P5 发布  gh release 草稿 → 上传 → 逐个核对 → 公开
+ *   P6 收尾  只保留最新一版本机归档（绝不删未公开的）
  *
  * 失败语义：P1/P2 失败时 client:package 自己恢复 package.json，不留痕；
  * **P3 之后一律不回滚**（回滚会让工作树落后于 HEAD，重跑升版校验必然失败），
@@ -42,6 +45,13 @@ import {
 	validateManifest,
 } from "../src/lib/release-artifacts.ts";
 import {
+	RELEASE_TAG_PATTERN,
+	parseStagingName,
+	planArchivePrune,
+	tagVersion,
+} from "../src/lib/release-prune.ts";
+import {
+	RELEASE_ARCHIVE_ROOT,
 	RELEASE_BRANCH,
 	RELEASE_MANIFEST_FILE,
 	RELEASE_NOTES_FILE,
@@ -362,6 +372,137 @@ export function removeStaleStaging(root, tag) {
 	}
 }
 
+/** 扫描所有 `.staging-<tag>-<pid>`：只清已退出进程留下的，活跃发布与异常命名一律不动。 */
+export function removeAllStaleStaging(root) {
+	const archiveRoot = join(root, RELEASE_ARCHIVE_ROOT);
+	if (!existsSync(archiveRoot)) return [];
+	const removed = [];
+	for (const entry of readdirSync(archiveRoot, { withFileTypes: true })) {
+		if (!entry.isDirectory()) continue;
+		const parsed = parseStagingName(entry.name);
+		if (!parsed || processIsAlive(parsed.pid)) continue;
+		rmSync(join(archiveRoot, entry.name), { recursive: true, force: true });
+		removed.push(entry.name);
+	}
+	return removed;
+}
+
+/** 归档目录的字节数（只用于汇报释放量，读不到按 0 算，不影响删除判定）。 */
+function directoryBytes(dir) {
+	let total = 0;
+	let entries;
+	try {
+		entries = readdirSync(dir, { withFileTypes: true });
+	} catch {
+		return 0;
+	}
+	for (const entry of entries) {
+		const path = join(dir, entry.name);
+		try {
+			if (entry.isDirectory()) total += directoryBytes(path);
+			else if (entry.isFile()) total += statSync(path).size;
+		} catch {
+			// 单个条目读不到不影响整体清理
+		}
+	}
+	return total;
+}
+
+/** 列出 `release-out/v<X.Y.Z>/` 归档；其它文件、暂存目录不参与清理判定。 */
+function listArchiveEntries(root) {
+	const archiveRoot = join(root, RELEASE_ARCHIVE_ROOT);
+	if (!existsSync(archiveRoot)) return [];
+	const entries = [];
+	for (const item of readdirSync(archiveRoot, { withFileTypes: true })) {
+		if (!item.isDirectory() || !RELEASE_TAG_PATTERN.test(item.name)) continue;
+		// 版本号只认目录名（与 releaseArchiveDir 的命名规则一致）；清单内容由发布前的归档校验负责，
+		// 这里不拿清单去猜版本，避免一个损坏的清单把一个真归档按错误版本归类。
+		entries.push({
+			tag: item.name,
+			version: tagVersion(item.name),
+			bytes: directoryBytes(join(archiveRoot, item.name)),
+		});
+	}
+	return entries;
+}
+
+/** `tag -> 远端 Release 状态`；查询失败全部降为 unknown（保守保留）。 */
+function remoteReleaseStates(root, tags) {
+	const states = {};
+	for (const tag of tags) states[tag] = "unknown";
+	if (tags.length === 0) return states;
+	try {
+		const byTag = new Map();
+		for (let page = 1; ; page += 1) {
+			const list = ghJson(root, [
+				"api",
+				`repos/${RELEASE_REPO}/releases?per_page=100&page=${page}`,
+			]);
+			if (!Array.isArray(list)) throw new Error("gh api 未返回 Release 列表");
+			for (const item of list) {
+				if (typeof item?.tag_name === "string") byTag.set(item.tag_name, item);
+			}
+			if (list.length < 100) break;
+		}
+		for (const tag of tags) {
+			const found = byTag.get(tag);
+			if (!found) states[tag] = "missing";
+			else states[tag] = found.draft ? "draft" : "public";
+		}
+	} catch {
+		// gh 不可用/断网：全部按未知处理，宁可占 100 MB 也不删掉唯一续跑依据
+	}
+	return states;
+}
+
+/**
+ * 发版成功后的本机产物清理：`release-out/` 只留最近 1 个归档（`RELEASE_ARCHIVE_RETENTION`），
+ * 同时扫掉已退出进程留下的 `.staging-*`。
+ *
+ * 只在发布**已完成**（Release 已公开且资产核对通过）后调用；任何早退路径都不会删归档。
+ * `remoteStates` 仅供测试注入，省略时走 `gh api` 实时查询。
+ */
+export function pruneReleaseArchives({
+	root,
+	currentTag,
+	remoteStates,
+	log = console.log,
+}) {
+	const stagingRemoved = removeAllStaleStaging(root);
+	const entries = listArchiveEntries(root);
+	if (entries.length === 0) {
+		if (stagingRemoved.length > 0) {
+			log(`清理中断遗留的暂存目录 ${stagingRemoved.length} 个`);
+		}
+		return { removed: [], kept: [], stagingRemoved };
+	}
+
+	const states =
+		remoteStates ?? remoteReleaseStates(root, entries.map((entry) => entry.tag));
+	const plan = planArchivePrune({ currentTag, entries, remoteStates: states });
+
+	const removed = [];
+	for (const entry of plan.remove) {
+		const dir = join(root, RELEASE_ARCHIVE_ROOT, entry.tag);
+		rmSync(dir, { recursive: true, force: true });
+		if (!existsSync(dir)) removed.push(entry.tag);
+	}
+
+	if (removed.length > 0) {
+		log(
+			`清理本机产物：删除 ${removed.length} 个已发布旧归档（${formatBytes(plan.freedBytes)}），仅保留 ${currentTag}`,
+		);
+	}
+	for (const item of plan.keep) {
+		if (item.entry.tag === currentTag) continue;
+		log(`  · 保留 ${item.entry.tag}（${formatBytes(item.entry.bytes)}）：${item.reason}`);
+	}
+	if (stagingRemoved.length > 0) {
+		log(`  · 清理中断遗留的暂存目录 ${stagingRemoved.length} 个`);
+	}
+	return { removed, kept: plan.keep, stagingRemoved };
+}
+
 function moveFile(source, destination) {
 	try {
 		renameSync(source, destination);
@@ -396,7 +537,7 @@ function writeReleaseNotes({ root, plan, dir, args, log }) {
 		}),
 	);
 	log(
-		`⚠ 没有 ${plan.notesPath}，已按 ${previousTag ? `${previousTag}..HEAD` : "全部提交"} 生成草稿：${plan.archiveDir}/${RELEASE_NOTES_FILE}`,
+		`没有 ${plan.notesPath}，已按 ${previousTag ? `${previousTag}..HEAD` : "全部提交"} 自动生成发布说明：${plan.archiveDir}/${RELEASE_NOTES_FILE}`,
 	);
 	return "draft";
 }
@@ -543,7 +684,7 @@ export function buildAndArchive({ root, plan, args, log }) {
 
 function describeNotes(root, plan, args) {
 	const picked = pickNotesSource(root, plan.notesPath, args);
-	if (!picked) return `${plan.notesPath} 不存在 → 从 git log 生成草稿`;
+	if (!picked) return `${plan.notesPath} 不存在 → 按 git log 自动生成（不再停下等改写）`;
 	if (picked.source === "custom") return `${args.notesFile}（--notes）`;
 	return `${plan.notesPath}（手写）`;
 }
@@ -818,19 +959,10 @@ function executePublishSteps({ root, archive, plan, log }) {
 	return publishGitHubRelease({ root, archive, tag, log });
 }
 
-function assertReleaseNotesReady(archive, version, allowDraftNotes) {
-	if (archive.manifest.notesSource === "draft" && !allowDraftNotes) {
-		throw new Error(
-			`发布说明还是自动草稿（${releaseArchiveDir(version)}/${RELEASE_NOTES_FILE}）；改写后保存到 ${releaseNotesPath(version)}，或用 --use-draft-notes 明确接受草稿`,
-		);
-	}
-}
-
 export function publishRelease({
 	root = projectRoot,
 	version,
 	execute = false,
-	allowDraftNotes = false,
 	log = console.log,
 } = {}) {
 	let archive = readArchive(root, version);
@@ -841,8 +973,6 @@ export function publishRelease({
 	}
 	// 续跑也不能把旧归档标成 latest；与主入口共用「不得低于当前版本」规则。
 	createPackagePlan(readPackageJson(root).version, version);
-	// 预览不写文件；执行时先过仓库闸门，再吸收后来补写的手写说明。
-	if (!execute) assertReleaseNotesReady(archive, version, allowDraftNotes);
 	const tag = releaseTag(version);
 	const repository = observeRepository(root, tag);
 	const plan = createPublishPlan({ version, repository });
@@ -850,8 +980,17 @@ export function publishRelease({
 	if (plan.blockers.length > 0) throw new Error(plan.blockers.join("；"));
 	if (!execute) return plan;
 	archive = refreshNotes({ root, version, archive, args: {}, log });
-	assertReleaseNotesReady(archive, version, allowDraftNotes);
-	return executePublish({ root, archive, plan, log });
+	const published = executePublish({ root, archive, plan, log });
+	// 只有发布真正完成（Release 已公开且资产核对通过）才清本机旧归档：
+	// 提前失败时归档是 pnpm release:publish <tag> --execute 的唯一续跑依据，不能删。
+	// 清理是收尾动作，失败只告警 —— 发布已经完成，不能因为磁盘问题让指令看起来失败。
+	try {
+		pruneReleaseArchives({ root, currentTag: tag, log });
+	} catch (error) {
+		const reason = error instanceof Error ? error.message : String(error);
+		log(`⚠ 清理本机旧归档失败（发布已完成，可手动删）：${reason}`);
+	}
+	return published;
 }
 
 /* ────────────────────────────── 主流程 ────────────────────────────── */
@@ -865,10 +1004,9 @@ export function runRelease({ root = projectRoot, argv = process.argv.slice(2), l
 
 	assertGitHubCli(root);
 
-	// 无论是否 dry-run，都在构建前验证显式/手写说明存在、可读且非空。
-	const notesSourceAvailable = Boolean(
-		readNotesSource(root, releaseNotesPath(targetVersion), args),
-	);
+	// 构建前先校验显式/手写说明存在、可读且非空；没有就让 git log 自动生成并直接发布，
+	// 不再停下来等人工改写（一条指令到底）。
+	readNotesSource(root, releaseNotesPath(targetVersion), args);
 	const existingArchive = readArchive(root, targetVersion);
 	const repository = observeRepository(root, tag);
 	const plan = createReleasePlan({
@@ -877,7 +1015,6 @@ export function runRelease({ root = projectRoot, argv = process.argv.slice(2), l
 		args,
 		repository,
 		archiveValid: Boolean(existingArchive),
-		notesSourceAvailable,
 	});
 
 	printReleasePlan({ root, plan, args, repository, log });
@@ -892,20 +1029,7 @@ export function runRelease({ root = projectRoot, argv = process.argv.slice(2), l
 		existingArchive ??
 		buildAndArchive({ root, plan, args, log });
 
-	const current = refreshNotes({ root, version: targetVersion, archive, args, log });
-
-	if (current.manifest.notesSource === "draft" && !args.useDraftNotes) {
-		log(
-			[
-				"",
-				"⏸  停在归档阶段：发布说明还是自动草稿，等你过一眼。",
-				`  草稿：${plan.archiveDir}/${RELEASE_NOTES_FILE}`,
-				`  改写后保存到 ${plan.notesPath} 再重跑 pnpm release ${plan.targetVersion}（安装包已归档，不会重新构建）`,
-				`  或确认草稿可用：pnpm release ${plan.targetVersion} --use-draft-notes`,
-			].join("\n"),
-		);
-		return plan;
-	}
+	refreshNotes({ root, version: targetVersion, archive, args, log });
 
 	if (args.noPublish) {
 		log(
@@ -924,7 +1048,6 @@ export function runRelease({ root = projectRoot, argv = process.argv.slice(2), l
 		root,
 		version: targetVersion,
 		execute: true,
-		allowDraftNotes: args.useDraftNotes,
 		log,
 	});
 }

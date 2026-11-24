@@ -773,15 +773,19 @@ Windows 会提示「未知发布者」。需要购买证书（OV/EV），暂无�
 
 交叉打包依赖 wine32 与本地缓存，搬到 Actions 要另配一套；与本地脚本并行维护两条链，暂不做。
 
-### 5. 旧版本归档清理
+### 5. 旧版本归档清理（**已完成 2026-11-24**）
 
 `release-out/` 每版约 100 MB（安装包 + 校验和 + 说明 + 清单），硬杀后还可能有 `.staging-<tag>-<pid>/`。
-将来加 `pnpm clean:releases --keep N`，同时支持按年龄清理陈旧暂存目录；清理前仍须沿用活跃 PID 判断，
-不能为了腾空间误删正在进行的发布（PID 复用时宁可保守保留）。
+**已于 2026-11-24 并入 `pnpm release` 收尾**：发布成功后自动只保留最近 1 个归档
+（`RELEASE_ARCHIVE_RETENTION`），旧归档只有远端 Release 已公开才删，草稿/缺失/gh 不可用一律保留；
+`.staging-*` 按 PID 判活只清已退出进程的（判定在 `src/lib/release-prune.ts`，`scripts/release.mjs` 只做 I/O）。
+未另设 `pnpm clean:releases --keep N` 独立命令 —— 保留份数固定为 1，要改就改那个常量。
+实施记录：`.agents/implementations/2026-11-24_0308_release-archive-retention.md`。
 
 ### 6. 发布说明半自动化
 
-现在手写优先、`git log` 草稿兜底；将来可按 commit 类型或 `.implementation-report/` 归类生成，减少改写成本。
+现在手写优先、`git log` 草稿兜底，且**草稿直接发布不再拦**（2026-11-24 去掉人工确认环节）。
+将来可按 commit 类型或 `.agents/implementations/` 归类生成，提高草稿质量。
 
 ### 7. 一次性待复核：首次真发后的端到端核对（**已完成 2026-11-15**）
 

@@ -22,22 +22,15 @@ const ORIGIN_PATTERN =
 	/^(?:git@github\.com:|https:\/\/github\.com\/)neblor\/mds(?:\.git)?$/i;
 
 const RELEASE_USAGE =
-	"用法：pnpm release <major|minor|patch|X.Y.Z> [--dry-run] [--no-publish] [--skip-build] [--use-draft-notes] [--notes <文件>]";
+	"用法：pnpm release <major|minor|patch|X.Y.Z> [--dry-run] [--no-publish] [--skip-build] [--notes <文件>]";
 
-const RELEASE_FLAGS = [
-	"--dry-run",
-	"--no-publish",
-	"--skip-build",
-	"--use-draft-notes",
-] as const;
+const RELEASE_FLAGS = ["--dry-run", "--no-publish", "--skip-build"] as const;
 
 export interface ReleaseArgs {
 	target: PackageTarget;
 	dryRun: boolean;
 	noPublish: boolean;
 	skipBuild: boolean;
-	/** 草稿发布说明未改写就用它（默认停在草稿让人类过一眼） */
-	useDraftNotes: boolean;
 	notesFile?: string;
 }
 
@@ -86,7 +79,6 @@ export function parseReleaseArgs(argv: readonly string[]): ReleaseArgs {
 		dryRun: flags.has("--dry-run"),
 		noPublish: flags.has("--no-publish"),
 		skipBuild: flags.has("--skip-build"),
-		useDraftNotes: flags.has("--use-draft-notes"),
 		notesFile,
 	};
 }
@@ -95,11 +87,10 @@ export interface PublishArgs {
 	version: string;
 	execute: boolean;
 	dryRun: boolean;
-	allowDraftNotes: boolean;
 }
 
 const PUBLISH_USAGE =
-	"用法：pnpm release:publish <vX.Y.Z|X.Y.Z> [--execute|--dry-run] [--use-draft-notes]";
+	"用法：pnpm release:publish <vX.Y.Z|X.Y.Z> [--execute|--dry-run]";
 
 /** 续跑入口参数；`--dry-run` 与 `--execute` 必须互斥，避免预览命令产生真实发布。 */
 export function parsePublishArgs(argv: readonly string[]): PublishArgs {
@@ -107,7 +98,7 @@ export function parsePublishArgs(argv: readonly string[]): PublishArgs {
 	let version: string | undefined;
 	for (const arg of argv) {
 		if (arg.startsWith("--")) {
-			if (!["--execute", "--dry-run", "--use-draft-notes"].includes(arg)) {
+			if (!["--execute", "--dry-run"].includes(arg)) {
 				throw new Error(`未知参数：${arg}\n${PUBLISH_USAGE}`);
 			}
 			if (flags.has(arg)) throw new Error(`重复参数：${arg}`);
@@ -125,7 +116,6 @@ export function parsePublishArgs(argv: readonly string[]): PublishArgs {
 		version,
 		execute: flags.has("--execute"),
 		dryRun: flags.has("--dry-run"),
-		allowDraftNotes: flags.has("--use-draft-notes"),
 	};
 }
 
@@ -234,8 +224,7 @@ export interface ReleasePlan {
 	archiveDir: string;
 	artifactName: string;
 	notesPath: string;
-	/** 归档里的发布说明是自动草稿，需要人类改写（或用 --use-draft-notes 明确接受） */
-	notesNeedsReview: boolean;
+	/** 归档里的发布说明来源（handwritten / custom / 自动草稿）；草稿也直接发布，不再等人工改写 */
 	buildNeeded: boolean;
 	skipCommit: boolean;
 	warnings: string[];
@@ -249,8 +238,6 @@ export interface ReleasePlanInput {
 	repository: RepositoryState;
 	/** `release-out/v<版本>/` 已有可用归档（校验通过） */
 	archiveValid: boolean;
-	/** 已有确定来源的发布说明（手写文件或 --notes） */
-	notesSourceAvailable: boolean;
 }
 
 export function createReleasePlan(input: ReleasePlanInput): ReleasePlan {
@@ -285,7 +272,6 @@ export function createReleasePlan(input: ReleasePlanInput): ReleasePlan {
 		archiveDir: releaseArchiveDir(targetVersion),
 		artifactName: releaseArtifactName(targetVersion),
 		notesPath,
-		notesNeedsReview: !input.notesSourceAvailable,
 		buildNeeded: !(input.archiveValid || args.skipBuild),
 		skipCommit: gate.skipCommit,
 		warnings,

@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
 	buildAndArchive,
+	pruneReleaseArchives,
 	removeStaleStaging,
 } from "../../scripts/release.mjs";
 
@@ -127,4 +128,107 @@ describe("release archive staging", () => {
 			}
 		}
 	}, 15000);
+});
+
+describe("release archive retention", () => {
+	function makeArchive(root: string, version: string, bytes = 8): string {
+		const dir = join(root, "release-out", `v${version}`);
+		mkdirSync(dir, { recursive: true });
+		writeFileSync(
+			join(dir, "release.json"),
+			JSON.stringify({ schema: 1, version, artifact: { name: `mds-${version}-setup.exe` } }),
+		);
+		writeFileSync(join(dir, `mds-${version}-setup.exe`), Buffer.alloc(bytes, 1));
+		return dir;
+	}
+
+	it("只删已公开的旧归档，草稿/缺失的留作续跑依据", () => {
+		const root = makeRoot();
+		const published = makeArchive(root, "1.0.0");
+		const draft = makeArchive(root, "1.0.1");
+		const current = makeArchive(root, "1.1.0");
+
+		const result = pruneReleaseArchives({
+			root,
+			currentTag: "v1.1.0",
+			remoteStates: {
+				"v1.0.0": "public",
+				"v1.0.1": "draft",
+				"v1.1.0": "public",
+			},
+			log: () => {},
+		});
+
+		expect(result.removed).toEqual(["v1.0.0"]);
+		expect(existsSync(published)).toBe(false);
+		expect(existsSync(draft)).toBe(true);
+		expect(existsSync(current)).toBe(true);
+		expect(result.kept.map((item) => item.entry.tag)).toEqual([
+			"v1.1.0",
+			"v1.0.1",
+		]);
+	});
+
+	it("全部已公开时只留最新一版，释放字节数按目录实际大小汇总", () => {
+		const root = makeRoot();
+		makeArchive(root, "1.0.0", 16);
+		makeArchive(root, "1.0.1", 32);
+		const current = makeArchive(root, "1.1.0", 64);
+
+		const result = pruneReleaseArchives({
+			root,
+			currentTag: "v1.1.0",
+			remoteStates: {
+				"v1.0.0": "public",
+				"v1.0.1": "public",
+				"v1.1.0": "public",
+			},
+			log: () => {},
+		});
+
+		expect(result.removed.sort()).toEqual(["v1.0.0", "v1.0.1"]);
+		expect(readdirSync(join(root, "release-out"))).toEqual(["v1.1.0"]);
+		expect(existsSync(current)).toBe(true);
+	});
+
+	it("不碰非归档目录，并顺带清理已退出进程的暂存目录", async () => {
+		const root = makeRoot();
+		makeArchive(root, "1.1.0");
+		const archiveRoot = join(root, "release-out");
+		mkdirSync(join(archiveRoot, "notes"), { recursive: true });
+		const exited = spawn(process.execPath, ["-e", ""], { stdio: "ignore" });
+		await once(exited, "exit");
+		const staleStaging = join(archiveRoot, `.staging-v1.0.0-${exited.pid}`);
+		mkdirSync(staleStaging, { recursive: true });
+
+		const result = pruneReleaseArchives({
+			root,
+			currentTag: "v1.1.0",
+			remoteStates: { "v1.1.0": "public" },
+			log: () => {},
+		});
+
+		expect(result.stagingRemoved).toEqual([`.staging-v1.0.0-${exited.pid}`]);
+		expect(existsSync(staleStaging)).toBe(false);
+		expect(existsSync(join(archiveRoot, "notes"))).toBe(true);
+	}, 15000);
+
+	it("远端状态未知时什么都不删", () => {
+		const root = makeRoot();
+		makeArchive(root, "1.0.0");
+		makeArchive(root, "1.1.0");
+
+		const result = pruneReleaseArchives({
+			root,
+			currentTag: "v1.1.0",
+			remoteStates: {},
+			log: () => {},
+		});
+
+		expect(result.removed).toEqual([]);
+		expect(readdirSync(join(root, "release-out")).sort()).toEqual([
+			"v1.0.0",
+			"v1.1.0",
+		]);
+	});
 });
